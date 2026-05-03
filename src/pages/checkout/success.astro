@@ -52,15 +52,20 @@ import Footer from '@/components/layout/Footer.astro'
 
   const params = new URLSearchParams(window.location.search)
   const sessionId = params.get('session_id')
+  const orderId   = params.get('order_id')
 
-  if (sessionId) {
+  if (sessionId || orderId) {
     // Clear cart after successful checkout
     clearCart()
     appliedCoupon.set(null)
     appliedGiftCard.set(null)
 
+    const statusUrl = sessionId
+      ? `/api/order-status?session_id=${sessionId}`
+      : `/api/order-status?order_id=${orderId}`
+
     // Fetch order details
-    fetch(`/api/order-status?session_id=${sessionId}`)
+    fetch(statusUrl)
       .then(r => r.json())
       .then(data => {
         if (!data.order) return

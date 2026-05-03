@@ -252,6 +252,7 @@ export interface CartItem {
   sku: string
   price: number
   quantity: number
+  stockQuantity: number
   image: string | null
   type: ProductType
   weightG: number

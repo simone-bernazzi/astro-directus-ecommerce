@@ -54,6 +54,14 @@
 
 ---
 
+## [0.5.0] — 2026-05-03
+
+### Fix
+- `[FIX]` **BUG-002** `CartSummary.astro` — aggiunto `stockQuantity` a `CartItem`; passato da `AddToCart` al momento dell'aggiunta; pulsante `+` disabilitato in CartSummary se `quantity >= stockQuantity`; il check server-side in `api/checkout.ts` rimane come ultima difesa
+- `[FIX]` **BUG-003** `api/checkout.ts` — quando `totalCents < 50` (ordine gratuito per coupon + gift card) l'ordine viene creato direttamente su Directus (status `paid`, stock decrementato, saldo gift card aggiornato) senza passare per Stripe; redirect a `/checkout/success?order_id=<id>`; `api/order-status.ts` ora accetta anche `order_id` oltre a `session_id`; `checkout/success.astro` gestisce entrambi i parametri
+
+---
+
 ## [0.4.0] — 2026-05-03
 
 ### Aggiunto

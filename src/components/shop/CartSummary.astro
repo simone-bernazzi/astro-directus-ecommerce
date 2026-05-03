@@ -112,7 +112,7 @@
           <div class="flex items-center gap-2 mt-1">
             <button data-variant="${item.variantId}" data-delta="-1" class="qty-btn w-6 h-6 border border-[var(--color-border)] rounded text-sm hover:bg-[var(--color-surface)]">−</button>
             <span class="text-sm w-6 text-center">${item.quantity}</span>
-            <button data-variant="${item.variantId}" data-delta="1" class="qty-btn w-6 h-6 border border-[var(--color-border)] rounded text-sm hover:bg-[var(--color-surface)]">+</button>
+            <button data-variant="${item.variantId}" data-delta="1" data-stock="${item.stockQuantity ?? 9999}" class="qty-btn w-6 h-6 border border-[var(--color-border)] rounded text-sm hover:bg-[var(--color-surface)] disabled:opacity-40 disabled:cursor-not-allowed" ${item.quantity >= (item.stockQuantity ?? 9999) ? 'disabled' : ''}>+</button>
           </div>
         </div>
         <div class="text-right flex-shrink-0">
@@ -125,11 +125,16 @@
 
     list.querySelectorAll<HTMLButtonElement>('.qty-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
+        if (btn.disabled) return
         const { updateQuantity } = await import('@/stores/cart')
         const variantId = btn.dataset.variant!
         const delta = parseInt(btn.dataset.delta!)
+        const stock = parseInt(btn.dataset.stock ?? '9999')
         const item = cartItems.get().find(i => i.variantId === variantId)
-        if (item) updateQuantity(variantId, item.quantity + delta)
+        if (!item) return
+        const newQty = item.quantity + delta
+        if (delta > 0 && newQty > stock) return
+        updateQuantity(variantId, newQty)
       })
     })
 

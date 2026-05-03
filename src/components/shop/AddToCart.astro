@@ -90,6 +90,7 @@ const imageUrl = getDirectusImageUrl(firstImageId, { width: 120, quality: 70 })
       sku: selectedVariant.sku as string,
       price: itemPrice,
       quantity: qty,
+      stockQuantity: selectedVariant.stock_quantity as number ?? 9999,
       image: widget.dataset.image || null,
       type: widget.dataset.productType as 'physical' | 'digital',
       weightG: parseInt(widget.dataset.weight ?? '0'),
