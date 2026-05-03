@@ -79,6 +79,8 @@ const imageUrl = getDirectusImageUrl(firstImageId, { width: 120, quality: 70 })
     const qty = parseInt(qtyInput.value) || 1
     const { addToCart } = await import('@/stores/cart')
 
+    const itemPrice = (selectedVariant.price_override as number | null) ?? parseFloat(widget.dataset.basePrice!)
+
     addToCart({
       variantId: selectedVariant.id as string,
       productId: widget.dataset.productId!,
@@ -86,11 +88,20 @@ const imageUrl = getDirectusImageUrl(firstImageId, { width: 120, quality: 70 })
       productName: widget.dataset.productName!,
       variantName: selectedVariant.name as string,
       sku: selectedVariant.sku as string,
-      price: (selectedVariant.price_override as number | null) ?? parseFloat(widget.dataset.basePrice!),
+      price: itemPrice,
       quantity: qty,
       image: widget.dataset.image || null,
       type: widget.dataset.productType as 'physical' | 'digital',
       weightG: parseInt(widget.dataset.weight ?? '0'),
+    })
+
+    const { trackAddToCart } = await import('@/lib/analytics')
+    trackAddToCart({
+      item_id: widget.dataset.productId!,
+      item_name: widget.dataset.productName!,
+      item_variant: selectedVariant.name as string,
+      price: itemPrice,
+      quantity: qty,
     })
 
     if (msgEl) {

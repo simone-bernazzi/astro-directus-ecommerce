@@ -82,6 +82,22 @@ import Footer from '@/components/layout/Footer.astro'
 
         if (totalEl) totalEl.textContent = `€${(order.total as number).toFixed(2)}`
 
+        // GA4 purchase event
+        import('@/lib/analytics').then(({ trackPurchase }) => {
+          trackPurchase(
+            order.stripe_session_id ?? sessionId ?? '',
+            order.total as number,
+            (order.order_items ?? []).map((item: Record<string, unknown>, i: number) => ({
+              item_id: String(item.product_id ?? ''),
+              item_name: String(item.product_name ?? ''),
+              price: item.unit_price as number,
+              quantity: item.quantity as number,
+              index: i,
+            })),
+            order.coupon_code ?? undefined,
+          )
+        })
+
         // Digital downloads
         const digitalItems = (order.order_items ?? []).filter((i: Record<string, unknown>) => i.download_token)
         if (digitalItems.length > 0) {

@@ -152,6 +152,19 @@ const related = product.category_id
   <Footer />
 </Base>
 
+<script define:vars={{
+  analyticsItem: {
+    item_id: String(product.id),
+    item_name: product.name,
+    item_category: product.category_id?.name ?? '',
+    price: activeVariants[0]?.price_override ?? product.base_price,
+    quantity: 1,
+  }
+}}>
+  import { trackViewItem } from '@/lib/analytics'
+  trackViewItem(analyticsItem)
+</script>
+
 <script>
   // Gallery thumbnails
   document.querySelectorAll<HTMLButtonElement>('.gallery-thumb').forEach(btn => {

@@ -6,9 +6,11 @@ import Badge from '@/components/ui/Badge.astro'
 
 interface Props {
   product: Product
+  listName?: string
+  index?: number
 }
 
-const { product } = Astro.props
+const { product, listName = 'negozio', index = 0 } = Astro.props
 const firstImageFile = product.images?.[0]?.directus_files_id
 const firstImageId = typeof firstImageFile === 'string' ? firstImageFile : firstImageFile?.id ?? null
 const imageUrl = getDirectusImageUrl(firstImageId, { width: 600, quality: 80 })
@@ -20,7 +22,12 @@ const isNew = product.featured
 ---
 
 <article class="group relative rounded-lg overflow-hidden border border-[var(--color-border)] hover:shadow-md transition-shadow duration-300 bg-[var(--color-bg)]">
-  <a href={`/negozio/${product.slug}`} class="block">
+  <a
+    href={`/negozio/${product.slug}`}
+    class="block"
+    data-analytics-item={JSON.stringify({ item_id: String(product.id), item_name: product.name, item_category: product.category_id?.name ?? '', price, index })}
+    data-analytics-list={listName}
+  >
     <div class="aspect-square bg-[var(--color-surface)] overflow-hidden">
       {imageUrl
         ? <img
@@ -58,3 +65,14 @@ const isNew = product.featured
     </div>
   </a>
 </article>
+
+<script>
+  import { trackSelectItem } from '@/lib/analytics'
+  document.querySelectorAll<HTMLAnchorElement>('[data-analytics-item]').forEach(link => {
+    link.addEventListener('click', () => {
+      try {
+        trackSelectItem(link.dataset.analyticsList ?? 'negozio', JSON.parse(link.dataset.analyticsItem!))
+      } catch { /* ignore */ }
+    })
+  })
+</script>

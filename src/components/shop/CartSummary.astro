@@ -135,8 +135,14 @@
 
     list.querySelectorAll<HTMLButtonElement>('.remove-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
+        const variantId = btn.dataset.remove!
+        const item = cartItems.get().find(i => i.variantId === variantId)
         const { removeFromCart } = await import('@/stores/cart')
-        removeFromCart(btn.dataset.remove!)
+        removeFromCart(variantId)
+        if (item) {
+          const { trackRemoveFromCart } = await import('@/lib/analytics')
+          trackRemoveFromCart({ item_id: item.productId, item_name: item.productName, item_variant: item.variantName, price: item.price, quantity: item.quantity })
+        }
       })
     })
   }
@@ -161,6 +167,17 @@
   appliedCoupon.subscribe(renderTotals)
   appliedGiftCard.subscribe(renderTotals)
 
+  // view_cart on page load
+  import('@/lib/analytics').then(({ trackViewCart }) => {
+    const items = cartItems.get()
+    if (items.length > 0) {
+      trackViewCart(
+        items.map(i => ({ item_id: i.productId, item_name: i.productName, item_variant: i.variantName, price: i.price, quantity: i.quantity })),
+        cartSubtotal.get(),
+      )
+    }
+  })
+
   // Coupon
   document.getElementById('coupon-btn')?.addEventListener('click', async () => {
     const input = document.getElementById('coupon-input') as HTMLInputElement
@@ -178,6 +195,9 @@
     if (res.ok && data.valid) {
       appliedCoupon.set({ code: data.code, type: data.type, value: data.value })
       if (msg) { msg.textContent = `✓ Sconto applicato: ${data.type === 'percent' ? data.value + '%' : '€' + data.value}`; msg.className = 'text-xs mt-1 h-4 text-green-600' }
+      const { trackApplyCoupon } = await import('@/lib/analytics')
+      const discount = data.type === 'percent' ? cartSubtotal.get() * data.value / 100 : data.value
+      trackApplyCoupon(data.code, discount)
     } else {
       if (msg) { msg.textContent = data.error ?? 'Coupon non valido'; msg.className = 'text-xs mt-1 h-4 text-red-600' }
     }
@@ -214,6 +234,15 @@
 
     const coupon = appliedCoupon.get()
     const giftCard = appliedGiftCard.get()
+    const items = cartItems.get()
+    const subtotal = cartSubtotal.get()
+
+    const { trackBeginCheckout } = await import('@/lib/analytics')
+    trackBeginCheckout(
+      items.map(i => ({ item_id: i.productId, item_name: i.productName, item_variant: i.variantName, price: i.price, quantity: i.quantity })),
+      subtotal,
+      coupon?.code,
+    )
 
     try {
       const res = await fetch('/api/checkout', {
