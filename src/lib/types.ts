@@ -53,7 +53,7 @@ export interface FaqItem {
 }
 
 export interface PageBlock {
-  type: 'hero' | 'features' | 'cta' | 'testimonials' | 'blog_grid' | 'portfolio_grid' | 'faq'
+  type: 'hero' | 'features' | 'cta' | 'testimonials' | 'blog_grid' | 'portfolio_grid' | 'faq' | 'contact_form'
   data: Record<string, unknown>
 }
 

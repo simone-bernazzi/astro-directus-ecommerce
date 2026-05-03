@@ -160,6 +160,17 @@ async function main() {
   await field('customers', 'total_orders', 'integer', { default_value: 0 }, { interface: 'input' })
   await field('customers', 'total_spent', 'decimal', { numeric_precision: 12, numeric_scale: 2, default_value: 0 }, { interface: 'input' })
 
+  // ── contact_submissions ───────────────────────────────────────────────────
+  await collection('contact_submissions', 'mail', '{{name}} — {{subject}}')
+  await field('contact_submissions', 'name', 'string', { is_nullable: false }, { interface: 'input' })
+  await field('contact_submissions', 'email', 'string', { is_nullable: false }, { interface: 'input' })
+  await field('contact_submissions', 'phone', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('contact_submissions', 'subject', 'string', { is_nullable: false }, { interface: 'input' })
+  await field('contact_submissions', 'message', 'text', { is_nullable: false }, { interface: 'input-multiline' })
+  await field('contact_submissions', 'status', 'string', { default_value: 'new' }, { interface: 'select-dropdown', options: { choices: [{ text: 'Nuovo', value: 'new' }, { text: 'Letto', value: 'read' }, { text: 'Risposto', value: 'replied' }, { text: 'Archiviato', value: 'archived' }] } })
+  await field('contact_submissions', 'ip_address', 'string', { is_nullable: true }, { interface: 'input', hidden: true })
+  await field('contact_submissions', 'notes', 'text', { is_nullable: true }, { interface: 'input-multiline' })
+
   // ── Relations ─────────────────────────────────────────────────────────────
   console.log('\nCreazione relazioni FK...')
   await safe(() => client.request(createRelation({

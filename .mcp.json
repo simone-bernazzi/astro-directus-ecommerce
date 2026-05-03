@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "directus": {
+      "command": "npx",
+      "args": ["-y", "@directus/content-mcp@latest"],
+      "env": {
+        "DIRECTUS_URL": "${DIRECTUS_URL}",
+        "DIRECTUS_TOKEN": "${DIRECTUS_TOKEN}"
+      }
+    }
+  }
+}

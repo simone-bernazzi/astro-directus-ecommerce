@@ -8,6 +8,7 @@ import Testimonials from '@/components/blocks/Testimonials.astro'
 import BlogGrid from '@/components/blocks/BlogGrid.astro'
 import PortfolioGrid from '@/components/blocks/PortfolioGrid.astro'
 import FaqAccordion from '@/components/blocks/FaqAccordion.astro'
+import ContactForm from '@/components/blocks/ContactForm.astro'
 import { getPages, getPageBySlug, getPosts, getPortfolioItems } from '@/lib/directus'
 import type { PageBlock } from '@/lib/types'
 
@@ -55,6 +56,7 @@ function blockData(block: PageBlock): any {
     if (block.type === 'blog_grid') return <BlogGrid posts={posts} title={d.title} />
     if (block.type === 'portfolio_grid') return <PortfolioGrid items={portfolioItems} title={d.title} />
     if (block.type === 'faq') return <FaqAccordion {...d} />
+    if (block.type === 'contact_form') return <ContactForm {...d} />
     return null
   })}
 </Page>

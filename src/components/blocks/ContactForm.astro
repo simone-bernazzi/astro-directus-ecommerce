@@ -1,0 +1,294 @@
+---
+// src/components/blocks/ContactForm.astro
+// Blocco form contatti con reCAPTCHA v3 (invisible, score-based)
+
+interface Props {
+  title?: string
+  description?: string
+  successMessage?: string
+}
+
+const {
+  title = 'Contattaci',
+  description = 'Compila il modulo e ti risponderemo al più presto.',
+  successMessage = 'Messaggio inviato! Ti risponderemo a breve.',
+} = Astro.props
+
+const siteKey = import.meta.env.PUBLIC_RECAPTCHA_SITE_KEY ?? ''
+---
+
+<section class="py-[var(--spacing-section)]">
+  <div class="container max-w-2xl mx-auto">
+    {title && <h2 class="text-3xl font-bold mb-3 text-center" data-animate="fade-up">{title}</h2>}
+    {description && <p class="text-[var(--color-muted)] text-center mb-10">{description}</p>}
+
+    <!-- Success state -->
+    <div id="contact-success" class="hidden text-center py-12">
+      <div class="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+      <p class="text-lg font-medium text-[var(--color-text)]">{successMessage}</p>
+    </div>
+
+    <!-- Form -->
+    <form
+      id="contact-form"
+      novalidate
+      class="space-y-5"
+    >
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <!-- Nome -->
+        <div>
+          <label for="contact-name" class="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+            Nome <span class="text-red-500">*</span>
+          </label>
+          <input
+            id="contact-name"
+            name="name"
+            type="text"
+            autocomplete="given-name"
+            required
+            minlength="2"
+            class="w-full border border-[var(--color-border)] rounded-lg px-4 py-2.5 text-sm focus:outline-2 focus:outline-[var(--color-brand)] transition-colors"
+            placeholder="Mario"
+          />
+          <p class="field-error text-xs text-red-600 mt-1 hidden"></p>
+        </div>
+
+        <!-- Email -->
+        <div>
+          <label for="contact-email" class="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+            Email <span class="text-red-500">*</span>
+          </label>
+          <input
+            id="contact-email"
+            name="email"
+            type="email"
+            autocomplete="email"
+            required
+            class="w-full border border-[var(--color-border)] rounded-lg px-4 py-2.5 text-sm focus:outline-2 focus:outline-[var(--color-brand)] transition-colors"
+            placeholder="mario@esempio.it"
+          />
+          <p class="field-error text-xs text-red-600 mt-1 hidden"></p>
+        </div>
+      </div>
+
+      <!-- Telefono (opzionale) -->
+      <div>
+        <label for="contact-phone" class="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+          Telefono <span class="text-[var(--color-muted)] font-normal">(opzionale)</span>
+        </label>
+        <input
+          id="contact-phone"
+          name="phone"
+          type="tel"
+          autocomplete="tel"
+          class="w-full border border-[var(--color-border)] rounded-lg px-4 py-2.5 text-sm focus:outline-2 focus:outline-[var(--color-brand)] transition-colors"
+          placeholder="+39 333 000 0000"
+        />
+      </div>
+
+      <!-- Oggetto -->
+      <div>
+        <label for="contact-subject" class="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+          Oggetto <span class="text-red-500">*</span>
+        </label>
+        <input
+          id="contact-subject"
+          name="subject"
+          type="text"
+          required
+          minlength="3"
+          class="w-full border border-[var(--color-border)] rounded-lg px-4 py-2.5 text-sm focus:outline-2 focus:outline-[var(--color-brand)] transition-colors"
+          placeholder="Richiesta informazioni"
+        />
+        <p class="field-error text-xs text-red-600 mt-1 hidden"></p>
+      </div>
+
+      <!-- Messaggio -->
+      <div>
+        <label for="contact-message" class="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+          Messaggio <span class="text-red-500">*</span>
+        </label>
+        <textarea
+          id="contact-message"
+          name="message"
+          required
+          minlength="10"
+          rows="5"
+          class="w-full border border-[var(--color-border)] rounded-lg px-4 py-2.5 text-sm focus:outline-2 focus:outline-[var(--color-brand)] transition-colors resize-y"
+          placeholder="Scrivi qui il tuo messaggio..."
+        ></textarea>
+        <p class="field-error text-xs text-red-600 mt-1 hidden"></p>
+      </div>
+
+      <!-- Privacy -->
+      <div class="flex gap-3 items-start">
+        <input
+          id="contact-privacy"
+          name="privacy"
+          type="checkbox"
+          required
+          class="mt-0.5 w-4 h-4 accent-[var(--color-brand)] flex-shrink-0"
+        />
+        <label for="contact-privacy" class="text-sm text-[var(--color-muted)] leading-snug">
+          Ho letto e accetto la
+          <a href="/privacy-policy" class="text-[var(--color-brand)] hover:underline">Privacy Policy</a>
+          e acconsento al trattamento dei miei dati personali. <span class="text-red-500">*</span>
+        </label>
+      </div>
+
+      <!-- reCAPTCHA badge note -->
+      {siteKey && (
+        <p class="text-xs text-[var(--color-muted)]">
+          Questo sito è protetto da reCAPTCHA. Si applicano la
+          <a href="https://policies.google.com/privacy" class="hover:underline" target="_blank" rel="noopener">Privacy Policy</a> e i
+          <a href="https://policies.google.com/terms" class="hover:underline" target="_blank" rel="noopener">Termini di Servizio</a> di Google.
+        </p>
+      )}
+
+      <!-- Global error -->
+      <p id="contact-error" class="text-sm text-red-600 hidden"></p>
+
+      <!-- Submit -->
+      <button
+        type="submit"
+        class="w-full sm:w-auto px-8 py-3 bg-[var(--color-brand)] text-white font-semibold rounded-lg hover:bg-[var(--color-brand-dark)] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+      >
+        <span id="submit-label">Invia messaggio</span>
+        <svg id="submit-spinner" class="hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+      </button>
+    </form>
+  </div>
+</section>
+
+{siteKey && (
+  <script
+    src={`https://www.google.com/recaptcha/api.js?render=${siteKey}`}
+    async
+    defer
+  ></script>
+)}
+
+<script define:vars={{ siteKey }}>
+  const form = document.getElementById('contact-form')
+  const successEl = document.getElementById('contact-success')
+  const errorEl = document.getElementById('contact-error')
+  const submitBtn = form?.querySelector('button[type="submit"]')
+  const submitLabel = document.getElementById('submit-label')
+  const submitSpinner = document.getElementById('submit-spinner')
+
+  function setLoading(loading) {
+    if (!submitBtn) return
+    submitBtn.disabled = loading
+    submitLabel.textContent = loading ? 'Invio in corso...' : 'Invia messaggio'
+    submitSpinner.classList.toggle('hidden', !loading)
+  }
+
+  function showFieldError(input, message) {
+    const errEl = input.parentElement?.querySelector('.field-error')
+    if (errEl) {
+      errEl.textContent = message
+      errEl.classList.remove('hidden')
+    }
+    input.classList.add('border-red-500')
+  }
+
+  function clearFieldErrors() {
+    form?.querySelectorAll('.field-error').forEach(el => {
+      el.textContent = ''
+      el.classList.add('hidden')
+    })
+    form?.querySelectorAll('input, textarea').forEach(el => {
+      el.classList.remove('border-red-500')
+    })
+  }
+
+  function validateForm(data) {
+    let valid = true
+    if (!data.name || data.name.length < 2) {
+      showFieldError(document.getElementById('contact-name'), 'Inserisci il tuo nome (min. 2 caratteri)')
+      valid = false
+    }
+    if (!data.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      showFieldError(document.getElementById('contact-email'), 'Inserisci un indirizzo email valido')
+      valid = false
+    }
+    if (!data.subject || data.subject.length < 3) {
+      showFieldError(document.getElementById('contact-subject'), 'Inserisci un oggetto (min. 3 caratteri)')
+      valid = false
+    }
+    if (!data.message || data.message.length < 10) {
+      showFieldError(document.getElementById('contact-message'), 'Il messaggio deve essere di almeno 10 caratteri')
+      valid = false
+    }
+    const privacy = document.getElementById('contact-privacy')
+    if (!privacy?.checked) {
+      showFieldError(privacy, 'Devi accettare la Privacy Policy per procedere')
+      valid = false
+    }
+    return valid
+  }
+
+  async function getRecaptchaToken() {
+    if (!siteKey || typeof grecaptcha === 'undefined') return null
+    return new Promise((resolve) => {
+      grecaptcha.ready(() => {
+        grecaptcha.execute(siteKey, { action: 'contact_form' }).then(resolve)
+      })
+    })
+  }
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault()
+    clearFieldErrors()
+    if (errorEl) errorEl.classList.add('hidden')
+
+    const fd = new FormData(form)
+    const data = {
+      name: fd.get('name')?.toString().trim() ?? '',
+      email: fd.get('email')?.toString().trim() ?? '',
+      phone: fd.get('phone')?.toString().trim() ?? '',
+      subject: fd.get('subject')?.toString().trim() ?? '',
+      message: fd.get('message')?.toString().trim() ?? '',
+    }
+
+    if (!validateForm(data)) return
+
+    setLoading(true)
+
+    try {
+      const recaptchaToken = await getRecaptchaToken()
+
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, recaptchaToken }),
+      })
+
+      const result = await res.json()
+
+      if (res.ok && result.success) {
+        form.classList.add('hidden')
+        successEl?.classList.remove('hidden')
+      } else {
+        if (errorEl) {
+          errorEl.textContent = result.error ?? 'Errore durante l\'invio. Riprova tra qualche istante.'
+          errorEl.classList.remove('hidden')
+        }
+      }
+    } catch {
+      if (errorEl) {
+        errorEl.textContent = 'Errore di rete. Controlla la connessione e riprova.'
+        errorEl.classList.remove('hidden')
+      }
+    } finally {
+      setLoading(false)
+    }
+  })
+</script>

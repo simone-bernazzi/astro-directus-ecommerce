@@ -1,0 +1,18 @@
+---
+// src/pages/contatti.astro — SSG
+import Base from '@/layouts/Base.astro'
+import Header from '@/components/layout/Header.astro'
+import Footer from '@/components/layout/Footer.astro'
+import ContactForm from '@/components/blocks/ContactForm.astro'
+---
+
+<Base title="Contatti" description="Contattaci per qualsiasi informazione. Risponderemo al più presto.">
+  <Header />
+  <main>
+    <ContactForm
+      title="Contattaci"
+      description="Compila il modulo e ti risponderemo entro 24 ore."
+    />
+  </main>
+  <Footer />
+</Base>

@@ -9,6 +9,12 @@ export default defineConfig({
   integrations: [],
   vite: {
     plugins: [tailwindcss()],
+    build: {
+      rollupOptions: {
+        // nodemailer is optional — install it only if you use SMTP email
+        external: ['nodemailer'],
+      },
+    },
   },
   i18n: {
     defaultLocale: 'it',
