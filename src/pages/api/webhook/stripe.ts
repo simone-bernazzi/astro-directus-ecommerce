@@ -17,8 +17,12 @@ function getDirectusClient() {
 }
 
 export const POST: APIRoute = async ({ request }) => {
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
+  const secretKey = process.env.STRIPE_SECRET_KEY
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+  if (!secretKey || !webhookSecret) {
+    return new Response(JSON.stringify({ error: 'Stripe not configured' }), { status: 503 })
+  }
+  const stripe = new Stripe(secretKey)
 
   const body = await request.text()
   const sig = request.headers.get('stripe-signature')
