@@ -13,22 +13,26 @@
 
 ### Funzionalità da aggiungere (backlog)
 
+- `[ ]` **Sitemap.xml** — generazione automatica SSG con tutti i prodotti, categorie, post, pagine
+- `[ ]` **Tracking spedizione** — campo `tracking_number` su ordine con link al corriere
 - `[ ]` **Wishlist** — salvataggio prodotti preferiti in localStorage con sync opzionale su Directus
-- `[ ]` **Recensioni prodotto** — form con rating a stelle, moderazione in Directus, display media voti su PDP
-- `[ ]` **Ricerca prodotti** — input search con filtri live (categoria, prezzo min/max, tipo) via Directus API
-- `[ ]` **Filtri negozio avanzati** — sidebar con attributi dinamici (taglia, colore, materiale) da product_variants
-- `[ ]` **Upsell / cross-sell** — sezione "Spesso acquistato insieme" con logica configurabile in Directus
-- `[ ]` **Comparazione prodotti** — seleziona fino a 3 prodotti e confronta attributi
+- `[ ]` **Email transazionali** — template HTML per conferma ordine, spedizione, download digitale
 - `[ ]` **Notifica disponibilità** — form email "avvisami quando torna disponibile" per prodotti esauriti
+- `[ ]` **Upsell / cross-sell** — sezione "Spesso acquistato insieme" con logica configurabile in Directus
+- `[ ]` **Multi-currency** — visualizzazione prezzi in valuta locale via exchangerate API, checkout sempre in EUR
 - `[ ]` **Account: gestione indirizzi** — rubrica indirizzi di spedizione salvati per checkout rapido
 - `[ ]` **Account: reset password** — flow email con token temporaneo
-- `[ ]` **Multi-currency** — visualizzazione prezzi in valuta locale via exchangerate API, checkout sempre in EUR
-- `[ ]` **Sitemap.xml** — generazione automatica SSG con tutti i prodotti, categorie, post, pagine
-- `[ ]` **Internazionalizzazione shop** — slug e contenuti prodotto in IT/EN, routing `/en/shop/`
-- `[ ]` **Abbonamenti** — supporto `price.recurring` Stripe per prodotti con rinnovo mensile/annuale; include Stripe Customer Portal per gestione rinnovi/cancellazioni (non necessario per ordini singoli — l'area account su Directus è sufficiente)
+- `[ ]` **Ricerca prodotti** — input search con filtri live (categoria, prezzo min/max, tipo) via Directus API
+- `[ ]` **Filtri negozio avanzati** — sidebar con attributi dinamici (taglia, colore, materiale) da product_variants
 - `[ ]` **Admin dashboard** — pagina protetta `/admin` con metriche ordini, top prodotti, stato backup
-- `[ ]` **Email transazionali** — template HTML per conferma ordine, spedizione, download digitale
-- `[ ]` **Tracking spedizione** — campo `tracking_number` su ordine con link al corriere
+- `[ ]` **Internazionalizzazione shop** — slug e contenuti prodotto in IT/EN, routing `/en/shop/`
+- `[ ]` **Comparazione prodotti** — seleziona fino a 3 prodotti e confronta attributi
+
+### Funzionalità non prioritarie
+
+- `[ ]` **Abbonamenti** — supporto `price.recurring` Stripe per prodotti con rinnovo mensile/annuale; include Stripe Customer Portal per gestione rinnovi/cancellazioni (non necessario per ordini singoli — l'area account su Directus è sufficiente)
+- `[ ]` **Stripe Customer Portal** — gestione abbonamenti, cambio piano e cancellazione lato cliente; rilevante solo in abbinamento alla feature Abbonamenti
+- `[ ]` **Recensioni prodotto** — form con rating a stelle, moderazione in Directus, display media voti su PDP
 - `[ ]` **B2B / prezzi a listino** — ruolo cliente "wholesale" con pricing separato in Directus
 
 ### Bug aperti
