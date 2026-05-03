@@ -1,0 +1,33 @@
+---
+// src/components/ui/Button.astro
+interface Props {
+  href?: string
+  variant?: 'primary' | 'secondary' | 'ghost'
+  size?: 'sm' | 'md' | 'lg'
+  class?: string
+  target?: string
+  rel?: string
+}
+const { href, variant = 'primary', size = 'md', class: className, target, rel } = Astro.props
+
+const baseClasses = 'inline-flex items-center justify-center font-medium rounded-[var(--radius-md)] transition-all duration-200 no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand)]'
+
+const variantClasses = {
+  primary: 'bg-[var(--color-brand)] text-white hover:bg-[var(--color-brand-dark)]',
+  secondary: 'bg-transparent border-2 border-[var(--color-brand)] text-[var(--color-brand)] hover:bg-[var(--color-brand)] hover:text-white',
+  ghost: 'bg-transparent text-[var(--color-text)] hover:bg-[var(--color-surface)]',
+}
+
+const sizeClasses = {
+  sm: 'px-3 py-1.5 text-sm',
+  md: 'px-5 py-2.5 text-base',
+  lg: 'px-7 py-3.5 text-lg',
+}
+
+const classes = [baseClasses, variantClasses[variant], sizeClasses[size], className].filter(Boolean).join(' ')
+---
+
+{href
+  ? <a href={href} class={classes} target={target} rel={rel}><slot /></a>
+  : <button class={classes} type="button"><slot /></button>
+}

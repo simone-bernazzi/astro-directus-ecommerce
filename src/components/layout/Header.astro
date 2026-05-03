@@ -1,0 +1,73 @@
+---
+// src/components/layout/Header.astro
+import Nav from './Nav.astro'
+import { getSiteSettings, getDirectusImageUrl } from '@/lib/directus'
+
+const settings = await getSiteSettings().catch((err) => {
+  if (import.meta.env.DEV) console.error('[Header.astro] getSiteSettings failed:', err)
+  return { site_name: 'Sito', logo: null, nav_links: [], social: [], footer_text: null }
+})
+
+const navLinks = settings.nav_links ?? []
+const currentPath = Astro.url.pathname
+---
+
+<header class="header sticky top-0 z-50 bg-[var(--color-bg)] border-b border-[var(--color-border)]">
+  <div class="container flex items-center justify-between py-4">
+    <a href="/" class="flex items-center gap-2 font-semibold text-lg">
+      {settings.logo
+        ? <img src={getDirectusImageUrl(settings.logo.id, { height: 40 })} alt={settings.site_name} class="h-10 w-auto" />
+        : <span>{settings.site_name}</span>
+      }
+    </a>
+
+    <!-- Desktop nav -->
+    <div class="hidden md:block">
+      <Nav links={navLinks} currentPath={currentPath} />
+    </div>
+
+    <!-- Mobile hamburger -->
+    <button
+      id="mobile-menu-toggle"
+      class="md:hidden flex flex-col gap-1.5 p-2 rounded focus-visible:outline-2 focus-visible:outline-[var(--color-brand)]"
+      aria-label="Apri menu di navigazione"
+      aria-expanded="false"
+      aria-controls="mobile-menu"
+    >
+      <span class="block w-6 h-0.5 bg-[var(--color-text)] transition-all"></span>
+      <span class="block w-6 h-0.5 bg-[var(--color-text)] transition-all"></span>
+      <span class="block w-6 h-0.5 bg-[var(--color-text)] transition-all"></span>
+    </button>
+  </div>
+
+  <!-- Mobile menu -->
+  <div id="mobile-menu" class="hidden md:hidden border-t border-[var(--color-border)]">
+    <nav class="container py-4" aria-label="Navigazione mobile">
+      <ul class="flex flex-col gap-3 list-none m-0 p-0">
+        {navLinks.map((link) => (
+          <li>
+            <a
+              href={link.url}
+              class:list={[
+                'block text-sm font-medium py-1 transition-colors duration-200 hover:text-[var(--color-brand)]',
+                currentPath === link.url ? 'text-[var(--color-brand)]' : 'text-[var(--color-text)]',
+              ]}
+              aria-current={currentPath === link.url ? 'page' : undefined}
+            >
+              {link.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<script>
+  const toggle = document.getElementById('mobile-menu-toggle')
+  const menu = document.getElementById('mobile-menu')
+  toggle?.addEventListener('click', () => {
+    const isOpen = menu?.classList.toggle('hidden') === false
+    toggle.setAttribute('aria-expanded', String(isOpen))
+  })
+</script>

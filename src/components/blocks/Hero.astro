@@ -1,0 +1,61 @@
+---
+// src/components/blocks/Hero.astro
+import Button from '@/components/ui/Button.astro'
+
+interface Props {
+  title: string
+  subtitle?: string
+  cta_label?: string
+  cta_url?: string
+  cta_secondary_label?: string
+  cta_secondary_url?: string
+  image_url?: string
+}
+
+const {
+  title,
+  subtitle,
+  cta_label,
+  cta_url,
+  cta_secondary_label,
+  cta_secondary_url,
+  image_url,
+} = Astro.props
+---
+
+<section class="hero py-[var(--spacing-section)] overflow-hidden" data-animate="hero">
+  <div class="container">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <div class="hero__content" data-animate="fade-up">
+        <h1 class="text-4xl lg:text-6xl font-bold leading-tight mb-6">
+          {title}
+        </h1>
+        {subtitle && (
+          <p class="text-xl text-[var(--color-muted)] mb-8 max-w-xl">
+            {subtitle}
+          </p>
+        )}
+        {(cta_label || cta_secondary_label) && (
+          <div class="flex flex-wrap gap-4">
+            {cta_label && cta_url && (
+              <Button href={cta_url} variant="primary" size="lg">{cta_label}</Button>
+            )}
+            {cta_secondary_label && cta_secondary_url && (
+              <Button href={cta_secondary_url} variant="secondary" size="lg">{cta_secondary_label}</Button>
+            )}
+          </div>
+        )}
+      </div>
+      {image_url && (
+        <div class="hero__image" data-animate="fade-in">
+          <img
+            src={image_url}
+            alt={title}
+            class="w-full rounded-[var(--radius-lg)] shadow-2xl"
+            loading="eager"
+          />
+        </div>
+      )}
+    </div>
+  </div>
+</section>

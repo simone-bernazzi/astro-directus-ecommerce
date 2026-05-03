@@ -1,0 +1,38 @@
+---
+// src/components/layout/Footer.astro
+import { getSiteSettings } from '@/lib/directus'
+
+const settings = await getSiteSettings().catch(() => ({
+  site_name: 'Sito',
+  logo: null,
+  nav_links: [],
+  social: [],
+  footer_text: 'Tutti i diritti riservati.',
+}))
+
+const currentYear = new Date().getFullYear()
+---
+
+<footer class="footer border-t border-[var(--color-border)] py-8 mt-16">
+  <div class="container flex flex-col sm:flex-row items-center justify-between gap-4">
+    <p class="text-sm text-[var(--color-muted)]">
+      &copy; {currentYear} {settings.site_name}. {settings.footer_text}
+    </p>
+    {settings.social && settings.social.length > 0 && (
+      <ul class="flex items-center gap-4 list-none m-0 p-0">
+        {settings.social.map((item) => (
+          <li>
+            <a
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-sm text-[var(--color-muted)] hover:text-[var(--color-brand)] transition-colors"
+            >
+              {item.platform}<span class="sr-only"> (si apre in una nuova scheda)</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+</footer>

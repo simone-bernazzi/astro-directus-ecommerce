@@ -1,0 +1,29 @@
+---
+// src/components/layout/Nav.astro
+interface Props {
+  links: Array<{ label: string; url: string }>
+  currentPath: string
+}
+const { links, currentPath } = Astro.props
+---
+
+<nav class="nav" aria-label="Navigazione principale">
+  <ul class="flex items-center gap-6 list-none m-0 p-0">
+    {links.map((link) => (
+      <li>
+        <a
+          href={link.url}
+          class:list={[
+            'text-sm font-medium transition-colors duration-200 hover:text-[var(--color-brand)]',
+            (link.url !== '/' && currentPath.startsWith(link.url)) || currentPath === link.url
+              ? 'text-[var(--color-brand)]'
+              : 'text-[var(--color-text)]',
+          ]}
+          aria-current={(link.url !== '/' && currentPath.startsWith(link.url)) || currentPath === link.url ? 'page' : undefined}
+        >
+          {link.label}
+        </a>
+      </li>
+    ))}
+  </ul>
+</nav>

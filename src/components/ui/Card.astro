@@ -1,0 +1,16 @@
+---
+// src/components/ui/Card.astro
+interface Props {
+  href?: string
+  class?: string
+}
+const { href, class: className } = Astro.props
+const baseClasses = 'bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-lg)] overflow-hidden'
+const hoverClasses = href ? 'transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand)]' : ''
+const classes = [baseClasses, hoverClasses, className].filter(Boolean).join(' ')
+---
+
+{href
+  ? <a href={href} class={classes}><slot /></a>
+  : <div class={classes}><slot /></div>
+}

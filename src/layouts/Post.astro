@@ -1,0 +1,54 @@
+---
+// src/layouts/Post.astro
+import Base from './Base.astro'
+import Header from '@/components/layout/Header.astro'
+import Footer from '@/components/layout/Footer.astro'
+import type { Post } from '@/lib/types'
+import { getDirectusImageUrl } from '@/lib/directus'
+
+interface Props {
+  post: Post
+  lang?: string
+}
+
+const { post, lang } = Astro.props
+const coverUrl = post.cover ? getDirectusImageUrl(post.cover.id, { width: 1200, height: 630, fit: 'cover' }) : ''
+---
+
+<Base
+  title={post.seo_title ?? post.title}
+  description={post.seo_description ?? post.excerpt ?? ''}
+  image={coverUrl}
+  lang={lang}
+>
+  <Header />
+  <main>
+    <article class="py-[var(--spacing-section)]">
+      <div class="container max-w-3xl mx-auto">
+        {post.category && (
+          <a
+            href={`/blog?categoria=${post.category.slug}`}
+            class="text-sm font-medium text-[var(--color-brand)] hover:underline"
+          >
+            {post.category.name}
+          </a>
+        )}
+        <h1 class="text-4xl lg:text-5xl font-bold mt-3 mb-4" data-animate="fade-up">
+          {post.title}
+        </h1>
+        <time class="text-sm text-[var(--color-muted)] block mb-8">
+          {new Date(post.published_at).toLocaleDateString('it-IT', { year: 'numeric', month: 'long', day: 'numeric' })}
+        </time>
+        {post.cover && (
+          <img
+            src={coverUrl}
+            alt={post.cover.title ?? post.title}
+            class="w-full rounded-[var(--radius-lg)] mb-10 shadow-lg"
+          />
+        )}
+        <div class="prose prose-lg max-w-none" set:html={post.content} />
+      </div>
+    </article>
+  </main>
+  <Footer />
+</Base>

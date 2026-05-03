@@ -1,0 +1,54 @@
+---
+// src/components/blocks/PortfolioGrid.astro
+import Card from '@/components/ui/Card.astro'
+import Badge from '@/components/ui/Badge.astro'
+import type { PortfolioItem } from '@/lib/types'
+import { getDirectusImageUrl } from '@/lib/directus'
+
+interface Props {
+  items: PortfolioItem[]
+  title?: string
+}
+
+const { items, title } = Astro.props
+---
+
+<section class="portfolio-grid py-[var(--spacing-section)]">
+  <div class="container">
+    {title && (
+      <h2 class="text-3xl font-bold mb-10" data-animate="fade-up">{title}</h2>
+    )}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" data-animate="stagger">
+      {items.map((item) => (
+        <Card href={`/portfolio/${item.slug}`}>
+          {item.cover && (
+            <img
+              src={getDirectusImageUrl(item.cover.id, { width: 600, height: 400, fit: 'cover' })}
+              alt={item.cover.title ?? item.title}
+              class="w-full h-56 object-cover"
+              loading="lazy"
+            />
+          )}
+          <div class="p-5">
+            <h3 class="text-lg font-semibold mb-2">{item.title}</h3>
+            <div class="flex flex-wrap items-center gap-2 mt-2">
+              {item.client && (
+                <span class="text-xs text-[var(--color-muted)]">{item.client}</span>
+              )}
+              {item.year && (
+                <span class="text-xs text-[var(--color-muted)]">· {item.year}</span>
+              )}
+            </div>
+            {item.tags && item.tags.length > 0 && (
+              <div class="flex flex-wrap gap-1 mt-3">
+                {item.tags.slice(0, 3).map((tag) => (
+                  <Badge>{tag}</Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        </Card>
+      ))}
+    </div>
+  </div>
+</section>

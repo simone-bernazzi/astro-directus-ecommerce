@@ -1,0 +1,17 @@
+---
+// src/components/ui/Badge.astro
+interface Props {
+  variant?: 'default' | 'brand' | 'accent'
+  class?: string
+}
+const { variant = 'default', class: className } = Astro.props
+
+const variantClasses = {
+  default: 'bg-[var(--color-surface)] text-[var(--color-muted)] border border-[var(--color-border)]',
+  brand: 'bg-[var(--color-brand)] text-white',
+  accent: 'bg-[var(--color-accent)] text-white',
+}
+const classes = ['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', variantClasses[variant], className].filter(Boolean).join(' ')
+---
+
+<span class={classes}><slot /></span>

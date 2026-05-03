@@ -1,0 +1,46 @@
+---
+// src/components/blocks/Features.astro
+
+interface Feature {
+  icon?: string
+  title: string
+  description: string
+}
+
+interface Props {
+  title?: string
+  subtitle?: string
+  features: Feature[]
+  columns?: 2 | 3 | 4
+}
+
+const { title, subtitle, features, columns = 3 } = Astro.props
+
+const gridCols = {
+  2: 'grid-cols-1 sm:grid-cols-2',
+  3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+  4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
+}
+---
+
+<section class="features py-[var(--spacing-section)]">
+  <div class="container">
+    {(title || subtitle) && (
+      <div class="text-center mb-12" data-animate="fade-up">
+        {title && <h2 class="text-3xl lg:text-4xl font-bold mb-4">{title}</h2>}
+        {subtitle && <p class="text-lg text-[var(--color-muted)] max-w-2xl mx-auto">{subtitle}</p>}
+      </div>
+    )}
+    <div class={`grid ${gridCols[columns]} gap-8`} data-animate="stagger">
+      {features.map((feature) => (
+        <div class="feature-item p-6 rounded-[var(--radius-lg)] bg-[var(--color-surface)] border border-[var(--color-border)]">
+          {feature.icon && (
+            <div class="text-3xl mb-4">{feature.icon}</div>
+          )}
+          <h3 class="text-xl font-semibold mb-2">{feature.title}</h3>
+          <p class="text-[var(--color-muted)]">{feature.description}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

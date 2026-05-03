@@ -1,0 +1,61 @@
+---
+// src/layouts/Base.astro
+import '@/styles/global.css'
+import { getSiteSettings } from '@/lib/directus'
+
+interface Props {
+  title?: string
+  description?: string
+  image?: string
+  lang?: string
+}
+
+const settings = await getSiteSettings().catch((err) => {
+  if (import.meta.env.DEV) console.error('[Base.astro] getSiteSettings failed:', err)
+  return { site_name: 'Sito', logo: null, nav_links: [], social: [], footer_text: null }
+})
+
+const {
+  title = settings.site_name,
+  description = '',
+  image = '',
+  lang = 'it',
+} = Astro.props
+
+const pageTitle = title === settings.site_name
+  ? settings.site_name
+  : `${title} — ${settings.site_name}`
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    {description && <meta name="description" content={description} />}
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={Astro.url.href} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:site_name" content={settings.site_name} />
+    {description && <meta property="og:description" content={description} />}
+    {image && <meta property="og:image" content={image} />}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={pageTitle} />
+    {description && <meta name="twitter:description" content={description} />}
+    {image && <meta name="twitter:image" content={image} />}
+    <title>{pageTitle}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <slot />
+    <script>
+      import { initAnimations } from '@/animations/gsap'
+      initAnimations()
+    </script>
+  </body>
+</html>

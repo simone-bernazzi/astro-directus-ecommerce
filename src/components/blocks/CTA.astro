@@ -1,0 +1,36 @@
+---
+// src/components/blocks/CTA.astro
+import Button from '@/components/ui/Button.astro'
+
+interface Props {
+  title: string
+  subtitle?: string
+  cta_label: string
+  cta_url: string
+  background?: 'brand' | 'surface' | 'dark'
+}
+
+const { title, subtitle, cta_label, cta_url, background = 'brand' } = Astro.props
+
+const bgClasses = {
+  brand: 'bg-[var(--color-brand)] text-white',
+  surface: 'bg-[var(--color-surface)]',
+  dark: 'bg-[#111] text-white',
+}
+---
+
+<section class={`cta py-[var(--spacing-section)] ${bgClasses[background]}`} data-animate="fade-up">
+  <div class="container text-center">
+    <h2 class="text-3xl lg:text-4xl font-bold mb-4">{title}</h2>
+    {subtitle && (
+      <p class="text-lg mb-8 opacity-80 max-w-xl mx-auto">{subtitle}</p>
+    )}
+    <Button
+      href={cta_url}
+      variant={background === 'brand' ? 'secondary' : 'primary'}
+      size="lg"
+    >
+      {cta_label}
+    </Button>
+  </div>
+</section>

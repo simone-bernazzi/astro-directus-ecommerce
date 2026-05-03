@@ -1,0 +1,60 @@
+---
+// src/pages/[slug].astro
+import Page from '@/layouts/Page.astro'
+import Hero from '@/components/blocks/Hero.astro'
+import Features from '@/components/blocks/Features.astro'
+import CTA from '@/components/blocks/CTA.astro'
+import Testimonials from '@/components/blocks/Testimonials.astro'
+import BlogGrid from '@/components/blocks/BlogGrid.astro'
+import PortfolioGrid from '@/components/blocks/PortfolioGrid.astro'
+import FaqAccordion from '@/components/blocks/FaqAccordion.astro'
+import { getPages, getPageBySlug, getPosts, getPortfolioItems } from '@/lib/directus'
+import type { PageBlock } from '@/lib/types'
+
+export async function getStaticPaths() {
+  const pages = await getPages().catch(() => [])
+  return pages
+    .filter((p) => p.slug !== 'home')
+    .map((page) => ({ params: { slug: page.slug } }))
+}
+
+const { slug } = Astro.params
+const page = await getPageBySlug(slug).catch(() => null)
+
+if (!page) {
+  return Astro.redirect('/')
+}
+
+const blocks: PageBlock[] = page.blocks ?? []
+
+// Pre-fetch data for blocks that need it
+const needsPosts = blocks.some((b) => b.type === 'blog_grid')
+const needsPortfolio = blocks.some((b) => b.type === 'portfolio_grid')
+
+const [posts, portfolioItems] = await Promise.all([
+  needsPosts ? getPosts({ limit: 6 }).catch(() => []) : Promise.resolve([]),
+  needsPortfolio ? getPortfolioItems({ limit: 6 }).catch(() => []) : Promise.resolve([]),
+])
+
+// Helper to cast block data for component spread
+function blockData(block: PageBlock): any {
+  return block.data
+}
+---
+
+<Page
+  title={page.seo_title ?? page.title}
+  description={page.seo_description ?? undefined}
+>
+  {blocks.map((block) => {
+    const d = blockData(block)
+    if (block.type === 'hero') return <Hero {...d} />
+    if (block.type === 'features') return <Features {...d} />
+    if (block.type === 'cta') return <CTA {...d} />
+    if (block.type === 'testimonials') return <Testimonials {...d} />
+    if (block.type === 'blog_grid') return <BlogGrid posts={posts} title={d.title} />
+    if (block.type === 'portfolio_grid') return <PortfolioGrid items={portfolioItems} title={d.title} />
+    if (block.type === 'faq') return <FaqAccordion {...d} />
+    return null
+  })}
+</Page>

@@ -1,0 +1,17 @@
+---
+// src/pages/portfolio/index.astro
+import Page from '@/layouts/Page.astro'
+import PortfolioGrid from '@/components/blocks/PortfolioGrid.astro'
+import { getPortfolioItems } from '@/lib/directus'
+
+const items = await getPortfolioItems().catch(() => [])
+---
+
+<Page title="Portfolio" description="I nostri progetti">
+  <section class="py-[var(--spacing-section)]">
+    <div class="container">
+      <h1 class="text-4xl font-bold mb-4" data-animate="fade-up">Portfolio</h1>
+    </div>
+  </section>
+  <PortfolioGrid items={items} />
+</Page>

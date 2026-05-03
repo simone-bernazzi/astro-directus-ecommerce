@@ -1,0 +1,43 @@
+---
+// src/components/blocks/Testimonials.astro
+
+interface Testimonial {
+  quote: string
+  author: string
+  role?: string
+  avatar_url?: string
+}
+
+interface Props {
+  title?: string
+  testimonials: Testimonial[]
+}
+
+const { title, testimonials } = Astro.props
+---
+
+<section class="testimonials py-[var(--spacing-section)]">
+  <div class="container">
+    {title && (
+      <h2 class="text-3xl lg:text-4xl font-bold text-center mb-12" data-animate="fade-up">
+        {title}
+      </h2>
+    )}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" data-animate="stagger">
+      {testimonials.map((t) => (
+        <blockquote class="p-6 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-lg)]">
+          <p class="text-[var(--color-text)] mb-6 leading-relaxed">"{t.quote}"</p>
+          <footer class="flex items-center gap-3">
+            {t.avatar_url && (
+              <img src={t.avatar_url} alt={t.author} class="w-10 h-10 rounded-full object-cover" />
+            )}
+            <div>
+              <div class="font-semibold text-sm">{t.author}</div>
+              {t.role && <div class="text-xs text-[var(--color-muted)]">{t.role}</div>}
+            </div>
+          </footer>
+        </blockquote>
+      ))}
+    </div>
+  </div>
+</section>

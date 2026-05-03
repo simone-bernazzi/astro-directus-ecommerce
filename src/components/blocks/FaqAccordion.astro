@@ -1,0 +1,32 @@
+---
+// src/components/blocks/FaqAccordion.astro
+import type { FaqItem } from '@/lib/types'
+
+interface Props {
+  items: FaqItem[]
+  title?: string
+}
+
+const { items, title } = Astro.props
+---
+
+<section class="faq py-[var(--spacing-section)]">
+  <div class="container max-w-3xl mx-auto">
+    {title && (
+      <h2 class="text-3xl font-bold text-center mb-10" data-animate="fade-up">{title}</h2>
+    )}
+    <div class="faq-list space-y-3" data-animate="stagger">
+      {items.map((item) => (
+        <details class="faq-item border border-[var(--color-border)] rounded-[var(--radius-md)] group">
+          <summary class="flex items-center justify-between p-5 cursor-pointer font-medium select-none list-none">
+            {item.question}
+            <span class="text-[var(--color-brand)] transition-transform duration-300 group-open:rotate-45 flex-shrink-0 ml-4" aria-hidden="true">＋</span>
+          </summary>
+          <div class="px-5 pb-5 text-[var(--color-muted)] leading-relaxed">
+            <Fragment set:html={item.answer} />
+          </div>
+        </details>
+      ))}
+    </div>
+  </div>
+</section>

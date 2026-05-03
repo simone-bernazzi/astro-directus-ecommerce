@@ -1,0 +1,35 @@
+/*
+ * theme.css — l'unico file da modificare per ogni cliente.
+ * I token --color-* e --font-* generano utility Tailwind (es. bg-brand, text-muted, font-heading).
+ * --spacing-section e --max-width-content non generano utility: usarli solo via var().
+ * --radius-* sovrascrivono i default Tailwind (rounded-sm/md/lg useranno questi valori).
+ */
+@theme {
+  /* Colori brand */
+  --color-brand: #2563eb;
+  --color-brand-dark: #1d4ed8;
+  --color-accent: #f59e0b;
+  --color-bg: #ffffff;
+  --color-surface: #f9fafb;
+  --color-text: #111827;
+  --color-muted: #6b7280;
+  --color-border: #e5e7eb;
+
+  /* Tipografia */
+  --font-heading: 'Inter', sans-serif;
+  --font-body: 'Inter', sans-serif;
+
+  /* Spaziatura */
+  --spacing-section: 5rem;
+  --max-width-content: 1200px;
+
+  /* Forma */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+}
+
+:root {
+  /* Stile animazioni attivo: elegant | bold | premium | editorial */
+  --animation-style: elegant;
+}
