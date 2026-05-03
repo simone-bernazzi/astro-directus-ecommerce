@@ -12,7 +12,12 @@
     "preview": "astro preview",
     "astro": "astro",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "backup": "node scripts/backup.mjs",
+    "backup:weekly": "node scripts/backup.mjs --type weekly",
+    "backup:monthly": "node scripts/backup.mjs --type monthly",
+    "restore": "node scripts/restore.mjs",
+    "migrate": "node scripts/migrate.mjs"
   },
   "dependencies": {
     "@astrojs/netlify": "^7.0.8",
