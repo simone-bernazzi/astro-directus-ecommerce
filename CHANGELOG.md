@@ -25,8 +25,7 @@
 - `[ ]` **Multi-currency** — visualizzazione prezzi in valuta locale via exchangerate API, checkout sempre in EUR
 - `[ ]` **Sitemap.xml** — generazione automatica SSG con tutti i prodotti, categorie, post, pagine
 - `[ ]` **Internazionalizzazione shop** — slug e contenuti prodotto in IT/EN, routing `/en/shop/`
-- `[ ]` **Stripe Customer Portal** — link diretto alla gestione abbonamenti/fatture Stripe
-- `[ ]` **Abbonamenti** — supporto `price.recurring` Stripe per prodotti con rinnovo mensile/annuale
+- `[ ]` **Abbonamenti** — supporto `price.recurring` Stripe per prodotti con rinnovo mensile/annuale; include Stripe Customer Portal per gestione rinnovi/cancellazioni (non necessario per ordini singoli — l'area account su Directus è sufficiente)
 - `[ ]` **Admin dashboard** — pagina protetta `/admin` con metriche ordini, top prodotti, stato backup
 - `[ ]` **Email transazionali** — template HTML per conferma ordine, spedizione, download digitale
 - `[ ]` **Tracking spedizione** — campo `tracking_number` su ordine con link al corriere
