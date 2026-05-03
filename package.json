@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@astrojs/netlify": "^7.0.8",
+    "@astrojs/sitemap": "^3.7.2",
     "@directus/sdk": "^21.2.2",
     "@nanostores/persistent": "^0.10.2",
     "astro": "^6.2.0",

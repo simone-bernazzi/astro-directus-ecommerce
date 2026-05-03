@@ -127,24 +127,25 @@ const related = product.category_id
       <section class="mt-20">
         <h2 class="text-2xl font-bold mb-8" data-animate="fade-up">Potrebbe interessarti anche</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" data-animate="stagger">
-          {related.slice(0, 4).map(p => (
+          {related.slice(0, 4).map(p => {
+          const relFile = p.images?.[0]?.directus_files_id
+          const relId = typeof relFile === 'string' ? relFile : (relFile as DirectusFile)?.id ?? null
+          const relUrl = getDirectusImageUrl(relId, { width: 400, quality: 75 })
+          return (
             <article class="group rounded-lg overflow-hidden border border-[var(--color-border)] hover:shadow-md transition-shadow">
               <a href={`/negozio/${p.slug}`}>
-                {(() => {
-                  const f = p.images?.[0]?.directus_files_id
-                  const id = typeof f === 'string' ? f : (f as DirectusFile)?.id ?? null
-                  const url = getDirectusImageUrl(id, { width: 400, quality: 75 })
-                  return url
-                    ? <img src={(() => { const f = p.images?.[0]?.directus_files_id; const id = typeof f === 'string' ? f : (f as DirectusFile)?.id ?? null; return getDirectusImageUrl(id, { width: 400, quality: 75 }) })()} alt={p.name} class="aspect-square w-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
-                    : <div class="aspect-square bg-[var(--color-surface)]" />
-                })()}
+                {relUrl
+                  ? <img src={relUrl} alt={p.name} class="aspect-square w-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                  : <div class="aspect-square bg-[var(--color-surface)]" />
+                }
                 <div class="p-3">
                   <p class="font-medium text-sm truncate">{p.name}</p>
                   <p class="text-[var(--color-brand)] font-bold text-sm mt-1">€{(p.variants?.[0]?.price_override ?? p.base_price).toFixed(2)}</p>
                 </div>
               </a>
             </article>
-          ))}
+          )
+        })}
         </div>
       </section>
     )}

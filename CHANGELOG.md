@@ -13,8 +13,18 @@
 
 ### Funzionalità da aggiungere (backlog)
 
-- `[ ]` **Sitemap.xml** — generazione automatica SSG con tutti i prodotti, categorie, post, pagine
-- `[ ]` **Tracking spedizione** — campo `tracking_number` su ordine con link al corriere
+- `[ ]` **Wishlist** — salvataggio prodotti preferiti in localStorage con sync opzionale su Directus
+- `[ ]` **Email transazionali** — template HTML per conferma ordine, spedizione, download digitale
+- `[ ]` **Notifica disponibilità** — form email "avvisami quando torna disponibile" per prodotti esauriti
+- `[ ]` **Upsell / cross-sell** — sezione "Spesso acquistato insieme" con logica configurabile in Directus
+- `[ ]` **Multi-currency** — visualizzazione prezzi in valuta locale via exchangerate API, checkout sempre in EUR
+- `[ ]` **Account: gestione indirizzi** — rubrica indirizzi di spedizione salvati per checkout rapido
+- `[ ]` **Account: reset password** — flow email con token temporaneo
+- `[ ]` **Ricerca prodotti** — input search con filtri live (categoria, prezzo min/max, tipo) via Directus API
+- `[ ]` **Filtri negozio avanzati** — sidebar con attributi dinamici (taglia, colore, materiale) da product_variants
+- `[ ]` **Admin dashboard** — pagina protetta `/admin` con metriche ordini, top prodotti, stato backup
+- `[ ]` **Internazionalizzazione shop** — slug e contenuti prodotto in IT/EN, routing `/en/shop/`
+- `[ ]` **Comparazione prodotti** — seleziona fino a 3 prodotti e confronta attributi
 - `[ ]` **Wishlist** — salvataggio prodotti preferiti in localStorage con sync opzionale su Directus
 - `[ ]` **Email transazionali** — template HTML per conferma ordine, spedizione, download digitale
 - `[ ]` **Notifica disponibilità** — form email "avvisami quando torna disponibile" per prodotti esauriti
@@ -41,6 +51,18 @@
 - `[ ]` **`BUG-002`** `CartSummary.astro` — il pulsante `+` qty nel carrello non controlla il `stock_quantity` della variante; è possibile aggiungere più unità di quelle disponibili
 - `[ ]` **`BUG-003`** `api/checkout.ts` — se il cliente applica coupon + gift card e il totale scende a 0, Stripe restituisce errore perché `amount` deve essere ≥ 50 centesimi; manca il fallback "ordine gratuito"
 - `[ ]` **`BUG-004`** `api/download/[token].ts` — il proxy scarica l'intero file in memoria prima di rispondere; su file grandi (es. video) questo può causare timeout su Netlify (limite 10 secondi)
+
+---
+
+## [0.4.0] — 2026-05-03
+
+### Aggiunto
+- `[FEAT]` **Sitemap.xml** — integrazione `@astrojs/sitemap`; generazione automatica SSG di tutti gli URL indicizzabili; `site` letto da `PUBLIC_SITE_URL` in `astro.config.mjs`
+- `[FEAT]` **robots.txt** — pagina statica `src/pages/robots.txt.ts`; esclude `/account/`, `/api/`, `/checkout/`; include URL sitemap generato dinamicamente da `PUBLIC_SITE_URL`
+- `[FEAT]` **Tracking spedizione** — campi `tracking_number` e `tracking_url` su collezione `orders`; blocco dedicato in `/account/ordini/[id]` con link al corriere se URL presente; aggiunto a `setup-collections.mjs`
+
+### Fix
+- `[FIX]` **BUG-001** `negozio/[slug].astro` — estratta variabile `relUrl` nel blocco related products; rimossa doppia chiamata `getDirectusImageUrl` inline
 
 ---
 

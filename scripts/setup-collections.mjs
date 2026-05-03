@@ -105,6 +105,8 @@ async function main() {
   await field('orders', 'shipping_address', 'json', {}, { interface: 'input-code', options: { language: 'json' } })
   await field('orders', 'items', 'json', {}, { interface: 'input-code', options: { language: 'json' } })
   await field('orders', 'notes', 'text', { is_nullable: true }, { interface: 'input-multiline' })
+  await field('orders', 'tracking_number', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('orders', 'tracking_url', 'string', { is_nullable: true }, { interface: 'input' })
 
   // ── order_items ───────────────────────────────────────────────────────────
   await collection('order_items', 'list', '{{product_name}}')

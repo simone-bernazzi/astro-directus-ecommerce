@@ -1,12 +1,14 @@
 // astro.config.mjs
 import { defineConfig } from 'astro/config'
 import netlify from '@astrojs/netlify'
+import sitemap from '@astrojs/sitemap'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   output: 'static',
+  site: process.env.PUBLIC_SITE_URL ?? 'https://tuodominio.it',
   adapter: netlify(),
-  integrations: [],
+  integrations: [sitemap()],
   vite: {
     plugins: [tailwindcss()],
     build: {

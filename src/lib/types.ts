@@ -222,6 +222,8 @@ export interface Order {
   shipping_address: ShippingAddress
   shipping_zone_id: string | null
   notes: string | null
+  tracking_number: string | null
+  tracking_url: string | null
   items: OrderItemSnapshot[]
   order_items: OrderItem[]
   date_created: string
