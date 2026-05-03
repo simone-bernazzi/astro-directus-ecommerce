@@ -1,0 +1,158 @@
+---
+// src/components/shop/VariantSelector.astro
+import type { ProductVariant } from '@/lib/types'
+
+interface Props {
+  variants: ProductVariant[]
+  basePrice: number
+}
+
+const { variants, basePrice } = Astro.props
+const active = variants.filter(v => v.is_active)
+
+// Raggruppa per opzione 1 (es. colore) se presente
+const hasOptions = active.some(v => v.option_1_value)
+const option1Label = active.find(v => v.option_1_name)?.option_1_name ?? null
+const option2Label = active.find(v => v.option_2_name)?.option_2_name ?? null
+---
+
+<div id="variant-selector" data-variants={JSON.stringify(active)} data-base-price={basePrice}>
+  {active.length === 1 && !hasOptions
+    ? (
+      <input type="hidden" id="selected-variant" value={active[0].id} />
+    )
+    : (
+      <div class="space-y-4">
+        {option1Label && (
+          <div>
+            <label class="block text-sm font-medium text-[var(--color-text)] mb-2">{option1Label}</label>
+            <div class="flex flex-wrap gap-2" role="group" aria-label={option1Label}>
+              {[...new Set(active.map(v => v.option_1_value))].map(val => (
+                <button
+                  type="button"
+                  data-option1={val}
+                  class="px-3 py-1.5 text-sm border border-[var(--color-border)] rounded-md hover:border-[var(--color-brand)] focus:outline-2 focus:outline-[var(--color-brand)] transition-colors variant-option-btn"
+                >
+                  {val}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {option2Label && (
+          <div>
+            <label class="block text-sm font-medium text-[var(--color-text)] mb-2">{option2Label}</label>
+            <div class="flex flex-wrap gap-2" role="group" aria-label={option2Label}>
+              {[...new Set(active.map(v => v.option_2_value).filter(Boolean))].map(val => (
+                <button
+                  type="button"
+                  data-option2={val}
+                  class="px-3 py-1.5 text-sm border border-[var(--color-border)] rounded-md hover:border-[var(--color-brand)] focus:outline-2 focus:outline-[var(--color-brand)] transition-colors variant-option-btn"
+                >
+                  {val}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!hasOptions && (
+          <div>
+            <label for="selected-variant" class="block text-sm font-medium text-[var(--color-text)] mb-2">Variante</label>
+            <select
+              id="selected-variant"
+              class="w-full border border-[var(--color-border)] rounded-md px-3 py-2 text-sm focus:outline-2 focus:outline-[var(--color-brand)]"
+            >
+              {active.map(v => (
+                <option value={v.id} disabled={v.stock_quantity === 0}>
+                  {v.name}{v.stock_quantity === 0 ? ' — Esaurito' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <input type="hidden" id="selected-variant" value="" />
+      </div>
+    )
+  }
+
+  <p id="variant-stock" class="text-sm text-[var(--color-muted)] mt-2 hidden"></p>
+  <p id="variant-price" class="text-2xl font-bold text-[var(--color-brand)] mt-2"></p>
+</div>
+
+<script>
+  const selector = document.getElementById('variant-selector')
+  if (selector) {
+    const variants = JSON.parse(selector.dataset.variants ?? '[]')
+    const basePrice = parseFloat(selector.dataset.basePrice ?? '0')
+    const hiddenInput = selector.querySelector<HTMLInputElement>('input[type="hidden"]#selected-variant')
+    const stockEl = document.getElementById('variant-stock')
+    const priceEl = document.getElementById('variant-price')
+    let selected1: string | null = null
+    let selected2: string | null = null
+
+    function updateVariant() {
+      const match = variants.find((v: Record<string, unknown>) => {
+        const m1 = !selected1 || v.option_1_value === selected1
+        const m2 = !selected2 || v.option_2_value === selected2
+        return m1 && m2 && v.is_active
+      })
+      if (match && hiddenInput) {
+        hiddenInput.value = match.id
+        if (priceEl) priceEl.textContent = `€${(match.price_override ?? basePrice).toFixed(2)}`
+        if (stockEl) {
+          if (match.stock_quantity === 0) {
+            stockEl.textContent = 'Esaurito'
+            stockEl.classList.remove('hidden', 'text-[var(--color-muted)]')
+            stockEl.classList.add('text-red-600')
+          } else if (match.stock_quantity <= match.low_stock_threshold) {
+            stockEl.textContent = `Solo ${match.stock_quantity} rimasti`
+            stockEl.classList.remove('hidden', 'text-red-600')
+            stockEl.classList.add('text-[var(--color-muted)]')
+          } else {
+            stockEl.classList.add('hidden')
+          }
+        }
+        selector.dispatchEvent(new CustomEvent('variant-selected', { detail: match, bubbles: true }))
+      }
+    }
+
+    selector.querySelectorAll<HTMLButtonElement>('[data-option1]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selector.querySelectorAll('[data-option1]').forEach(b => b.classList.remove('bg-[var(--color-brand)]', 'text-white'))
+        btn.classList.add('bg-[var(--color-brand)]', 'text-white')
+        selected1 = btn.dataset.option1 ?? null
+        updateVariant()
+      })
+    })
+
+    selector.querySelectorAll<HTMLButtonElement>('[data-option2]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selector.querySelectorAll('[data-option2]').forEach(b => b.classList.remove('bg-[var(--color-brand)]', 'text-white'))
+        btn.classList.add('bg-[var(--color-brand)]', 'text-white')
+        selected2 = btn.dataset.option2 ?? null
+        updateVariant()
+      })
+    })
+
+    const selectEl = selector.querySelector<HTMLSelectElement>('select#selected-variant')
+    if (selectEl) {
+      selectEl.addEventListener('change', () => {
+        if (hiddenInput) hiddenInput.value = selectEl.value
+        updateVariant()
+      })
+    }
+
+    // Auto-select first available variant on load
+    if (variants.length === 1 || (!selector.querySelector('[data-option1]') && !selectEl)) {
+      const first = variants.find((v: Record<string, unknown>) => v.is_active)
+      if (first && hiddenInput) {
+        hiddenInput.value = first.id
+        if (priceEl) priceEl.textContent = `€${((first.price_override ?? basePrice) as number).toFixed(2)}`
+        selector.dispatchEvent(new CustomEvent('variant-selected', { detail: first, bubbles: true }))
+      }
+    }
+  }
+</script>

@@ -3,6 +3,7 @@ import {
   createDirectus,
   rest,
   readItems,
+  readItem,
   readSingleton,
   staticToken,
 } from '@directus/sdk'
@@ -13,11 +14,16 @@ import type {
   FaqItem,
   SiteSettings,
   Category,
+  Product,
+  ProductCategory,
+  ShippingZone,
+  Coupon,
+  GiftCard,
+  Order,
 } from './types'
 
 // ---------------------------------------------------------------------------
-// URL / token helpers — read lazily so that process.env mutations in tests
-// (or Astro's import.meta.env at build time) are always picked up.
+// URL / token helpers
 // ---------------------------------------------------------------------------
 
 function getDirectusUrl(): string {
@@ -36,7 +42,6 @@ function getDirectusToken(): string {
   )
 }
 
-// Minimal schema type so TypeScript accepts arbitrary collection names.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Schema = Record<string, any>
 
@@ -44,13 +49,15 @@ function getClient() {
   const url = getDirectusUrl()
   const token = getDirectusToken()
 
+  if (!url) {
+    throw new Error('DIRECTUS_URL not configured. Add it to your .env file.')
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let client: any = createDirectus<Schema>(url).with(rest())
-
   if (token) {
     client = client.with(staticToken(token))
   }
-
   return client as { request: (cmd: unknown) => Promise<unknown> }
 }
 
@@ -198,7 +205,7 @@ export async function getFaqItems(): Promise<FaqItem[]> {
 }
 
 // ---------------------------------------------------------------------------
-// Categories
+// Categories (blog)
 // ---------------------------------------------------------------------------
 
 export async function getCategories(): Promise<Category[]> {
@@ -224,4 +231,187 @@ export async function getSiteSettings(): Promise<SiteSettings> {
     })
   )
   return data as SiteSettings
+}
+
+// ---------------------------------------------------------------------------
+// Products
+// ---------------------------------------------------------------------------
+
+export interface GetProductsOptions {
+  featured?: boolean
+  categorySlug?: string
+  limit?: number
+}
+
+export async function getProducts(options: GetProductsOptions = {}): Promise<Product[]> {
+  const client = getClient()
+  const filter: Record<string, unknown> = { status: { _eq: 'published' }, is_active: { _eq: true } }
+  if (options.featured) filter.featured = { _eq: true }
+  if (options.categorySlug) filter.category_id = { slug: { _eq: options.categorySlug } }
+
+  const items = await client.request(
+    readItems('products', {
+      filter,
+      limit: options.limit ?? -1,
+      fields: [
+        '*',
+        'images.directus_files_id.*',
+        'category_id.*',
+        'variants.*',
+        'variants.image_id.*',
+        'variants.digital_file.*',
+      ],
+      sort: ['sort_order', 'name'],
+    })
+  )
+  return items as Product[]
+}
+
+export async function getProductBySlug(slug: string): Promise<Product | null> {
+  const client = getClient()
+  const items = await client.request(
+    readItems('products', {
+      filter: { slug: { _eq: slug }, status: { _eq: 'published' }, is_active: { _eq: true } },
+      limit: 1,
+      fields: [
+        '*',
+        'images.directus_files_id.*',
+        'category_id.*',
+        'variants.*',
+        'variants.image_id.*',
+        'variants.digital_file.*',
+      ],
+    })
+  )
+  const list = items as Product[]
+  return list[0] ?? null
+}
+
+export async function getProductSlugs(): Promise<string[]> {
+  const client = getClient()
+  const items = await client.request(
+    readItems('products', {
+      filter: { status: { _eq: 'published' }, is_active: { _eq: true } },
+      fields: ['slug'],
+    })
+  ) as Array<{ slug: string }>
+  return items.map(i => i.slug)
+}
+
+// ---------------------------------------------------------------------------
+// Product Categories
+// ---------------------------------------------------------------------------
+
+export async function getProductCategories(): Promise<ProductCategory[]> {
+  const client = getClient()
+  const items = await client.request(
+    readItems('product_categories', {
+      fields: ['*', 'image.*', 'parent_id.*'],
+      sort: ['sort_order', 'name'],
+    })
+  )
+  return items as ProductCategory[]
+}
+
+export async function getProductCategoryBySlug(slug: string): Promise<ProductCategory | null> {
+  const client = getClient()
+  const items = await client.request(
+    readItems('product_categories', {
+      filter: { slug: { _eq: slug } },
+      limit: 1,
+      fields: ['*', 'image.*'],
+    })
+  )
+  const list = items as ProductCategory[]
+  return list[0] ?? null
+}
+
+// ---------------------------------------------------------------------------
+// Shipping Zones
+// ---------------------------------------------------------------------------
+
+export async function getShippingZones(): Promise<ShippingZone[]> {
+  const client = getClient()
+  const items = await client.request(
+    readItems('shipping_zones', {
+      filter: { is_active: { _eq: true } },
+      fields: ['*'],
+    })
+  )
+  return items as ShippingZone[]
+}
+
+// ---------------------------------------------------------------------------
+// Coupons
+// ---------------------------------------------------------------------------
+
+export async function getCouponByCode(code: string): Promise<Coupon | null> {
+  const client = getClient()
+  const items = await client.request(
+    readItems('coupons', {
+      filter: { code: { _icontains: code }, is_active: { _eq: true } },
+      limit: 1,
+      fields: ['*'],
+    })
+  )
+  const list = items as Coupon[]
+  return list[0] ?? null
+}
+
+// ---------------------------------------------------------------------------
+// Gift Cards
+// ---------------------------------------------------------------------------
+
+export async function getGiftCardByCode(code: string): Promise<GiftCard | null> {
+  const client = getClient()
+  const items = await client.request(
+    readItems('gift_cards', {
+      filter: { code: { _eq: code }, is_active: { _eq: true } },
+      limit: 1,
+      fields: ['id', 'code', 'initial_value', 'remaining_value', 'expires_at', 'is_active', 'redemptions'],
+    })
+  )
+  const list = items as GiftCard[]
+  return list[0] ?? null
+}
+
+// ---------------------------------------------------------------------------
+// Orders
+// ---------------------------------------------------------------------------
+
+export async function getOrdersByCustomer(customerId: string): Promise<Order[]> {
+  const client = getClient()
+  const items = await client.request(
+    readItems('orders', {
+      filter: { customer_id: { _eq: customerId } },
+      fields: ['*', 'order_items.*'],
+      sort: ['-date_created'],
+    })
+  )
+  return items as Order[]
+}
+
+export async function getOrderById(id: string): Promise<Order | null> {
+  const client = getClient()
+  try {
+    const item = await client.request(
+      readItem('orders', id, { fields: ['*', 'order_items.*'] })
+    )
+    return item as Order
+  } catch {
+    return null
+  }
+}
+
+export async function getOrderBySessionId(sessionId: string): Promise<Order | null> {
+  const client = getClient()
+  const items = await client.request(
+    readItems('orders', {
+      filter: { stripe_session_id: { _eq: sessionId } },
+      limit: 1,
+      fields: ['*', 'order_items.*'],
+    })
+  )
+  const list = items as Order[]
+  return list[0] ?? null
 }

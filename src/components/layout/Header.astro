@@ -26,6 +26,14 @@ const currentPath = Astro.url.pathname
       <Nav links={navLinks} currentPath={currentPath} />
     </div>
 
+    <!-- Cart icon -->
+    <a href="/carrello" class="relative p-2 hover:text-[var(--color-brand)] transition-colors" aria-label="Carrello">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+      </svg>
+      <span id="cart-badge" class="absolute -top-1 -right-1 bg-[var(--color-brand)] text-white text-xs w-5 h-5 rounded-full flex items-center justify-center hidden">0</span>
+    </a>
+
     <!-- Mobile hamburger -->
     <button
       id="mobile-menu-toggle"
@@ -70,4 +78,21 @@ const currentPath = Astro.url.pathname
     const isOpen = menu?.classList.toggle('hidden') === false
     toggle.setAttribute('aria-expanded', String(isOpen))
   })
+
+  // Cart badge
+  async function updateCartBadge() {
+    const { cartCount } = await import('@/stores/cart')
+    const badge = document.getElementById('cart-badge')
+    cartCount.subscribe(count => {
+      if (!badge) return
+      if (count > 0) {
+        badge.textContent = String(count > 99 ? '99+' : count)
+        badge.classList.remove('hidden')
+      } else {
+        badge.classList.add('hidden')
+      }
+    })
+  }
+  updateCartBadge()
+  window.addEventListener('cart-updated', updateCartBadge)
 </script>

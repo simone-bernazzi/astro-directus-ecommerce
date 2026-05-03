@@ -1,0 +1,21 @@
+---
+// src/pages/carrello.astro — SSG (cart is client-side)
+import Base from '@/layouts/Base.astro'
+import Header from '@/components/layout/Header.astro'
+import Footer from '@/components/layout/Footer.astro'
+import CartSummary from '@/components/shop/CartSummary.astro'
+---
+
+<Base title="Carrello">
+  <Header />
+  <main class="container py-12">
+    <h1 class="text-3xl font-bold mb-8" data-animate="fade-up">Il tuo carrello</h1>
+    <div class="max-w-2xl mx-auto">
+      <CartSummary />
+      <div class="mt-6 text-center">
+        <a href="/negozio" class="text-sm text-[var(--color-brand)] hover:underline">← Continua lo shopping</a>
+      </div>
+    </div>
+  </main>
+  <Footer />
+</Base>

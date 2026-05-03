@@ -1,11 +1,18 @@
 // astro.config.mjs
 import { defineConfig } from 'astro/config'
+import netlify from '@astrojs/netlify'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   output: 'static',
-  integrations: [], // explicit empty array required: Astro 6 + Zod v4 bug with undefined default
+  adapter: netlify(),
+  integrations: [],
   vite: {
     plugins: [tailwindcss()],
+  },
+  i18n: {
+    defaultLocale: 'it',
+    locales: ['it', 'en'],
+    routing: { prefixDefaultLocale: false },
   },
 })

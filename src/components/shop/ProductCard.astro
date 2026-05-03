@@ -1,0 +1,60 @@
+---
+// src/components/shop/ProductCard.astro
+import type { Product } from '@/lib/types'
+import { getDirectusImageUrl } from '@/lib/directus'
+import Badge from '@/components/ui/Badge.astro'
+
+interface Props {
+  product: Product
+}
+
+const { product } = Astro.props
+const firstImageFile = product.images?.[0]?.directus_files_id
+const firstImageId = typeof firstImageFile === 'string' ? firstImageFile : firstImageFile?.id ?? null
+const imageUrl = getDirectusImageUrl(firstImageId, { width: 600, quality: 80 })
+
+const activeVariants = product.variants?.filter(v => v.is_active) ?? []
+const price = activeVariants[0]?.price_override ?? product.base_price
+const isOutOfStock = activeVariants.length > 0 && activeVariants.every(v => v.stock_quantity === 0)
+const isNew = product.featured
+---
+
+<article class="group relative rounded-lg overflow-hidden border border-[var(--color-border)] hover:shadow-md transition-shadow duration-300 bg-[var(--color-bg)]">
+  <a href={`/negozio/${product.slug}`} class="block">
+    <div class="aspect-square bg-[var(--color-surface)] overflow-hidden">
+      {imageUrl
+        ? <img
+            src={imageUrl}
+            alt={product.name}
+            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            loading="lazy"
+          />
+        : <div class="w-full h-full flex items-center justify-center text-[var(--color-muted)]">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+      }
+    </div>
+
+    <div class="p-4">
+      {product.category_id && (
+        <p class="text-xs text-[var(--color-muted)] mb-1">{product.category_id.name}</p>
+      )}
+      <h3 class="font-medium text-[var(--color-text)] leading-tight line-clamp-2">{product.name}</h3>
+
+      <div class="flex items-center gap-2 mt-2">
+        <span class="font-bold text-[var(--color-brand)]">€{price.toFixed(2)}</span>
+        {product.compare_price && (
+          <span class="text-sm text-[var(--color-muted)] line-through">€{product.compare_price.toFixed(2)}</span>
+        )}
+      </div>
+
+      <div class="flex gap-2 mt-3 flex-wrap">
+        {isOutOfStock && <Badge variant="error">Esaurito</Badge>}
+        {isNew && !isOutOfStock && <Badge variant="info">In evidenza</Badge>}
+        {product.type === 'digital' && <Badge variant="default">Digitale</Badge>}
+      </div>
+    </div>
+  </a>
+</article>

@@ -1,0 +1,105 @@
+---
+// src/components/shop/AddToCart.astro
+import type { Product } from '@/lib/types'
+import { getDirectusImageUrl } from '@/lib/directus'
+
+interface Props {
+  product: Product
+}
+
+const { product } = Astro.props
+const firstImageId = (() => {
+  const f = product.images?.[0]?.directus_files_id
+  return typeof f === 'string' ? f : f?.id ?? null
+})()
+const imageUrl = getDirectusImageUrl(firstImageId, { width: 120, quality: 70 })
+---
+
+<div id="add-to-cart-widget" data-product-id={product.id} data-product-slug={product.slug} data-product-name={product.name} data-product-type={product.type} data-base-price={product.base_price} data-weight={product.weight_g} data-image={imageUrl}>
+
+  <div class="flex items-center gap-3 mb-4">
+    <label for="qty-input" class="text-sm font-medium">Quantità</label>
+    <div class="flex items-center border border-[var(--color-border)] rounded-md overflow-hidden">
+      <button type="button" id="qty-dec" class="px-3 py-2 text-lg hover:bg-[var(--color-surface)] transition-colors" aria-label="Diminuisci">−</button>
+      <input
+        id="qty-input"
+        type="number"
+        min="1"
+        max="99"
+        value="1"
+        class="w-12 text-center py-2 border-x border-[var(--color-border)] text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        aria-label="Quantità"
+      />
+      <button type="button" id="qty-inc" class="px-3 py-2 text-lg hover:bg-[var(--color-surface)] transition-colors" aria-label="Aumenta">+</button>
+    </div>
+  </div>
+
+  <button
+    id="add-to-cart-btn"
+    type="button"
+    class="w-full bg-[var(--color-brand)] text-white font-semibold py-3 px-6 rounded-lg hover:bg-[var(--color-brand-dark)] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+    disabled
+  >
+    Aggiungi al carrello
+  </button>
+
+  <p id="add-to-cart-msg" class="text-sm text-center mt-2 h-5"></p>
+</div>
+
+<script>
+  const widget = document.getElementById('add-to-cart-widget')
+  const btn = document.getElementById('add-to-cart-btn')
+  const qtyInput = document.getElementById('qty-input') as HTMLInputElement
+  const msgEl = document.getElementById('add-to-cart-msg')
+  const qtyDec = document.getElementById('qty-dec')
+  const qtyInc = document.getElementById('qty-inc')
+
+  let selectedVariant: Record<string, unknown> | null = null
+
+  qtyDec?.addEventListener('click', () => {
+    const v = parseInt(qtyInput.value)
+    if (v > 1) qtyInput.value = String(v - 1)
+  })
+  qtyInc?.addEventListener('click', () => {
+    const v = parseInt(qtyInput.value)
+    if (v < 99) qtyInput.value = String(v + 1)
+  })
+
+  document.addEventListener('variant-selected', (e: Event) => {
+    const detail = (e as CustomEvent).detail
+    selectedVariant = detail
+    if (btn) {
+      btn.disabled = detail.stock_quantity === 0
+    }
+  })
+
+  btn?.addEventListener('click', async () => {
+    if (!selectedVariant || !widget) return
+
+    const qty = parseInt(qtyInput.value) || 1
+    const { addToCart } = await import('@/stores/cart')
+
+    addToCart({
+      variantId: selectedVariant.id as string,
+      productId: widget.dataset.productId!,
+      productSlug: widget.dataset.productSlug!,
+      productName: widget.dataset.productName!,
+      variantName: selectedVariant.name as string,
+      sku: selectedVariant.sku as string,
+      price: (selectedVariant.price_override as number | null) ?? parseFloat(widget.dataset.basePrice!),
+      quantity: qty,
+      image: widget.dataset.image || null,
+      type: widget.dataset.productType as 'physical' | 'digital',
+      weightG: parseInt(widget.dataset.weight ?? '0'),
+    })
+
+    if (msgEl) {
+      msgEl.textContent = '✓ Aggiunto al carrello!'
+      msgEl.className = 'text-sm text-center mt-2 h-5 text-green-600'
+      setTimeout(() => { if (msgEl) msgEl.textContent = '' }, 2500)
+    }
+
+    // Dispatch event to update cart count in header
+    window.dispatchEvent(new Event('cart-updated'))
+  })
+</script>

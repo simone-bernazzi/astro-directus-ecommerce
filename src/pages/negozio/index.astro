@@ -1,0 +1,20 @@
+---
+// src/pages/negozio/index.astro — SSG
+import Base from '@/layouts/Base.astro'
+import Header from '@/components/layout/Header.astro'
+import Footer from '@/components/layout/Footer.astro'
+import ProductGrid from '@/components/shop/ProductGrid.astro'
+import { getProducts, getProductCategories } from '@/lib/directus'
+
+const products = await getProducts().catch(() => [])
+const categories = await getProductCategories().catch(() => [])
+---
+
+<Base title="Negozio" description="Scopri tutti i nostri prodotti">
+  <Header />
+  <main class="container py-12">
+    <h1 class="text-4xl font-bold mb-8" data-animate="fade-up">Negozio</h1>
+    <ProductGrid products={products} categories={categories} />
+  </main>
+  <Footer />
+</Base>

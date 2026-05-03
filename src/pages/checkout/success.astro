@@ -1,0 +1,109 @@
+---
+// src/pages/checkout/success.astro — SSG
+import Base from '@/layouts/Base.astro'
+import Header from '@/components/layout/Header.astro'
+import Footer from '@/components/layout/Footer.astro'
+---
+
+<Base title="Ordine confermato">
+  <Header />
+  <main class="container py-20 text-center">
+    <div class="max-w-lg mx-auto">
+      <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+
+      <h1 class="text-3xl font-bold mb-3">Ordine confermato!</h1>
+      <p class="text-[var(--color-muted)] mb-8">Grazie per il tuo acquisto. Riceverai una email di conferma a breve.</p>
+
+      <!-- Order details (populated client-side) -->
+      <div id="order-details" class="bg-[var(--color-surface)] rounded-lg p-6 text-left mb-8 hidden">
+        <h2 class="font-semibold mb-4">Riepilogo ordine</h2>
+        <div id="order-items" class="space-y-2 text-sm"></div>
+        <div class="border-t border-[var(--color-border)] mt-4 pt-4 space-y-1 text-sm">
+          <div class="flex justify-between"><span class="text-[var(--color-muted)]">Totale</span><span id="order-total" class="font-bold"></span></div>
+        </div>
+      </div>
+
+      <!-- Digital downloads -->
+      <div id="downloads-section" class="mb-8 hidden">
+        <h2 class="font-semibold mb-3">I tuoi download</h2>
+        <div id="downloads-list" class="space-y-2"></div>
+      </div>
+
+      <div class="flex gap-4 justify-center flex-wrap">
+        <a href="/negozio" class="px-6 py-3 bg-[var(--color-brand)] text-white rounded-lg font-medium hover:opacity-90 transition-opacity">
+          Continua lo shopping
+        </a>
+        <a href="/account/ordini" class="px-6 py-3 border border-[var(--color-border)] rounded-lg font-medium hover:border-[var(--color-brand)] transition-colors">
+          I miei ordini
+        </a>
+      </div>
+    </div>
+  </main>
+  <Footer />
+</Base>
+
+<script>
+  import { clearCart } from '@/stores/cart'
+  import { appliedCoupon, appliedGiftCard } from '@/stores/cart'
+
+  const params = new URLSearchParams(window.location.search)
+  const sessionId = params.get('session_id')
+
+  if (sessionId) {
+    // Clear cart after successful checkout
+    clearCart()
+    appliedCoupon.set(null)
+    appliedGiftCard.set(null)
+
+    // Fetch order details
+    fetch(`/api/order-status?session_id=${sessionId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (!data.order) return
+        const order = data.order
+        const detailsEl = document.getElementById('order-details')
+        const itemsEl = document.getElementById('order-items')
+        const totalEl = document.getElementById('order-total')
+
+        if (detailsEl) detailsEl.classList.remove('hidden')
+
+        if (itemsEl && Array.isArray(order.order_items)) {
+          itemsEl.innerHTML = order.order_items.map((item: Record<string, unknown>) => `
+            <div class="flex justify-between">
+              <span>${item.product_name} × ${item.quantity}</span>
+              <span>€${((item.unit_price as number) * (item.quantity as number)).toFixed(2)}</span>
+            </div>
+          `).join('')
+        }
+
+        if (totalEl) totalEl.textContent = `€${(order.total as number).toFixed(2)}`
+
+        // Digital downloads
+        const digitalItems = (order.order_items ?? []).filter((i: Record<string, unknown>) => i.download_token)
+        if (digitalItems.length > 0) {
+          const section = document.getElementById('downloads-section')
+          const list = document.getElementById('downloads-list')
+          if (section) section.classList.remove('hidden')
+          if (list) {
+            list.innerHTML = digitalItems.map((item: Record<string, unknown>) => `
+              <a
+                href="/api/download/${item.download_token}"
+                class="flex items-center gap-2 p-3 bg-blue-50 rounded-lg text-blue-700 hover:bg-blue-100 transition-colors text-sm font-medium"
+                download
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Scarica: ${item.product_name}
+              </a>
+            `).join('')
+          }
+        }
+      })
+      .catch(() => { /* silently ignore — order will appear in account */ })
+  }
+</script>

@@ -1,0 +1,167 @@
+---
+// src/pages/negozio/[slug].astro — SSG (PDP)
+import Base from '@/layouts/Base.astro'
+import Header from '@/components/layout/Header.astro'
+import Footer from '@/components/layout/Footer.astro'
+import Badge from '@/components/ui/Badge.astro'
+import VariantSelector from '@/components/shop/VariantSelector.astro'
+import AddToCart from '@/components/shop/AddToCart.astro'
+import { getProductBySlug, getProductSlugs, getDirectusImageUrl, getProducts } from '@/lib/directus'
+import type { DirectusFile } from '@/lib/types'
+
+export async function getStaticPaths() {
+  try {
+    const slugs = await getProductSlugs()
+    return slugs.map(slug => ({ params: { slug } }))
+  } catch {
+    return []
+  }
+}
+
+const { slug } = Astro.params
+const product = await getProductBySlug(slug!).catch(() => null)
+
+if (!product) return Astro.redirect('/negozio')
+
+const activeVariants = product.variants?.filter(v => v.is_active) ?? []
+const isOutOfStock = activeVariants.length > 0 && activeVariants.every(v => v.stock_quantity === 0)
+
+// Build image URLs
+const images = (product.images ?? []).map(img => {
+  const file = img.directus_files_id
+  const id = typeof file === 'string' ? file : (file as DirectusFile)?.id ?? null
+  return getDirectusImageUrl(id, { width: 900, quality: 85 })
+}).filter(Boolean)
+
+// Related products (same category, excluding current)
+const related = product.category_id
+  ? (await getProducts({ categorySlug: product.category_id.slug, limit: 4 }).catch(() => [])).filter(p => p.slug !== slug)
+  : []
+---
+
+<Base
+  title={product.seo_title ?? product.name}
+  description={product.seo_description ?? undefined}
+  image={images[0]}
+>
+  <Header />
+  <main class="container py-12">
+    <!-- Breadcrumb -->
+    <nav class="text-sm text-[var(--color-muted)] mb-6">
+      <a href="/">Home</a> /
+      <a href="/negozio">Negozio</a>
+      {product.category_id && (
+        <> / <a href={`/negozio/${product.category_id.slug}`}>{product.category_id.name}</a></>
+      )}
+      / <span class="text-[var(--color-text)]">{product.name}</span>
+    </nav>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+      <!-- Gallery -->
+      <div class="space-y-4">
+        <div class="aspect-square rounded-lg overflow-hidden bg-[var(--color-surface)]">
+          {images[0]
+            ? <img id="main-image" src={images[0]} alt={product.name} class="w-full h-full object-cover" />
+            : <div class="w-full h-full flex items-center justify-center text-[var(--color-muted)]">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+          }
+        </div>
+        {images.length > 1 && (
+          <div class="grid grid-cols-5 gap-2">
+            {images.map((url, i) => (
+              <button
+                type="button"
+                class="aspect-square rounded overflow-hidden opacity-60 hover:opacity-100 transition-opacity gallery-thumb focus:outline-2 focus:outline-[var(--color-brand)]"
+                data-src={url}
+                aria-label={`Immagine ${i + 1}`}
+              >
+                <img src={url} alt={`${product.name} ${i + 1}`} class="w-full h-full object-cover" loading="lazy" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <!-- Product info -->
+      <div data-animate="fade-up">
+        {product.category_id && (
+          <a href={`/negozio/${product.category_id.slug}`} class="text-sm text-[var(--color-brand)] hover:underline">
+            {product.category_id.name}
+          </a>
+        )}
+        <h1 class="text-3xl font-bold mt-2 mb-4">{product.name}</h1>
+
+        <div class="flex items-center gap-3 mb-6">
+          <span class="text-2xl font-bold text-[var(--color-brand)]">
+            €{(activeVariants[0]?.price_override ?? product.base_price).toFixed(2)}
+          </span>
+          {product.compare_price && (
+            <span class="text-lg text-[var(--color-muted)] line-through">€{product.compare_price.toFixed(2)}</span>
+          )}
+          {product.type === 'digital' && <Badge variant="info">Download digitale</Badge>}
+          {isOutOfStock && <Badge variant="error">Esaurito</Badge>}
+        </div>
+
+        {product.description && (
+          <div class="prose prose-sm text-[var(--color-muted)] mb-8 max-w-none" set:html={product.description} />
+        )}
+
+        {!isOutOfStock && activeVariants.length > 0 && (
+          <div class="space-y-4 mb-6">
+            <VariantSelector variants={activeVariants} basePrice={product.base_price} />
+            <AddToCart product={product} />
+          </div>
+        )}
+
+        {product.type === 'physical' && product.weight_g > 0 && (
+          <p class="text-xs text-[var(--color-muted)] mt-4">Peso: {product.weight_g}g — spedizione calcolata al checkout</p>
+        )}
+      </div>
+    </div>
+
+    <!-- Related products -->
+    {related.length > 0 && (
+      <section class="mt-20">
+        <h2 class="text-2xl font-bold mb-8" data-animate="fade-up">Potrebbe interessarti anche</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" data-animate="stagger">
+          {related.slice(0, 4).map(p => (
+            <article class="group rounded-lg overflow-hidden border border-[var(--color-border)] hover:shadow-md transition-shadow">
+              <a href={`/negozio/${p.slug}`}>
+                {(() => {
+                  const f = p.images?.[0]?.directus_files_id
+                  const id = typeof f === 'string' ? f : (f as DirectusFile)?.id ?? null
+                  const url = getDirectusImageUrl(id, { width: 400, quality: 75 })
+                  return url
+                    ? <img src={(() => { const f = p.images?.[0]?.directus_files_id; const id = typeof f === 'string' ? f : (f as DirectusFile)?.id ?? null; return getDirectusImageUrl(id, { width: 400, quality: 75 }) })()} alt={p.name} class="aspect-square w-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                    : <div class="aspect-square bg-[var(--color-surface)]" />
+                })()}
+                <div class="p-3">
+                  <p class="font-medium text-sm truncate">{p.name}</p>
+                  <p class="text-[var(--color-brand)] font-bold text-sm mt-1">€{(p.variants?.[0]?.price_override ?? p.base_price).toFixed(2)}</p>
+                </div>
+              </a>
+            </article>
+          ))}
+        </div>
+      </section>
+    )}
+  </main>
+  <Footer />
+</Base>
+
+<script>
+  // Gallery thumbnails
+  document.querySelectorAll<HTMLButtonElement>('.gallery-thumb').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mainImg = document.getElementById('main-image') as HTMLImageElement
+      if (mainImg && btn.dataset.src) {
+        mainImg.src = btn.dataset.src
+      }
+      document.querySelectorAll('.gallery-thumb').forEach(b => b.classList.replace('opacity-100', 'opacity-60'))
+      btn.classList.replace('opacity-60', 'opacity-100')
+    })
+  })
+</script>

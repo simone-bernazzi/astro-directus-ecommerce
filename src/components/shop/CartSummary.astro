@@ -1,0 +1,244 @@
+---
+// src/components/shop/CartSummary.astro
+// Rendered server-side as shell — all dynamic content injected by client script
+---
+
+<div id="cart-summary" class="bg-[var(--color-surface)] rounded-lg p-6 space-y-4">
+  <h2 class="text-lg font-semibold">Riepilogo ordine</h2>
+
+  <!-- Cart items list -->
+  <div id="cart-items-list" class="space-y-3 divide-y divide-[var(--color-border)]"></div>
+
+  <p id="cart-empty-msg" class="text-[var(--color-muted)] text-sm text-center py-4 hidden">Il carrello è vuoto.</p>
+
+  <!-- Coupon -->
+  <div class="pt-2">
+    <label for="coupon-input" class="block text-sm font-medium mb-1">Codice coupon</label>
+    <div class="flex gap-2">
+      <input
+        id="coupon-input"
+        type="text"
+        placeholder="SCONTO10"
+        class="flex-1 border border-[var(--color-border)] rounded-md px-3 py-2 text-sm focus:outline-2 focus:outline-[var(--color-brand)]"
+      />
+      <button id="coupon-btn" type="button" class="px-4 py-2 bg-[var(--color-brand)] text-white text-sm rounded-md hover:opacity-90 transition-opacity">
+        Applica
+      </button>
+    </div>
+    <p id="coupon-msg" class="text-xs mt-1 h-4"></p>
+  </div>
+
+  <!-- Gift card -->
+  <div>
+    <label for="giftcard-input" class="block text-sm font-medium mb-1">Gift card</label>
+    <div class="flex gap-2">
+      <input
+        id="giftcard-input"
+        type="text"
+        placeholder="Codice gift card"
+        class="flex-1 border border-[var(--color-border)] rounded-md px-3 py-2 text-sm focus:outline-2 focus:outline-[var(--color-brand)]"
+      />
+      <button id="giftcard-btn" type="button" class="px-4 py-2 bg-[var(--color-brand)] text-white text-sm rounded-md hover:opacity-90 transition-opacity">
+        Applica
+      </button>
+    </div>
+    <p id="giftcard-msg" class="text-xs mt-1 h-4"></p>
+  </div>
+
+  <!-- Totals -->
+  <div class="border-t border-[var(--color-border)] pt-4 space-y-2 text-sm">
+    <div class="flex justify-between">
+      <span class="text-[var(--color-muted)]">Subtotale</span>
+      <span id="summary-subtotal">€0,00</span>
+    </div>
+    <div id="summary-discount-row" class="flex justify-between text-green-600 hidden">
+      <span>Sconto</span>
+      <span id="summary-discount">-€0,00</span>
+    </div>
+    <div class="flex justify-between">
+      <span class="text-[var(--color-muted)]">Spedizione</span>
+      <span class="text-[var(--color-muted)]">Calcolata al checkout</span>
+    </div>
+    <div class="flex justify-between font-bold text-base pt-2 border-t border-[var(--color-border)]">
+      <span>Totale stimato</span>
+      <span id="summary-total">€0,00</span>
+    </div>
+  </div>
+
+  <!-- Checkout button -->
+  <button
+    id="checkout-btn"
+    type="button"
+    class="w-full bg-[var(--color-brand)] text-white font-semibold py-3 px-6 rounded-lg hover:bg-[var(--color-brand-dark)] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+    disabled
+  >
+    Procedi al pagamento
+  </button>
+  <p id="checkout-error" class="text-xs text-red-600 text-center hidden"></p>
+</div>
+
+<script>
+  import { cartItems, cartSubtotal, cartDiscount, appliedCoupon, appliedGiftCard } from '@/stores/cart'
+
+  function fmt(n: number) {
+    return `€${n.toFixed(2).replace('.', ',')}`
+  }
+
+  function renderItems() {
+    const list = document.getElementById('cart-items-list')
+    const emptyMsg = document.getElementById('cart-empty-msg')
+    const checkoutBtn = document.getElementById('checkout-btn') as HTMLButtonElement
+    if (!list) return
+
+    const items = cartItems.get()
+    list.innerHTML = ''
+
+    if (items.length === 0) {
+      emptyMsg?.classList.remove('hidden')
+      if (checkoutBtn) checkoutBtn.disabled = true
+      return
+    }
+    emptyMsg?.classList.add('hidden')
+    if (checkoutBtn) checkoutBtn.disabled = false
+
+    items.forEach(item => {
+      const el = document.createElement('div')
+      el.className = 'flex gap-3 py-3'
+      el.innerHTML = `
+        ${item.image ? `<img src="${item.image}" alt="${item.productName}" class="w-16 h-16 object-cover rounded-md flex-shrink-0" />` : '<div class="w-16 h-16 bg-gray-100 rounded-md flex-shrink-0"></div>'}
+        <div class="flex-1 min-w-0">
+          <p class="font-medium text-sm truncate">${item.productName}</p>
+          <p class="text-xs text-[var(--color-muted)]">${item.variantName}</p>
+          <div class="flex items-center gap-2 mt-1">
+            <button data-variant="${item.variantId}" data-delta="-1" class="qty-btn w-6 h-6 border border-[var(--color-border)] rounded text-sm hover:bg-[var(--color-surface)]">−</button>
+            <span class="text-sm w-6 text-center">${item.quantity}</span>
+            <button data-variant="${item.variantId}" data-delta="1" class="qty-btn w-6 h-6 border border-[var(--color-border)] rounded text-sm hover:bg-[var(--color-surface)]">+</button>
+          </div>
+        </div>
+        <div class="text-right flex-shrink-0">
+          <p class="font-semibold text-sm">${fmt(item.price * item.quantity)}</p>
+          <button data-remove="${item.variantId}" class="remove-btn text-xs text-[var(--color-muted)] hover:text-red-600 mt-1">Rimuovi</button>
+        </div>
+      `
+      list.appendChild(el)
+    })
+
+    list.querySelectorAll<HTMLButtonElement>('.qty-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const { updateQuantity } = await import('@/stores/cart')
+        const variantId = btn.dataset.variant!
+        const delta = parseInt(btn.dataset.delta!)
+        const item = cartItems.get().find(i => i.variantId === variantId)
+        if (item) updateQuantity(variantId, item.quantity + delta)
+      })
+    })
+
+    list.querySelectorAll<HTMLButtonElement>('.remove-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const { removeFromCart } = await import('@/stores/cart')
+        removeFromCart(btn.dataset.remove!)
+      })
+    })
+  }
+
+  function renderTotals() {
+    const subtotal = cartSubtotal.get()
+    const discount = cartDiscount.get()
+    const total = Math.max(0, subtotal - discount)
+
+    const subEl = document.getElementById('summary-subtotal')
+    const discEl = document.getElementById('summary-discount')
+    const discRow = document.getElementById('summary-discount-row')
+    const totEl = document.getElementById('summary-total')
+
+    if (subEl) subEl.textContent = fmt(subtotal)
+    if (discEl) discEl.textContent = `-${fmt(discount)}`
+    if (discRow) discRow.classList.toggle('hidden', discount === 0)
+    if (totEl) totEl.textContent = fmt(total)
+  }
+
+  cartItems.subscribe(() => { renderItems(); renderTotals() })
+  appliedCoupon.subscribe(renderTotals)
+  appliedGiftCard.subscribe(renderTotals)
+
+  // Coupon
+  document.getElementById('coupon-btn')?.addEventListener('click', async () => {
+    const input = document.getElementById('coupon-input') as HTMLInputElement
+    const msg = document.getElementById('coupon-msg')
+    const code = input.value.trim()
+    if (!code) return
+
+    const res = await fetch('/api/coupon/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, subtotal: cartSubtotal.get() }),
+    })
+    const data = await res.json()
+
+    if (res.ok && data.valid) {
+      appliedCoupon.set({ code: data.code, type: data.type, value: data.value })
+      if (msg) { msg.textContent = `✓ Sconto applicato: ${data.type === 'percent' ? data.value + '%' : '€' + data.value}`; msg.className = 'text-xs mt-1 h-4 text-green-600' }
+    } else {
+      if (msg) { msg.textContent = data.error ?? 'Coupon non valido'; msg.className = 'text-xs mt-1 h-4 text-red-600' }
+    }
+  })
+
+  // Gift card
+  document.getElementById('giftcard-btn')?.addEventListener('click', async () => {
+    const input = document.getElementById('giftcard-input') as HTMLInputElement
+    const msg = document.getElementById('giftcard-msg')
+    const code = input.value.trim()
+    if (!code) return
+
+    const res = await fetch('/api/giftcard/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    })
+    const data = await res.json()
+
+    if (res.ok && data.valid) {
+      appliedGiftCard.set({ code: data.code, id: data.id, amount: data.remaining_value })
+      if (msg) { msg.textContent = `✓ Gift card: €${data.remaining_value} disponibili`; msg.className = 'text-xs mt-1 h-4 text-green-600' }
+    } else {
+      if (msg) { msg.textContent = data.error ?? 'Gift card non valida'; msg.className = 'text-xs mt-1 h-4 text-red-600' }
+    }
+  })
+
+  // Checkout
+  document.getElementById('checkout-btn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('checkout-btn') as HTMLButtonElement
+    const errEl = document.getElementById('checkout-error')
+    btn.disabled = true
+    btn.textContent = 'Reindirizzamento...'
+
+    const coupon = appliedCoupon.get()
+    const giftCard = appliedGiftCard.get()
+
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: cartItems.get(),
+          couponCode: coupon?.code ?? null,
+          giftCardCode: giftCard?.code ?? null,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && data.url) {
+        window.location.href = data.url
+      } else {
+        throw new Error(data.error ?? 'Errore durante il checkout')
+      }
+    } catch (err) {
+      if (errEl) { errEl.textContent = (err as Error).message; errEl.classList.remove('hidden') }
+      btn.disabled = false
+      btn.textContent = 'Procedi al pagamento'
+    }
+  })
+
+  // Initial render
+  renderItems()
+  renderTotals()
+</script>
