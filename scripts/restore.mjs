@@ -3,11 +3,12 @@
 // Ripristina un backup Directus creato con backup.mjs
 //
 // Usage:
-//   node scripts/restore.mjs <backup-path>           → ripristina tutto
-//   node scripts/restore.mjs <backup-path> --dry-run → mostra cosa verrebbe fatto
-//   node scripts/restore.mjs <backup-path> --schema-only   → solo schema
-//   node scripts/restore.mjs <backup-path> --data-only     → solo dati
-//   node scripts/restore.mjs <backup-path> --collection products → solo una collezione
+//   node scripts/restore.mjs <backup-path>                          → ripristina tutto
+//   node scripts/restore.mjs <backup-path> --dry-run                → mostra cosa verrebbe fatto
+//   node scripts/restore.mjs <backup-path> --schema-only            → solo schema
+//   node scripts/restore.mjs <backup-path> --data-only              → solo dati
+//   node scripts/restore.mjs <backup-path> --collection products    → solo una collezione
+//   node scripts/restore.mjs <backup-path> --remap-domain old.com:new.com → sostituisce il dominio durante l'import
 
 import { readFileSync, existsSync, mkdirSync } from 'node:fs'
 import { join, resolve, extname, basename } from 'node:path'
@@ -31,6 +32,19 @@ const dryRun      = args.includes('--dry-run')
 const schemaOnly  = args.includes('--schema-only')
 const dataOnly    = args.includes('--data-only')
 const onlyCol     = args[args.indexOf('--collection') + 1] ?? null
+
+// --remap-domain old.com:new.com
+const remapArg    = args[args.indexOf('--remap-domain') + 1] ?? null
+const [remapOld, remapNew] = remapArg ? remapArg.split(':') : [null, null]
+
+function remapValue(val) {
+  if (!remapOld || !remapNew) return val
+  if (typeof val === 'string') return val.replaceAll(remapOld, remapNew)
+  if (Array.isArray(val))     return val.map(v => remapValue(v))
+  if (val && typeof val === 'object')
+    return Object.fromEntries(Object.entries(val).map(([k, v]) => [k, remapValue(v)]))
+  return val
+}
 
 if (!backupPath) {
   console.error('✗ Specificare il percorso del backup\n  Uso: node scripts/restore.mjs <backup-path>')
@@ -163,8 +177,9 @@ async function main() {
   if (!dataOnly && existsSync(settingsPath)) {
     console.log('  → Ripristino settings...')
     if (!dryRun) {
-      const settings = JSON.parse(readFileSync(settingsPath, 'utf8'))
-      await api('/settings', 'PATCH', settings.data ?? settings)
+      const raw = JSON.parse(readFileSync(settingsPath, 'utf8'))
+      const settings = remapValue(raw.data ?? raw)
+      await api('/settings', 'PATCH', settings)
       console.log('    ✓ Settings aggiornati')
     } else {
       console.log('    (dry-run) settings.json trovato')
@@ -203,7 +218,8 @@ async function main() {
 
         if (!dryRun) {
           try {
-            const count = await importBatch(colName, items)
+            const remapped = remapValue(items)
+            const count = await importBatch(colName, remapped)
             console.log(`✓ ${count} items importati`)
           } catch (e) {
             console.log(`⚠ ${e.message}`)

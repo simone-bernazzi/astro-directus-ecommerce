@@ -258,13 +258,16 @@ FASE 2 — Nuovo Directus (se cambia hosting)
   [ ] Crea nuovo database MySQL
   [ ] Configura nuovo DIRECTUS_URL e DIRECTUS_TOKEN nel .env.new
   [ ] Applica schema: node scripts/restore.mjs <backup> --schema-only
-  [ ] Importa dati:   node scripts/restore.mjs <backup> --data-only
+  [ ] Importa dati (stesso dominio):
+        node scripts/restore.mjs <backup> --data-only
+  [ ] Importa dati (dominio diverso — sostituisce durante l'import):
+        node scripts/restore.mjs <backup> --data-only --remap-domain vecchio.com:nuovo.com
   [ ] Verifica admin panel Directus sul nuovo host
   [ ] Configura permessi ruoli (Public, Customer, Admin)
 
-FASE 3 — Nuovo dominio (se cambia)
+FASE 3 — Nuovo dominio (se cambia, solo se NON usato --remap-domain)
   [ ] Aggiorna PUBLIC_SITE_URL e ALLOWED_ORIGIN nel .env.new
-  [ ] Aggiorna contenuto: node scripts/migrate.mjs domain --old vecchio.com --new nuovo.com
+  [ ] Aggiorna contenuto già importato: node scripts/migrate.mjs domain --old vecchio.com --new nuovo.com
   [ ] Verifica immagini e link interni in Directus
 
 FASE 4 — Stripe
