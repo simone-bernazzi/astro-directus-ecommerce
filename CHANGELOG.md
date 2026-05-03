@@ -13,19 +13,6 @@
 
 ### Funzionalità da aggiungere (backlog)
 
-- `[ ]` **Wishlist** — salvataggio prodotti preferiti in localStorage con sync opzionale su Directus
-- `[ ]` **Email transazionali** — template HTML per conferma ordine, spedizione, download digitale
-- `[ ]` **Notifica disponibilità** — form email "avvisami quando torna disponibile" per prodotti esauriti
-- `[ ]` **Upsell / cross-sell** — sezione "Spesso acquistato insieme" con logica configurabile in Directus
-- `[ ]` **Multi-currency** — visualizzazione prezzi in valuta locale via exchangerate API, checkout sempre in EUR
-- `[ ]` **Account: gestione indirizzi** — rubrica indirizzi di spedizione salvati per checkout rapido
-- `[ ]` **Account: reset password** — flow email con token temporaneo
-- `[ ]` **Ricerca prodotti** — input search con filtri live (categoria, prezzo min/max, tipo) via Directus API
-- `[ ]` **Filtri negozio avanzati** — sidebar con attributi dinamici (taglia, colore, materiale) da product_variants
-- `[ ]` **Admin dashboard** — pagina protetta `/admin` con metriche ordini, top prodotti, stato backup
-- `[ ]` **Internazionalizzazione shop** — slug e contenuti prodotto in IT/EN, routing `/en/shop/`
-- `[ ]` **Comparazione prodotti** — seleziona fino a 3 prodotti e confronta attributi
-- `[ ]` **Wishlist** — salvataggio prodotti preferiti in localStorage con sync opzionale su Directus
 - `[ ]` **Email transazionali** — template HTML per conferma ordine, spedizione, download digitale
 - `[ ]` **Notifica disponibilità** — form email "avvisami quando torna disponibile" per prodotti esauriti
 - `[ ]` **Upsell / cross-sell** — sezione "Spesso acquistato insieme" con logica configurabile in Directus
@@ -47,10 +34,18 @@
 
 ### Bug aperti
 
-- `[ ]` **`BUG-001`** `negozio/[slug].astro` — il blocco related products duplica la chiamata `getDirectusImageUrl` inline; andrebbe estratta in una variabile per pulizia
-- `[ ]` **`BUG-002`** `CartSummary.astro` — il pulsante `+` qty nel carrello non controlla il `stock_quantity` della variante; è possibile aggiungere più unità di quelle disponibili
-- `[ ]` **`BUG-003`** `api/checkout.ts` — se il cliente applica coupon + gift card e il totale scende a 0, Stripe restituisce errore perché `amount` deve essere ≥ 50 centesimi; manca il fallback "ordine gratuito"
 - `[ ]` **`BUG-004`** `api/download/[token].ts` — il proxy scarica l'intero file in memoria prima di rispondere; su file grandi (es. video) questo può causare timeout su Netlify (limite 10 secondi)
+
+---
+
+## [0.6.0] — 2026-05-03
+
+### Aggiunto
+- `[FEAT]` **Wishlist** — salvataggio prodotti preferiti in localStorage via nanostores persistent:
+  - `src/stores/wishlist.ts` — `WishlistItem`, `wishlistItems`, `wishlistCount`, `toggleWishlist()`, `removeFromWishlist()`, `isInWishlist()`
+  - `ProductCard.astro` — pulsante cuore in overlay (top-right immagine) con due SVG outline/filled; stato sincronizzato tramite `wishlistItems.subscribe`
+  - `Header.astro` — icona cuore con badge rosso reattivo linkato a `/account/wishlist`
+  - `pages/account/wishlist.astro` — pagina SSG con griglia prodotti renderizzata client-side, stato vuoto, pulsante rimozione singolo e "Svuota wishlist" con confirm
 
 ---
 
