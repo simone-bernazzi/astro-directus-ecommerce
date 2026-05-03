@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guida Messa in Produzione — Astro Directus E-commerce</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --brand: #6366f1;
+    --brand-light: #e0e7ff;
+    --accent: #0ea5e9;
+    --success: #10b981;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-400: #9ca3af;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-900: #111827;
+    --radius: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--gray-900);
+    background: #fff;
+    padding: 48px 56px;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  /* ── Cover ── */
+  .cover {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 220px;
+    border-bottom: 3px solid var(--brand);
+    padding-bottom: 32px;
+    margin-bottom: 48px;
+  }
+  .cover-badge {
+    display: inline-block;
+    background: var(--brand-light);
+    color: var(--brand);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    width: fit-content;
+  }
+  .cover h1 {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--gray-900);
+    line-height: 1.2;
+  }
+  .cover .subtitle {
+    font-size: 15px;
+    color: var(--gray-600);
+    margin-top: 10px;
+  }
+  .cover .meta {
+    font-size: 12px;
+    color: var(--gray-400);
+    margin-top: 20px;
+  }
+
+  /* ── Sections ── */
+  h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--brand);
+    margin: 40px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--brand-light);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    page-break-after: avoid;
+  }
+  h2 .num {
+    background: var(--brand);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin: 20px 0 8px;
+    page-break-after: avoid;
+  }
+
+  p { margin-bottom: 10px; color: var(--gray-700); }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; margin: 0 0 16px; }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--gray-100);
+    font-size: 13px;
+    color: var(--gray-700);
+    page-break-inside: avoid;
+  }
+  .checklist li:last-child { border-bottom: none; }
+  .check-box {
+    width: 16px; height: 16px;
+    border: 2px solid var(--gray-400);
+    border-radius: 3px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .checklist li .note {
+    font-size: 11px;
+    color: var(--gray-400);
+    display: block;
+    margin-top: 2px;
+  }
+
+  /* ── Code blocks ── */
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 11.5px;
+    background: var(--gray-100);
+    color: #c026d3;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  pre {
+    background: var(--gray-900);
+    color: #e2e8f0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    line-height: 1.7;
+    padding: 16px 20px;
+    border-radius: var(--radius);
+    overflow-x: auto;
+    margin: 10px 0 16px;
+    page-break-inside: avoid;
+  }
+  pre .comment { color: #64748b; }
+  pre .key     { color: #7dd3fc; }
+  pre .val     { color: #86efac; }
+  pre .url     { color: #fde68a; }
+  pre .cmd     { color: #c084fc; }
+
+  /* ── Callouts ── */
+  .callout {
+    border-left: 4px solid;
+    padding: 10px 14px;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    margin: 12px 0;
+    font-size: 12px;
+    page-break-inside: avoid;
+  }
+  .callout.info    { border-color: var(--accent); background: #e0f2fe; color: #0c4a6e; }
+  .callout.warn    { border-color: var(--warn);   background: #fef3c7; color: #78350f; }
+  .callout.success { border-color: var(--success); background: #d1fae5; color: #065f46; }
+  .callout.danger  { border-color: var(--danger);  background: #fee2e2; color: #7f1d1d; }
+  .callout strong { font-weight: 600; }
+
+  /* ── Env table ── */
+  .env-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 24px;
+    font-size: 12px;
+    page-break-inside: avoid;
+  }
+  .env-table th {
+    background: var(--gray-900);
+    color: #e2e8f0;
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .env-table th:first-child { border-radius: var(--radius) 0 0 0; }
+  .env-table th:last-child  { border-radius: 0 var(--radius) 0 0; }
+  .env-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--gray-200);
+    vertical-align: top;
+  }
+  .env-table tr:last-child td { border-bottom: none; }
+  .env-table tr:nth-child(even) td { background: var(--gray-50); }
+  .env-table td:first-child {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: #7c3aed;
+    white-space: nowrap;
+  }
+  .env-table td .required {
+    display: inline-block;
+    background: #fee2e2;
+    color: #991b1b;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 4px;
+    font-family: 'Inter', sans-serif;
+  }
+  .env-table td .optional {
+    display: inline-block;
+    background: var(--gray-100);
+    color: var(--gray-600);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 4px;
+    font-family: 'Inter', sans-serif;
+  }
+  .env-table td .where {
+    font-size: 11px;
+    color: var(--accent);
+    display: block;
+    margin-top: 3px;
+    font-style: italic;
+  }
+
+  /* ── Section divider ── */
+  .section-group-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--gray-400);
+    margin: 28px 0 4px;
+  }
+
+  /* ── Phase cards ── */
+  .phase-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .phase-card {
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    page-break-inside: avoid;
+  }
+  .phase-card .phase-num {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--brand);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+  .phase-card .phase-title {
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: 4px;
+  }
+  .phase-card .phase-desc {
+    font-size: 11px;
+    color: var(--gray-600);
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+
+  /* ── Page break ── */
+  .page-break { page-break-before: always; }
+
+  /* ── Footer ── */
+  @page {
+    margin: 12mm 14mm;
+    @bottom-center {
+      content: "Astro Directus E-commerce — Guida Produzione · pag. " counter(page) " / " counter(pages);
+      font-size: 9px;
+      color: #9ca3af;
+      font-family: 'Inter', sans-serif;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     COVER
+════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-badge">Template · Astro 6 + Directus + Stripe + Netlify</div>
+  <h1>Guida alla messa<br>in produzione</h1>
+  <p class="subtitle">Setup completo: hosting, variabili d'ambiente, Stripe, backup e go-live checklist</p>
+  <p class="meta">astro-directus-ecommerce · github.com/simone-bernazzi/astro-directus-ecommerce · Maggio 2026</p>
+</div>
+
+<!-- FASI OVERVIEW -->
+<div class="phase-grid">
+  <div class="phase-card">
+    <div class="phase-num">Fase 1</div>
+    <div class="phase-title">Directus CMS</div>
+    <div class="phase-desc">Hosting cPanel/VPS, database MySQL, token API, schema collezioni</div>
+  </div>
+  <div class="phase-card">
+    <div class="phase-num">Fase 2</div>
+    <div class="phase-title">Stripe</div>
+    <div class="phase-desc">Account, chiavi API, webhook endpoint, test pagamenti</div>
+  </div>
+  <div class="phase-card">
+    <div class="phase-num">Fase 3</div>
+    <div class="phase-title">reCAPTCHA</div>
+    <div class="phase-desc">Registrazione sito Google, chiavi pubblica e segreta</div>
+  </div>
+  <div class="phase-card">
+    <div class="phase-num">Fase 4</div>
+    <div class="phase-title">Netlify</div>
+    <div class="phase-desc">Deploy, variabili ambiente, funzioni schedulare, build hook</div>
+  </div>
+  <div class="phase-card">
+    <div class="phase-num">Fase 5</div>
+    <div class="phase-title">Backup</div>
+    <div class="phase-desc">Configurazione backup automatico, chiave admin, storage S3 opzionale</div>
+  </div>
+  <div class="phase-card">
+    <div class="phase-num">Fase 6</div>
+    <div class="phase-title">Go-Live</div>
+    <div class="phase-desc">DNS, HTTPS, smoke test, checklist finale</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     FASE 1 — DIRECTUS
+════════════════════════════════════════════════════════ -->
+<h2><span class="num">1</span>Directus CMS — Hosting e configurazione</h2>
+
+<h3>1.1 Requisiti hosting</h3>
+<p>Directus richiede un host con supporto Node.js 18+ oppure Docker. Le opzioni più comuni per progetti client:</p>
+<ul style="margin: 0 0 12px 18px; color: var(--gray-700);">
+  <li style="margin-bottom:4px"><strong>cPanel con Node.js Selector</strong> — soluzione economica, supportata dalla maggior parte dei provider condivisi (es. SiteGround, Aruba, Namecheap)</li>
+  <li style="margin-bottom:4px"><strong>VPS con Docker</strong> — maggior controllo, consigliato per progetti ad alto traffico</li>
+  <li style="margin-bottom:4px"><strong>Railway / Render</strong> — deploy in un click con immagine Docker ufficiale <code>directus/directus</code></li>
+</ul>
+
+<h3>1.2 Database MySQL</h3>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Crea un database MySQL 8+ dedicato al progetto<span class="note">Da cPanel → Database Wizard, oppure da phpMyAdmin</span></div></li>
+  <li><span class="check-box"></span><div>Crea un utente MySQL con tutti i permessi sul database<span class="note">Segna: host, nome DB, utente, password — ti serviranno nella configurazione Directus</span></div></li>
+</ul>
+
+<h3>1.3 Installazione Directus</h3>
+<pre><span class="comment"># Via npm (su VPS o cPanel con Node.js)</span>
+<span class="cmd">npm init directus-project@latest</span> <span class="val">./cms</span>
+<span class="comment"># Seleziona: MySQL → inserisci credenziali DB</span>
+<span class="comment"># Crea admin email + password</span>
+
+<span class="comment"># Oppure via Docker</span>
+<span class="cmd">docker run</span> -p 8055:8055 \
+  -e DB_CLIENT=mysql \
+  -e DB_HOST=<span class="url">db-host</span> \
+  -e DB_PORT=3306 \
+  -e DB_DATABASE=<span class="url">nome_db</span> \
+  -e DB_USER=<span class="url">utente_db</span> \
+  -e DB_PASSWORD=<span class="url">password_db</span> \
+  -e SECRET=<span class="url">stringa_casuale_32_chars</span> \
+  directus/directus</pre>
+
+<h3>1.4 Generare il token statico (DIRECTUS_TOKEN)</h3>
+<p>Il token statico è la chiave che il frontend usa per autenticarsi alle API Directus.</p>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Accedi al pannello admin Directus <code>https://cms.tuodominio.it/admin</code></div></li>
+  <li><span class="check-box"></span><div>Vai su <strong>Settings → Users → Admin</strong> (o crea un utente dedicato "API Bot" con ruolo Admin)</div></li>
+  <li><span class="check-box"></span><div>Scorri fino a <strong>Token</strong> → clicca <strong>Regenerate Token</strong></div></li>
+  <li><span class="check-box"></span><div>Copia il token generato (visibile una sola volta) → incollalo in <code>DIRECTUS_TOKEN</code></div></li>
+</ul>
+<div class="callout warn"><strong>Attenzione:</strong> Usa un utente dedicato "API Bot" separato dall'admin personale. Se cambi la password dell'admin, il token rimane valido; se si disabilita l'utente, il token smette di funzionare.</div>
+
+<h3>1.5 Creare le collezioni con lo script</h3>
+<pre><span class="comment"># Nella root del progetto, con .env configurato</span>
+<span class="cmd">node scripts/setup-collections.mjs</span></pre>
+<p>Crea automaticamente tutte le collezioni: <code>pages</code>, <code>posts</code>, <code>categories</code>, <code>portfolio</code>, <code>faq</code>, <code>site_settings</code>, <code>products</code>, <code>product_categories</code>, <code>product_variants</code>, <code>shipping_zones</code>, <code>orders</code>, <code>order_items</code>, <code>customers</code>, <code>coupons</code>, <code>gift_cards</code>, <code>contact_submissions</code>.</p>
+
+<h3>1.6 Configurare i permessi</h3>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Settings → Roles → <strong>Public</strong>: permesso <em>read</em> su <code>pages</code>, <code>posts</code>, <code>categories</code>, <code>portfolio</code>, <code>faq</code>, <code>site_settings</code>, <code>products</code>, <code>product_categories</code></div></li>
+  <li><span class="check-box"></span><div>Crea ruolo <strong>Customer</strong>: read su <code>orders</code> (filtro: <code>customer_email = $CURRENT_USER.email</code>)</div></li>
+  <li><span class="check-box"></span><div>Il ruolo <strong>Admin</strong> ha accesso completo (non modificare)</div></li>
+</ul>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     FASE 2 — STRIPE
+════════════════════════════════════════════════════════ -->
+<h2><span class="num">2</span>Stripe — Pagamenti e webhook</h2>
+
+<h3>2.1 Creare account e ottenere le chiavi API</h3>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Crea account su <strong>dashboard.stripe.com</strong> (o accedi se già esistente)</div></li>
+  <li><span class="check-box"></span><div>Completa la verifica identità per attivare i pagamenti reali</div></li>
+  <li><span class="check-box"></span><div>Vai su <strong>Developers → API keys</strong></div></li>
+  <li><span class="check-box"></span><div>Copia <strong>Publishable key</strong> (<code>pk_live_...</code>) → <code>STRIPE_PUBLISHABLE_KEY</code></div></li>
+  <li><span class="check-box"></span><div>Clicca <strong>Reveal live key</strong>, copia <strong>Secret key</strong> (<code>sk_live_...</code>) → <code>STRIPE_SECRET_KEY</code><span class="note">La secret key è visibile una sola volta. Salvala subito in un password manager.</span></div></li>
+</ul>
+
+<div class="callout info"><strong>Differenza test/live:</strong> In sviluppo usa le chiavi <code>pk_test_...</code> / <code>sk_test_...</code>. Le carte di test sono disponibili su <em>docs.stripe.com/testing</em>. Carta di test universale: <code>4242 4242 4242 4242</code>, qualsiasi scadenza futura, qualsiasi CVC.</div>
+
+<h3>2.2 Configurare il webhook</h3>
+<p>Il webhook notifica il backend quando un pagamento è completato.</p>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Vai su <strong>Developers → Webhooks → Add endpoint</strong></div></li>
+  <li><span class="check-box"></span><div>Endpoint URL: <code>https://tuodominio.it/api/webhook/stripe</code></div></li>
+  <li><span class="check-box"></span><div>Events: seleziona <strong>checkout.session.completed</strong></div></li>
+  <li><span class="check-box"></span><div>Clicca <strong>Add endpoint</strong> → vai su <strong>Signing secret</strong> → copia il valore <code>whsec_...</code> → <code>STRIPE_WEBHOOK_SECRET</code></div></li>
+</ul>
+
+<div class="callout warn"><strong>In sviluppo locale:</strong> usa Stripe CLI per forwardare gli eventi. Installa da <em>stripe.com/docs/stripe-cli</em> poi esegui:<br><code style="display:block;margin-top:6px">stripe listen --forward-to localhost:4321/api/webhook/stripe</code>Il CLI stampa un webhook secret temporaneo (<code>whsec_...</code>) da usare in <code>.env</code> durante lo sviluppo.</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     FASE 3 — reCAPTCHA
+════════════════════════════════════════════════════════ -->
+<h2><span class="num">3</span>Google reCAPTCHA v3</h2>
+
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Vai su <strong>google.com/recaptcha/admin</strong> → accedi con account Google</div></li>
+  <li><span class="check-box"></span><div>Clicca <strong>+</strong> per registrare un nuovo sito</div></li>
+  <li><span class="check-box"></span><div>Label: nome del progetto. Tipo: <strong>Score based (v3)</strong></div></li>
+  <li><span class="check-box"></span><div>Domains: inserisci <code>tuodominio.it</code> (senza https://). Aggiungi anche <code>localhost</code> per sviluppo</div></li>
+  <li><span class="check-box"></span><div>Copia <strong>Site Key</strong> → <code>PUBLIC_RECAPTCHA_SITE_KEY</code><span class="note">Questa chiave è pubblica e va nel bundle JS del frontend</span></div></li>
+  <li><span class="check-box"></span><div>Copia <strong>Secret Key</strong> → <code>RECAPTCHA_SECRET_KEY</code><span class="note">Questa chiave è privata, usata solo server-side per verificare il token</span></div></li>
+</ul>
+
+<div class="callout info"><strong>Score:</strong> reCAPTCHA v3 assegna uno score da 0.0 (bot) a 1.0 (umano). Il valore minimo accettato è configurabile con <code>RECAPTCHA_MIN_SCORE</code> (default: 0.5). Abbassa a 0.3 se ricevi falsi positivi da utenti legittimi.</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     FASE 4 — NETLIFY
+════════════════════════════════════════════════════════ -->
+<h2><span class="num">4</span>Netlify — Deploy e configurazione</h2>
+
+<h3>4.1 Creare il sito</h3>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Netlify → <strong>Add new site → Import an existing project</strong></div></li>
+  <li><span class="check-box"></span><div>Connetti GitHub → seleziona la repo del cliente</div></li>
+  <li><span class="check-box"></span><div>Build command: <code>npm run build</code></div></li>
+  <li><span class="check-box"></span><div>Publish directory: <code>dist</code></div></li>
+  <li><span class="check-box"></span><div>Node version: <strong>22</strong> (Site settings → Environment → Node version, oppure aggiungi <code>NODE_VERSION=22</code> nelle env vars)</div></li>
+</ul>
+
+<h3>4.2 Variabili d'ambiente su Netlify</h3>
+<p>Vai su <strong>Site settings → Environment variables</strong> e aggiungi tutte le variabili del <code>.env</code>:</p>
+
+<div class="callout warn"><strong>Attenzione ai prefissi:</strong> Le variabili con prefisso <code>PUBLIC_</code> sono esposte nel browser (bundle JS). Tutte le altre sono accessibili solo server-side. Non mettere mai segreti in variabili <code>PUBLIC_</code>.</div>
+
+<h3>4.3 Build hook per Directus</h3>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Netlify → Site settings → <strong>Build hooks → Add build hook</strong></div></li>
+  <li><span class="check-box"></span><div>Nome: "Directus Publish" → copia l'URL del hook</div></li>
+  <li><span class="check-box"></span><div>In Directus → Settings → <strong>Flows</strong> → crea un flow con trigger "Action" su save/publish di <code>pages</code>, <code>posts</code>, <code>products</code></div></li>
+  <li><span class="check-box"></span><div>Aggiungi step "Webhook" → incolla l'URL Netlify (metodo POST)</div></li>
+</ul>
+
+<h3>4.4 ALLOWED_ORIGIN per le API</h3>
+<p>La variabile <code>ALLOWED_ORIGIN</code> protegge le API da richieste cross-origin non autorizzate. Deve corrispondere esattamente all'URL del sito (senza slash finale):</p>
+<pre><span class="key">ALLOWED_ORIGIN</span>=<span class="url">https://tuodominio.it</span>   <span class="comment"># NO slash finale</span></pre>
+
+<div class="callout danger"><strong>Non usare <code>*</code></strong> in produzione: esporrebbe il checkout e le API a chiamate da qualsiasi origine.</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     FASE 5 — BACKUP
+════════════════════════════════════════════════════════ -->
+<h2><span class="num">5</span>Backup automatico</h2>
+
+<h3>5.1 Generare BACKUP_ADMIN_KEY</h3>
+<p>La chiave protegge l'endpoint <code>/api/admin/backup</code> da accessi non autorizzati. Deve essere una stringa casuale sicura:</p>
+<pre><span class="comment"># Genera una chiave sicura con Node.js</span>
+<span class="cmd">node -e</span> <span class="val">"console.log(require('crypto').randomBytes(32).toString('hex'))"</span>
+
+<span class="comment"># Oppure con openssl</span>
+<span class="cmd">openssl rand -hex 32</span></pre>
+<p>Copia l'output → <code>BACKUP_ADMIN_KEY</code>. Usa la stessa chiave su Netlify e nel file <code>.env</code> locale.</p>
+
+<h3>5.2 Schedule automatico</h3>
+<p>La Netlify Scheduled Function si attiva in base al valore di <code>BACKUP_CRON</code>:</p>
+<pre><span class="key">BACKUP_CRON</span>=<span class="val">@daily</span>        <span class="comment"># ogni giorno a mezzanotte UTC (default)</span>
+<span class="key">BACKUP_CRON</span>=<span class="val">0 2 * * *</span>    <span class="comment"># ogni giorno alle 02:00 UTC</span>
+<span class="key">BACKUP_CRON</span>=<span class="val">@weekly</span>       <span class="comment"># ogni domenica</span></pre>
+
+<h3>5.3 Storage S3 (opzionale)</h3>
+<p>Per archiviare i backup su cloud (AWS S3, Backblaze B2, Cloudflare R2, MinIO):</p>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Crea un bucket S3 dedicato al progetto</div></li>
+  <li><span class="check-box"></span><div>Crea un utente IAM con permesso <code>s3:PutObject</code> sul solo bucket</div></li>
+  <li><span class="check-box"></span><div>Genera Access Key + Secret Key per l'utente IAM</div></li>
+  <li><span class="check-box"></span><div>Imposta <code>BACKUP_STORAGE=s3</code> e compila tutte le variabili <code>BACKUP_S3_*</code></div></li>
+</ul>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     FASE 6 — GO-LIVE
+════════════════════════════════════════════════════════ -->
+<h2><span class="num">6</span>Go-Live — DNS e checklist finale</h2>
+
+<h3>6.1 Dominio su Netlify</h3>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Netlify → Domain management → <strong>Add custom domain</strong></div></li>
+  <li><span class="check-box"></span><div>Sul provider DNS crea record: <strong>CNAME</strong> <code>www</code> → <code>nome-sito.netlify.app</code></div></li>
+  <li><span class="check-box"></span><div>Per il dominio apex (<code>@</code>): usa i Netlify DNS (nameserver) oppure un record <strong>A</strong> → <code>75.2.60.5</code></div></li>
+  <li><span class="check-box"></span><div>Abilita <strong>HTTPS</strong> (automatico con Let's Encrypt dopo propagazione DNS)</div></li>
+  <li><span class="check-box"></span><div>Attendi propagazione DNS: da 15 minuti a 48 ore (media: 1-2 ore)</div></li>
+</ul>
+
+<h3>6.2 Smoke test</h3>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Homepage, blog, portfolio si caricano correttamente</div></li>
+  <li><span class="check-box"></span><div>Negozio: lista prodotti, categoria, scheda prodotto</div></li>
+  <li><span class="check-box"></span><div>Aggiungi prodotto al carrello → badge aggiornato</div></li>
+  <li><span class="check-box"></span><div>Checkout con carta test Stripe (<code>4242 4242 4242 4242</code>)</div></li>
+  <li><span class="check-box"></span><div>Pagina success: ordine creato, link download per prodotti digitali</div></li>
+  <li><span class="check-box"></span><div>Webhook Stripe: verifica in Stripe Dashboard → Webhooks → last events</div></li>
+  <li><span class="check-box"></span><div>Form contatti: invio → verifica su Directus + eventuale email</div></li>
+  <li><span class="check-box"></span><div>Area account: login, lista ordini, dettaglio ordine</div></li>
+  <li><span class="check-box"></span><div>Backup manuale: <code>npm run backup -- --dry-run</code> → verifica output</div></li>
+  <li><span class="check-box"></span><div>Build hook: pubblica un contenuto su Directus → verifica deploy automatico su Netlify</div></li>
+</ul>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     VARIABILI D'AMBIENTE — RIFERIMENTO COMPLETO
+════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+
+<h2><span class="num">7</span>Variabili d'ambiente — Riferimento completo</h2>
+
+<p>Copia <code>.env.example</code> in <code>.env</code> e compila ogni variabile seguendo questa guida. Le variabili marcate <strong>RICHIESTA</strong> bloccano il funzionamento del sito se mancanti.</p>
+
+<!-- DIRECTUS -->
+<div class="section-group-title">Directus CMS</div>
+<table class="env-table">
+  <thead>
+    <tr>
+      <th style="width:28%">Variabile</th>
+      <th>Descrizione e dove trovarla</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>DIRECTUS_URL <span class="required">RICHIESTA</span></td>
+      <td>
+        URL base dell'istanza Directus, senza slash finale.<br>
+        Es: <code>https://cms.tuodominio.it</code><br>
+        <span class="where">→ URL del tuo hosting Directus</span>
+      </td>
+    </tr>
+    <tr>
+      <td>DIRECTUS_TOKEN <span class="required">RICHIESTA</span></td>
+      <td>
+        Token statico per autenticarsi alle API Directus.<br>
+        <span class="where">→ Directus Admin → Settings → Users → [utente API] → Token → Regenerate</span>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- STRIPE -->
+<div class="section-group-title">Stripe — Pagamenti</div>
+<table class="env-table">
+  <thead>
+    <tr>
+      <th style="width:28%">Variabile</th>
+      <th>Descrizione e dove trovarla</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>STRIPE_SECRET_KEY <span class="required">RICHIESTA</span></td>
+      <td>
+        Chiave segreta Stripe. Formato: <code>sk_live_...</code> (prod) / <code>sk_test_...</code> (dev).<br>
+        <span class="where">→ dashboard.stripe.com → Developers → API keys → Secret key</span>
+      </td>
+    </tr>
+    <tr>
+      <td>STRIPE_PUBLISHABLE_KEY <span class="required">RICHIESTA</span></td>
+      <td>
+        Chiave pubblica Stripe. Formato: <code>pk_live_...</code> / <code>pk_test_...</code>. Visibile nel bundle JS.<br>
+        <span class="where">→ dashboard.stripe.com → Developers → API keys → Publishable key</span>
+      </td>
+    </tr>
+    <tr>
+      <td>STRIPE_WEBHOOK_SECRET <span class="required">RICHIESTA</span></td>
+      <td>
+        Segreto per verificare la firma degli eventi webhook. Formato: <code>whsec_...</code>.<br>
+        <span class="where">→ dashboard.stripe.com → Developers → Webhooks → [endpoint] → Signing secret<br>
+        In sviluppo: <code>stripe listen --forward-to localhost:4321/api/webhook/stripe</code> → il CLI stampa il segreto temporaneo</span>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- APP -->
+<div class="section-group-title">Applicazione</div>
+<table class="env-table">
+  <thead>
+    <tr>
+      <th style="width:28%">Variabile</th>
+      <th>Descrizione e dove trovarla</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>PUBLIC_SITE_URL <span class="required">RICHIESTA</span></td>
+      <td>
+        URL pubblico del sito, senza slash finale. Usato per costruire link assoluti (es. redirect Stripe success/cancel).<br>
+        Es: <code>https://tuodominio.it</code><br>
+        <span class="where">→ Il dominio del cliente su Netlify</span>
+      </td>
+    </tr>
+    <tr>
+      <td>ALLOWED_ORIGIN <span class="required">RICHIESTA</span></td>
+      <td>
+        Origine autorizzata per le chiamate alle API (CORS). Deve corrispondere esattamente a <code>PUBLIC_SITE_URL</code>.<br>
+        Es: <code>https://tuodominio.it</code><br>
+        <span class="where">→ Stesso valore di PUBLIC_SITE_URL. Non usare * in produzione.</span>
+      </td>
+    </tr>
+    <tr>
+      <td>DEFAULT_LOCALE <span class="optional">OPZIONALE</span></td>
+      <td>
+        Lingua di default del sito. Valori: <code>it</code> (default) oppure <code>en</code>.<br>
+        <span class="where">→ Imposta manualmente in base alla lingua del sito cliente</span>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- EMAIL -->
+<div class="section-group-title">Email SMTP (opzionale — solo se vuoi inviare notifiche)</div>
+<table class="env-table">
+  <thead>
+    <tr>
+      <th style="width:28%">Variabile</th>
+      <th>Descrizione e dove trovarla</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>SMTP_HOST <span class="optional">OPZIONALE</span></td>
+      <td>
+        Host del server SMTP. Se vuoto, l'invio email è disabilitato (il form contatti salva solo su Directus).<br>
+        Es: <code>smtp.gmail.com</code>, <code>smtp.sendgrid.net</code>, <code>mail.tuodominio.it</code><br>
+        <span class="where">→ Dal pannello del provider email (cPanel → Email → Impostazioni client)</span>
+      </td>
+    </tr>
+    <tr>
+      <td>SMTP_PORT <span class="optional">OPZIONALE</span></td>
+      <td>
+        Porta SMTP. Valori comuni: <code>587</code> (STARTTLS, default), <code>465</code> (SSL), <code>25</code> (non sicuro).<br>
+        <span class="where">→ Dal pannello provider email</span>
+      </td>
+    </tr>
+    <tr>
+      <td>SMTP_USER <span class="optional">OPZIONALE</span></td>
+      <td>
+        Username SMTP, solitamente l'indirizzo email mittente.<br>
+        Es: <code>noreply@tuodominio.it</code><br>
+        <span class="where">→ Dal pannello provider email / cPanel → Email Accounts</span>
+      </td>
+    </tr>
+    <tr>
+      <td>SMTP_PASS <span class="optional">OPZIONALE</span></td>
+      <td>
+        Password SMTP. Per Gmail usa una <em>App Password</em> (non la password account Google).<br>
+        <span class="where">→ Per Gmail: myaccount.google.com → Security → 2-Step Verification → App passwords</span>
+      </td>
+    </tr>
+    <tr>
+      <td>CONTACT_EMAIL_TO <span class="optional">OPZIONALE</span></td>
+      <td>
+        Indirizzo email destinatario delle notifiche del form contatti.<br>
+        Es: <code>info@tuodominio.it</code><br>
+        <span class="where">→ Inserisci manualmente l'email del cliente</span>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- RECAPTCHA -->
+<div class="section-group-title">Google reCAPTCHA v3</div>
+<table class="env-table">
+  <thead>
+    <tr>
+      <th style="width:28%">Variabile</th>
+      <th>Descrizione e dove trovarla</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>PUBLIC_RECAPTCHA_SITE_KEY <span class="optional">OPZIONALE</span></td>
+      <td>
+        Chiave pubblica reCAPTCHA v3. Viene inclusa nel bundle JS del frontend.<br>
+        Se vuota, il form contatti funziona senza protezione bot.<br>
+        <span class="where">→ google.com/recaptcha/admin → seleziona sito → Site Key</span>
+      </td>
+    </tr>
+    <tr>
+      <td>RECAPTCHA_SECRET_KEY <span class="optional">OPZIONALE</span></td>
+      <td>
+        Chiave segreta usata server-side per verificare il token reCAPTCHA.<br>
+        <span class="where">→ google.com/recaptcha/admin → seleziona sito → Secret Key</span>
+      </td>
+    </tr>
+    <tr>
+      <td>RECAPTCHA_MIN_SCORE <span class="optional">OPZIONALE</span></td>
+      <td>
+        Score minimo accettato (0.0 = bot, 1.0 = umano). Default: <code>0.5</code>.<br>
+        Abbassa a <code>0.3</code> se ricevi troppi falsi positivi.<br>
+        <span class="where">→ Imposta manualmente in base alle esigenze del cliente</span>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- BACKUP -->
+<div class="section-group-title">Backup automatico</div>
+<table class="env-table">
+  <thead>
+    <tr>
+      <th style="width:28%">Variabile</th>
+      <th>Descrizione e dove trovarla</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>BACKUP_ADMIN_KEY <span class="required">RICHIESTA</span></td>
+      <td>
+        Chiave segreta per proteggere l'endpoint <code>/api/admin/backup</code>.<br>
+        Genera con: <code>node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"</code><br>
+        <span class="where">→ Genera localmente, copia su Netlify nelle env vars</span>
+      </td>
+    </tr>
+    <tr>
+      <td>BACKUP_STORAGE <span class="optional">OPZIONALE</span></td>
+      <td>
+        Tipo di storage per i backup. Valori: <code>local</code> (default) oppure <code>s3</code>.<br>
+        <span class="where">→ Imposta manualmente. Usa <code>s3</code> per backup remoti su AWS/Backblaze/R2</span>
+      </td>
+    </tr>
+    <tr>
+      <td>BACKUP_LOCAL_PATH <span class="optional">OPZIONALE</span></td>
+      <td>
+        Percorso locale dove salvare i backup. Default: <code>./backups</code>.<br>
+        <span class="where">→ Imposta solo se vuoi un percorso personalizzato</span>
+      </td>
+    </tr>
+    <tr>
+      <td>BACKUP_CRON <span class="optional">OPZIONALE</span></td>
+      <td>
+        Schedule per il backup automatico (Netlify Scheduled Function). Default: <code>@daily</code>.<br>
+        Esempi: <code>@daily</code>, <code>@weekly</code>, <code>0 2 * * *</code> (ogni notte alle 2 UTC).<br>
+        <span class="where">→ Imposta su Netlify nelle env vars</span>
+      </td>
+    </tr>
+    <tr>
+      <td>BACKUP_S3_ENDPOINT <span class="optional">OPZIONALE</span></td>
+      <td>
+        Endpoint S3-compatible. Solo se <code>BACKUP_STORAGE=s3</code>.<br>
+        Es: <code>https://s3.eu-central-1.amazonaws.com</code>, <code>https://s3.eu-central-003.backblazeb2.com</code><br>
+        <span class="where">→ Dal pannello del provider S3 (AWS, Backblaze B2, Cloudflare R2, MinIO)</span>
+      </td>
+    </tr>
+    <tr>
+      <td>BACKUP_S3_BUCKET <span class="optional">OPZIONALE</span></td>
+      <td>
+        Nome del bucket S3.<br>
+        <span class="where">→ AWS S3 → Buckets → nome del bucket creato</span>
+      </td>
+    </tr>
+    <tr>
+      <td>BACKUP_S3_REGION <span class="optional">OPZIONALE</span></td>
+      <td>
+        Regione AWS del bucket. Default: <code>eu-central-1</code>.<br>
+        Es: <code>us-east-1</code>, <code>eu-west-1</code><br>
+        <span class="where">→ Visible nella console AWS durante creazione bucket</span>
+      </td>
+    </tr>
+    <tr>
+      <td>BACKUP_S3_ACCESS_KEY <span class="optional">OPZIONALE</span></td>
+      <td>
+        Access Key ID dell'utente IAM dedicato ai backup.<br>
+        <span class="where">→ AWS Console → IAM → Users → [utente backup] → Security credentials → Create access key</span>
+      </td>
+    </tr>
+    <tr>
+      <td>BACKUP_S3_SECRET_KEY <span class="optional">OPZIONALE</span></td>
+      <td>
+        Secret Access Key IAM. Visibile solo al momento della creazione.<br>
+        <span class="where">→ AWS IAM → create access key → copia e salva subito (non è recuperabile)</span>
+      </td>
+    </tr>
+    <tr>
+      <td>BACKUP_S3_PREFIX <span class="optional">OPZIONALE</span></td>
+      <td>
+        Prefisso (cartella virtuale) dentro il bucket. Default: <code>backups/</code>.<br>
+        Utile per organizzare più progetti nello stesso bucket: <code>cliente-x/backups/</code><br>
+        <span class="where">→ Imposta manualmente</span>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- .env completo -->
+<div class="page-break"></div>
+
+<h2><span class="num">8</span>File .env completo — Template di riferimento</h2>
+<pre><span class="comment"># ── Directus ─────────────────────────────────────────────────────────────</span>
+<span class="key">DIRECTUS_URL</span>=<span class="url">https://cms.tuodominio.it</span>
+<span class="key">DIRECTUS_TOKEN</span>=<span class="val">il_token_generato_da_directus</span>
+
+<span class="comment"># ── Stripe ───────────────────────────────────────────────────────────────</span>
+<span class="key">STRIPE_SECRET_KEY</span>=<span class="val">sk_live_xxxxx</span>
+<span class="key">STRIPE_PUBLISHABLE_KEY</span>=<span class="val">pk_live_xxxxx</span>
+<span class="key">STRIPE_WEBHOOK_SECRET</span>=<span class="val">whsec_xxxxx</span>
+
+<span class="comment"># ── App ──────────────────────────────────────────────────────────────────</span>
+<span class="key">PUBLIC_SITE_URL</span>=<span class="url">https://tuodominio.it</span>
+<span class="key">ALLOWED_ORIGIN</span>=<span class="url">https://tuodominio.it</span>
+<span class="key">DEFAULT_LOCALE</span>=<span class="val">it</span>
+
+<span class="comment"># ── Email SMTP (opzionale) ───────────────────────────────────────────────</span>
+<span class="key">SMTP_HOST</span>=<span class="val">smtp.tuodominio.it</span>
+<span class="key">SMTP_PORT</span>=<span class="val">587</span>
+<span class="key">SMTP_USER</span>=<span class="val">noreply@tuodominio.it</span>
+<span class="key">SMTP_PASS</span>=<span class="val">password_smtp</span>
+<span class="key">CONTACT_EMAIL_TO</span>=<span class="val">info@tuodominio.it</span>
+
+<span class="comment"># ── reCAPTCHA v3 (opzionale) ─────────────────────────────────────────────</span>
+<span class="key">PUBLIC_RECAPTCHA_SITE_KEY</span>=<span class="val">6LcXXXXXXXXXXXXXXXXX</span>
+<span class="key">RECAPTCHA_SECRET_KEY</span>=<span class="val">6LcXXXXXXXXXXXXXXXXX</span>
+<span class="key">RECAPTCHA_MIN_SCORE</span>=<span class="val">0.5</span>
+
+<span class="comment"># ── Backup ───────────────────────────────────────────────────────────────</span>
+<span class="key">BACKUP_ADMIN_KEY</span>=<span class="val">chiave_generata_con_crypto_randomBytes_32</span>
+<span class="key">BACKUP_STORAGE</span>=<span class="val">local</span>              <span class="comment"># oppure: s3</span>
+<span class="key">BACKUP_LOCAL_PATH</span>=<span class="val">./backups</span>
+<span class="key">BACKUP_CRON</span>=<span class="val">@daily</span>
+
+<span class="comment"># ── Backup S3 (solo se BACKUP_STORAGE=s3) ────────────────────────────────</span>
+<span class="key">BACKUP_S3_ENDPOINT</span>=<span class="url">https://s3.eu-central-1.amazonaws.com</span>
+<span class="key">BACKUP_S3_BUCKET</span>=<span class="val">nome-bucket</span>
+<span class="key">BACKUP_S3_REGION</span>=<span class="val">eu-central-1</span>
+<span class="key">BACKUP_S3_ACCESS_KEY</span>=<span class="val">AKIAIOSFODNN7EXAMPLE</span>
+<span class="key">BACKUP_S3_SECRET_KEY</span>=<span class="val">wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY</span>
+<span class="key">BACKUP_S3_PREFIX</span>=<span class="val">backups/</span></pre>
+
+<div class="callout success">
+  <strong>Checklist variabili minime per il primo deploy:</strong><br>
+  DIRECTUS_URL · DIRECTUS_TOKEN · STRIPE_SECRET_KEY · STRIPE_PUBLISHABLE_KEY · STRIPE_WEBHOOK_SECRET · PUBLIC_SITE_URL · ALLOWED_ORIGIN · BACKUP_ADMIN_KEY
+</div>
+
+</body>
+</html>
