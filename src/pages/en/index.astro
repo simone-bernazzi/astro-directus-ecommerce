@@ -1,0 +1,48 @@
+---
+// src/pages/en/index.astro — English homepage
+import Page from '@/layouts/Page.astro'
+import Hero from '@/components/blocks/Hero.astro'
+import Features from '@/components/blocks/Features.astro'
+import CTA from '@/components/blocks/CTA.astro'
+import Testimonials from '@/components/blocks/Testimonials.astro'
+import BlogGrid from '@/components/blocks/BlogGrid.astro'
+import PortfolioGrid from '@/components/blocks/PortfolioGrid.astro'
+import FaqAccordion from '@/components/blocks/FaqAccordion.astro'
+import { getPageBySlug, getPosts, getPortfolioItems, localizePost, localizePortfolioItem } from '@/lib/directus'
+import type { PageBlock } from '@/lib/types'
+
+const page = await getPageBySlug('home').catch(() => null)
+const blocks: PageBlock[] = page?.blocks ?? []
+
+const needsPosts = blocks.some((b) => b.type === 'blog_grid')
+const needsPortfolio = blocks.some((b) => b.type === 'portfolio_grid')
+
+const [rawPosts, rawPortfolioItems] = await Promise.all([
+  needsPosts ? getPosts({ limit: 6 }).catch(() => []) : Promise.resolve([]),
+  needsPortfolio ? getPortfolioItems({ limit: 6 }).catch(() => []) : Promise.resolve([]),
+])
+
+const posts = rawPosts.map(p => localizePost(p, 'en'))
+const portfolioItems = rawPortfolioItems.map(i => localizePortfolioItem(i, 'en'))
+
+const title = page?.seo_title ?? page?.title ?? undefined
+const description = page?.seo_description ?? undefined
+
+function blockData(block: PageBlock): any {
+  return block.data
+}
+---
+
+<Page title={title} description={description} lang="en">
+  {blocks.map((block) => {
+    const d = blockData(block)
+    if (block.type === 'hero') return <Hero {...d} />
+    if (block.type === 'features') return <Features {...d} />
+    if (block.type === 'cta') return <CTA {...d} />
+    if (block.type === 'testimonials') return <Testimonials {...d} />
+    if (block.type === 'blog_grid') return <BlogGrid posts={posts} title={d.title} />
+    if (block.type === 'portfolio_grid') return <PortfolioGrid items={portfolioItems} title={d.title} />
+    if (block.type === 'faq') return <FaqAccordion {...d} />
+    return null
+  })}
+</Page>

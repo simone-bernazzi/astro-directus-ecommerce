@@ -21,7 +21,7 @@ const coverUrl = post.cover ? getDirectusImageUrl(post.cover.id, { width: 1200, 
   image={coverUrl}
   lang={lang}
 >
-  <Header />
+  <Header lang={lang as 'it' | 'en' | undefined} />
   <main>
     <article class="py-[var(--spacing-section)]">
       <div class="container max-w-3xl mx-auto">

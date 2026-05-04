@@ -2,12 +2,16 @@
 // src/components/shop/AddToCart.astro
 import type { Product } from '@/lib/types'
 import { getDirectusImageUrl } from '@/lib/directus'
+import { useTranslations } from '@/i18n'
+import type { Lang } from '@/i18n'
 
 interface Props {
   product: Product
+  lang?: Lang
 }
 
-const { product } = Astro.props
+const { product, lang = 'it' } = Astro.props
+const t = useTranslations(lang)
 const firstImageId = (() => {
   const f = product.images?.[0]?.directus_files_id
   return typeof f === 'string' ? f : f?.id ?? null
@@ -15,10 +19,10 @@ const firstImageId = (() => {
 const imageUrl = getDirectusImageUrl(firstImageId, { width: 120, quality: 70 })
 ---
 
-<div id="add-to-cart-widget" data-product-id={product.id} data-product-slug={product.slug} data-product-name={product.name} data-product-type={product.type} data-base-price={product.base_price} data-weight={product.weight_g} data-image={imageUrl}>
+<div id="add-to-cart-widget" data-product-id={product.id} data-product-slug={product.slug} data-product-name={product.name} data-product-type={product.type} data-base-price={product.base_price} data-weight={product.weight_g} data-image={imageUrl} data-msg-added={t('product.added')}>
 
   <div class="flex items-center gap-3 mb-4">
-    <label for="qty-input" class="text-sm font-medium">Quantità</label>
+    <label for="qty-input" class="text-sm font-medium">{t('product.quantity')}</label>
     <div class="flex items-center border border-[var(--color-border)] rounded-md overflow-hidden">
       <button type="button" id="qty-dec" class="px-3 py-2 text-lg hover:bg-[var(--color-surface)] transition-colors" aria-label="Diminuisci">−</button>
       <input
@@ -40,7 +44,7 @@ const imageUrl = getDirectusImageUrl(firstImageId, { width: 120, quality: 70 })
     class="w-full bg-[var(--color-brand)] text-white font-semibold py-3 px-6 rounded-lg hover:bg-[var(--color-brand-dark)] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
     disabled
   >
-    Aggiungi al carrello
+    {t('product.add_to_cart')}
   </button>
 
   <p id="add-to-cart-msg" class="text-sm text-center mt-2 h-5"></p>
@@ -106,7 +110,7 @@ const imageUrl = getDirectusImageUrl(firstImageId, { width: 120, quality: 70 })
     })
 
     if (msgEl) {
-      msgEl.textContent = '✓ Aggiunto al carrello!'
+      msgEl.textContent = widget.dataset.msgAdded ?? '✓'
       msgEl.className = 'text-sm text-center mt-2 h-5 text-green-600'
       setTimeout(() => { if (msgEl) msgEl.textContent = '' }, 2500)
     }

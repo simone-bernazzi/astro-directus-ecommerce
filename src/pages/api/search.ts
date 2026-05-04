@@ -2,7 +2,7 @@
 export const prerender = false
 
 import type { APIRoute } from 'astro'
-import { getProducts, getDirectusImageUrl } from '@/lib/directus'
+import { getProducts, getDirectusImageUrl, localizeProduct } from '@/lib/directus'
 import type { ProductVariant } from '@/lib/types'
 
 export interface SearchProduct {
@@ -25,6 +25,7 @@ export const GET: APIRoute = async ({ url }) => {
   const minPrice = url.searchParams.get('min_price') ? parseFloat(url.searchParams.get('min_price')!) : undefined
   const maxPrice = url.searchParams.get('max_price') ? parseFloat(url.searchParams.get('max_price')!) : undefined
   const limit = parseInt(url.searchParams.get('limit') ?? '200')
+  const lang = url.searchParams.get('lang') === 'en' ? 'en' : 'it'
 
   // option=Taglia:M&option=Taglia:L&option=Colore:Rosso
   const optionParams = url.searchParams.getAll('option')
@@ -58,6 +59,7 @@ export const GET: APIRoute = async ({ url }) => {
     }
 
     const results: SearchProduct[] = products
+      .map(p => localizeProduct(p, lang))
       .filter(p => {
         if (!hasOptionFilters) return true
         const activeVariants = p.variants?.filter(v => v.is_active) ?? []

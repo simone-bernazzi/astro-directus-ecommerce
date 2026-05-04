@@ -1,0 +1,52 @@
+---
+// src/pages/en/portfolio/[slug].astro
+import Page from '@/layouts/Page.astro'
+import { getPortfolioItems, getPortfolioItemBySlug, getDirectusImageUrl, localizePortfolioItem } from '@/lib/directus'
+
+export async function getStaticPaths() {
+  const items = await getPortfolioItems().catch(() => [])
+  return items.map((item) => ({ params: { slug: item.slug } }))
+}
+
+const { slug } = Astro.params
+if (!slug) return Astro.redirect('/en/portfolio')
+const rawItem = await getPortfolioItemBySlug(slug).catch(() => null)
+if (!rawItem) return Astro.redirect('/en/portfolio')
+
+const item = localizePortfolioItem(rawItem, 'en')
+const coverUrl = item.cover ? getDirectusImageUrl(item.cover.id, { width: 1200 }) : ''
+---
+
+<Page title={item.title} description={item.description?.slice(0, 160) ?? ''} image={coverUrl} lang="en">
+  <article class="py-[var(--spacing-section)]">
+    <div class="container max-w-4xl mx-auto">
+      <h1 class="text-4xl lg:text-5xl font-bold mb-4" data-animate="fade-up">{item.title}</h1>
+      <div class="flex flex-wrap gap-4 text-sm text-[var(--color-muted)] mb-8">
+        {item.client && <span>Client: <strong>{item.client}</strong></span>}
+        {item.year && <span>Year: <strong>{item.year}</strong></span>}
+      </div>
+      {item.cover && (
+        <img
+          src={coverUrl}
+          alt={item.cover.title ?? item.title}
+          class="w-full rounded-[var(--radius-lg)] mb-10 shadow-lg"
+        />
+      )}
+      {item.description && (
+        <div class="prose prose-lg max-w-none mb-12" set:html={item.description} />
+      )}
+      {item.gallery && item.gallery.length > 0 && (
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {item.gallery.map((file) => (
+            <img
+              src={getDirectusImageUrl(file.id, { width: 800 })}
+              alt={file.title ?? ''}
+              class="rounded-[var(--radius-md)] w-full"
+              loading="lazy"
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  </article>
+</Page>

@@ -101,7 +101,7 @@ export async function getPosts(options: GetPostsOptions = {}): Promise<Post[]> {
       filter,
       limit: options.limit ?? -1,
       offset: options.offset ?? 0,
-      fields: ['id', 'title', 'slug', 'excerpt', 'published_at', 'status', 'cover.*', 'category.name', 'category.slug'],
+      fields: ['id', 'title', 'slug', 'excerpt', 'published_at', 'status', 'cover.*', 'category.name', 'category.slug', 'title_en', 'excerpt_en'],
       sort: ['-published_at'],
     })
   )
@@ -114,7 +114,7 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
     readItems('posts', {
       filter: { slug: { _eq: slug }, status: { _eq: 'published' } },
       limit: 1,
-      fields: ['*', 'cover.*', 'category.*'],
+      fields: ['*', 'cover.*', 'category.*', 'title_en', 'content_en', 'excerpt_en', 'seo_title_en', 'seo_description_en'],
     })
   )
   const list = items as Post[]
@@ -167,7 +167,7 @@ export async function getPortfolioItems(
       filter: { status: { _eq: 'published' } },
       limit: options.limit ?? -1,
       offset: options.offset ?? 0,
-      fields: ['*', 'cover.*'],
+      fields: ['*', 'cover.*', 'title_en', 'description_en'],
       sort: ['-year', 'title'],
     })
   )
@@ -182,7 +182,7 @@ export async function getPortfolioItemBySlug(
     readItems('portfolio', {
       filter: { slug: { _eq: slug }, status: { _eq: 'published' } },
       limit: 1,
-      fields: ['*', 'cover.*', 'gallery.*'],
+      fields: ['*', 'cover.*', 'gallery.*', 'title_en', 'description_en'],
     })
   )
   const list = items as PortfolioItem[]
@@ -254,6 +254,13 @@ const PRODUCT_FIELDS = [
   'variants.*',
   'variants.image_id.*',
   'variants.digital_file.*',
+  // i18n EN fields included always so localizeProduct() can use them
+  'name_en',
+  'description_en',
+  'seo_title_en',
+  'seo_description_en',
+  'category_id.name_en',
+  'category_id.description_en',
 ]
 
 export async function getProducts(options: GetProductsOptions = {}): Promise<Product[]> {
@@ -460,6 +467,64 @@ export async function getOrderById(id: string): Promise<Order | null> {
     return null
   }
 }
+
+// ---------------------------------------------------------------------------
+// i18n — localize helpers (apply _en fields when lang='en', fallback to IT)
+// ---------------------------------------------------------------------------
+
+export function localizeProduct(product: Product, lang: string): Product {
+  if (lang !== 'en') return product
+  return {
+    ...product,
+    name: product.name_en || product.name,
+    description: product.description_en || product.description,
+    seo_title: product.seo_title_en || product.seo_title,
+    seo_description: product.seo_description_en || product.seo_description,
+    category_id: product.category_id
+      ? {
+          ...product.category_id,
+          name: product.category_id.name_en || product.category_id.name,
+          description: product.category_id.description_en || product.category_id.description,
+        }
+      : null,
+  }
+}
+
+export function localizePost(post: Post, lang: string): Post {
+  if (lang !== 'en') return post
+  return {
+    ...post,
+    title: post.title_en || post.title,
+    content: post.content_en || post.content,
+    excerpt: post.excerpt_en || post.excerpt,
+    seo_title: post.seo_title_en || post.seo_title,
+    seo_description: post.seo_description_en || post.seo_description,
+  }
+}
+
+export function localizePortfolioItem(item: PortfolioItem, lang: string): PortfolioItem {
+  if (lang !== 'en') return item
+  return {
+    ...item,
+    title: item.title_en || item.title,
+    description: item.description_en || item.description,
+  }
+}
+
+export function localizeProductCategory(cat: ProductCategory, lang: string): ProductCategory {
+  if (lang !== 'en') return cat
+  return {
+    ...cat,
+    name: cat.name_en || cat.name,
+    description: cat.description_en || cat.description,
+    seo_title: cat.seo_title_en || cat.seo_title,
+    seo_description: cat.seo_description_en || cat.seo_description,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Orders
+// ---------------------------------------------------------------------------
 
 export async function getOrderBySessionId(sessionId: string): Promise<Order | null> {
   const client = getClient()

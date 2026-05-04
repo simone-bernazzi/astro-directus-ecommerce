@@ -1,13 +1,17 @@
 ---
 // src/components/shop/VariantSelector.astro
 import type { ProductVariant } from '@/lib/types'
+import { useTranslations } from '@/i18n'
+import type { Lang } from '@/i18n'
 
 interface Props {
   variants: ProductVariant[]
   basePrice: number
+  lang?: Lang
 }
 
-const { variants, basePrice } = Astro.props
+const { variants, basePrice, lang = 'it' } = Astro.props
+const t = useTranslations(lang)
 const active = variants.filter(v => v.is_active)
 
 // Raggruppa per opzione 1 (es. colore) se presente
@@ -16,7 +20,7 @@ const option1Label = active.find(v => v.option_1_name)?.option_1_name ?? null
 const option2Label = active.find(v => v.option_2_name)?.option_2_name ?? null
 ---
 
-<div id="variant-selector" data-variants={JSON.stringify(active)} data-base-price={basePrice}>
+<div id="variant-selector" data-variants={JSON.stringify(active)} data-base-price={basePrice} data-msg-out-of-stock={t('product.out_of_stock')} data-msg-low-prefix={t('product.low_stock_prefix')} data-msg-low-suffix={t('product.low_stock_suffix')}>
   {active.length === 1 && !hasOptions
     ? (
       <input type="hidden" id="selected-variant" value={active[0].id} />
@@ -59,14 +63,14 @@ const option2Label = active.find(v => v.option_2_name)?.option_2_name ?? null
 
         {!hasOptions && (
           <div>
-            <label for="selected-variant" class="block text-sm font-medium text-[var(--color-text)] mb-2">Variante</label>
+            <label for="selected-variant" class="block text-sm font-medium text-[var(--color-text)] mb-2">{t('product.variant')}</label>
             <select
               id="selected-variant"
               class="w-full border border-[var(--color-border)] rounded-md px-3 py-2 text-sm focus:outline-2 focus:outline-[var(--color-brand)]"
             >
               {active.map(v => (
                 <option value={v.id} disabled={v.stock_quantity === 0}>
-                  {v.name}{v.stock_quantity === 0 ? ' — Esaurito' : ''}
+                  {v.name}{v.stock_quantity === 0 ? ` — ${t('product.out_of_stock')}` : ''}
                 </option>
               ))}
             </select>
@@ -111,11 +115,13 @@ const option2Label = active.find(v => v.option_2_name)?.option_2_name ?? null
         applyConversion()
         if (stockEl) {
           if (match.stock_quantity === 0) {
-            stockEl.textContent = 'Esaurito'
+            stockEl.textContent = selector.dataset.msgOutOfStock ?? 'Out of stock'
             stockEl.classList.remove('hidden', 'text-[var(--color-muted)]')
             stockEl.classList.add('text-red-600')
           } else if (match.stock_quantity <= match.low_stock_threshold) {
-            stockEl.textContent = `Solo ${match.stock_quantity} rimasti`
+            const prefix = selector.dataset.msgLowPrefix ?? 'Only'
+            const suffix = selector.dataset.msgLowSuffix ?? 'left'
+            stockEl.textContent = `${prefix} ${match.stock_quantity} ${suffix}`
             stockEl.classList.remove('hidden', 'text-red-600')
             stockEl.classList.add('text-[var(--color-muted)]')
           } else {

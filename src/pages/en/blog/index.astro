@@ -1,0 +1,18 @@
+---
+// src/pages/en/blog/index.astro
+import Page from '@/layouts/Page.astro'
+import BlogGrid from '@/components/blocks/BlogGrid.astro'
+import { getPosts, localizePost } from '@/lib/directus'
+
+const rawPosts = await getPosts().catch(() => [])
+const posts = rawPosts.map(p => localizePost(p, 'en'))
+---
+
+<Page title="Blog" description="All blog posts" lang="en">
+  <section class="py-[var(--spacing-section)]">
+    <div class="container">
+      <h1 class="text-4xl font-bold mb-4" data-animate="fade-up">Blog</h1>
+    </div>
+  </section>
+  <BlogGrid posts={posts} />
+</Page>

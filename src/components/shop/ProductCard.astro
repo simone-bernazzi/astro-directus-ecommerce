@@ -3,14 +3,19 @@
 import type { Product } from '@/lib/types'
 import { getDirectusImageUrl } from '@/lib/directus'
 import Badge from '@/components/ui/Badge.astro'
+import { useTranslations } from '@/i18n'
+import type { Lang } from '@/i18n'
 
 interface Props {
   product: Product
   listName?: string
   index?: number
+  lang?: Lang
+  baseUrl?: string
 }
 
-const { product, listName = 'negozio', index = 0 } = Astro.props
+const { product, listName = 'negozio', index = 0, lang = 'it', baseUrl = '/negozio' } = Astro.props
+const t = useTranslations(lang)
 const firstImageFile = product.images?.[0]?.directus_files_id
 const firstImageId = typeof firstImageFile === 'string' ? firstImageFile : firstImageFile?.id ?? null
 const imageUrl = getDirectusImageUrl(firstImageId, { width: 600, quality: 80 })
@@ -33,7 +38,9 @@ const isNew = product.featured
     data-product-price={price}
     data-product-image={imageUrl ?? ''}
     data-product-category={product.category_id?.name ?? ''}
-    aria-label="Aggiungi alla wishlist"
+    data-label-add={t('wishlist.add')}
+    data-label-remove={t('wishlist.remove')}
+    aria-label={t('wishlist.add')}
     aria-pressed="false"
   >
     <!-- outline heart (default) -->
@@ -47,7 +54,7 @@ const isNew = product.featured
   </button>
 
   <a
-    href={`/negozio/${product.slug}`}
+    href={`${baseUrl}/${product.slug}`}
     class="block"
     data-analytics-item={JSON.stringify({ item_id: String(product.id), item_name: product.name, item_category: product.category_id?.name ?? '', price, index })}
     data-analytics-list={listName}
@@ -82,9 +89,9 @@ const isNew = product.featured
       </div>
 
       <div class="flex gap-2 mt-3 flex-wrap">
-        {isOutOfStock && <Badge variant="error">Esaurito</Badge>}
-        {isNew && !isOutOfStock && <Badge variant="info">In evidenza</Badge>}
-        {product.type === 'digital' && <Badge variant="default">Digitale</Badge>}
+        {isOutOfStock && <Badge variant="error">{t('product.out_of_stock')}</Badge>}
+        {isNew && !isOutOfStock && <Badge variant="info">{t('product.featured')}</Badge>}
+        {product.type === 'digital' && <Badge variant="default">{t('product.digital')}</Badge>}
       </div>
     </div>
   </a>
@@ -103,9 +110,11 @@ const isNew = product.featured
     data-compare-type={product.type}
     data-compare-out-of-stock={isOutOfStock}
     data-compare-weight={product.weight_g}
+    data-label-add={t('compare.add')}
+    data-label-active={t('compare.added')}
     aria-pressed="false"
   >
-    + Confronta
+    {t('compare.add')}
   </button>
 </article>
 
@@ -136,7 +145,7 @@ const isNew = product.featured
       btn.querySelector('.heart-outline')?.classList.toggle('hidden', active)
       btn.querySelector('.heart-filled')?.classList.toggle('hidden', !active)
       btn.setAttribute('aria-pressed', String(active))
-      btn.setAttribute('aria-label', active ? 'Rimuovi dalla wishlist' : 'Aggiungi alla wishlist')
+      btn.setAttribute('aria-label', active ? (btn.dataset.labelRemove ?? '') : (btn.dataset.labelAdd ?? ''))
     })
   }
 
@@ -161,7 +170,7 @@ const isNew = product.featured
     document.querySelectorAll<HTMLButtonElement>('.compare-btn').forEach(btn => {
       const active = isInCompare(btn.dataset.compareId!)
       const atMax = compareItems.get().length >= 3 && !active
-      btn.textContent = active ? '✓ Confronta' : '+ Confronta'
+      btn.textContent = active ? (btn.dataset.labelActive ?? '✓') : (btn.dataset.labelAdd ?? '+')
       btn.setAttribute('aria-pressed', String(active))
       btn.classList.toggle('text-[var(--color-brand)]', active)
       btn.disabled = atMax

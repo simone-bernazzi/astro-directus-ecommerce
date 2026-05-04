@@ -15,7 +15,7 @@
 
 - `[x]` **Multi-currency** — ~~visualizzazione prezzi in valuta locale via exchangerate API, checkout sempre in EUR~~ ✓ v0.12.0
 - `[x]` **Ricerca prodotti avanzata** — ~~suggerimenti autocompletamento~~ ✓ v0.14.0 (Meilisearch/Algolia non implementato — non necessario)
-- `[ ]` **Internazionalizzazione shop** — slug e contenuti prodotto in IT/EN, routing `/en/shop/`
+- `[x]` **Internazionalizzazione shop** — ~~slug e contenuti prodotto in IT/EN, routing `/en/shop/`~~ ✓ v0.15.0
 - `[x]` **Comparazione prodotti** — ~~seleziona fino a 3 prodotti e confronta attributi~~ ✓ v0.13.0
 
 ### Funzionalità non prioritarie
@@ -28,6 +28,32 @@
 ### Bug aperti
 
 - `[ ]` **`BUG-004`** `api/download/[token].ts` — il proxy scarica l'intero file in memoria prima di rispondere; su file grandi (es. video) questo può causare timeout su Netlify (limite 10 secondi)
+
+---
+
+## [0.15.0] — 2026-05-04
+
+### Aggiunto
+- `[FEAT]` **Internazionalizzazione IT/EN** — supporto completo bilingue per shop, blog e portfolio:
+  - `src/i18n/ui.ts` — dizionario completo IT/EN con 60+ chiavi (shop, prodotto, wishlist, compare, stock notify, blog, portfolio, breadcrumb)
+  - `src/i18n/index.ts` — `getLang()`, `useTranslations()`, `shopBase()`, `blogBase()`, `portfolioBase()`, `langSwitchUrl()` (mapping bidirezionale IT↔EN URL)
+  - `src/lib/types.ts` — campi `_en` opzionali su `Post`, `PortfolioItem`, `ProductCategory`, `Product`, `FaqItem`
+  - `src/lib/directus.ts` — campi `_en` inclusi in tutte le query; helper `localizeProduct()`, `localizePost()`, `localizePortfolioItem()`, `localizeProductCategory()` (applica campi EN con fallback IT)
+  - `src/pages/api/search.ts` — parametro `?lang=en` per localizzare i risultati di ricerca
+  - `layouts/Base.astro` — prop `alternates` per tag `<link rel="alternate" hreflang>` SEO
+  - `layouts/Page.astro` / `layouts/Post.astro` — propagano `lang` a `Header`
+  - **Componenti i18n-aware**: `Header`, `AddToCart`, `StockNotify`, `VariantSelector`, `ProductCard`, `ProductGrid`, `CompareTray` — prop `lang` + traduzioni via `t()` e data attributes per le stringhe lato JS
+  - `Header.astro` — switcher lingua (link IT↔EN con `hreflang`)
+  - **Pagine EN** (8 nuove route):
+    - `/en` — homepage EN
+    - `/en/shop` — negozio EN con ricerca, filtri, autocomplete, comparazione
+    - `/en/shop/[slug]` — PDP EN con varianti, add-to-cart, cross-sell, related
+    - `/en/shop/[category]` — categoria prodotti EN
+    - `/en/blog` — blog EN
+    - `/en/blog/[slug]` — articolo blog EN
+    - `/en/portfolio` — portfolio EN
+    - `/en/portfolio/[slug]` — dettaglio portfolio EN
+  - `scripts/setup-collections.mjs` — campi `_en` aggiunti a `product_categories` e `products`
 
 ---
 

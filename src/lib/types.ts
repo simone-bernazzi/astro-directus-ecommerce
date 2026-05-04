@@ -29,6 +29,12 @@ export interface Post {
   excerpt: string | null
   seo_title: string | null
   seo_description: string | null
+  // i18n EN fields
+  title_en?: string | null
+  content_en?: string | null
+  excerpt_en?: string | null
+  seo_title_en?: string | null
+  seo_description_en?: string | null
 }
 
 export interface PortfolioItem {
@@ -42,6 +48,9 @@ export interface PortfolioItem {
   tags: string[] | null
   description: string | null
   status: 'published' | 'draft'
+  // i18n EN fields
+  title_en?: string | null
+  description_en?: string | null
 }
 
 export interface FaqItem {
@@ -50,6 +59,9 @@ export interface FaqItem {
   answer: string
   category: string | null
   sort_order: number
+  // i18n EN fields
+  question_en?: string | null
+  answer_en?: string | null
 }
 
 export interface PageBlock {
@@ -89,6 +101,11 @@ export interface ProductCategory {
   sort_order: number
   seo_title: string | null
   seo_description: string | null
+  // i18n EN fields
+  name_en?: string | null
+  description_en?: string | null
+  seo_title_en?: string | null
+  seo_description_en?: string | null
 }
 
 export interface ProductVariant {
@@ -119,6 +136,11 @@ export interface Product {
   type: ProductType
   base_price: number
   compare_price: number | null
+  // i18n EN fields
+  name_en?: string | null
+  description_en?: string | null
+  seo_title_en?: string | null
+  seo_description_en?: string | null
   images: Array<{ directus_files_id: DirectusFile | string }> | null
   category_id: ProductCategory | null
   stripe_product_id: string

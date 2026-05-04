@@ -1,0 +1,503 @@
+---
+// src/pages/en/shop/index.astro — English shop with client-side search + filter
+import Base from '@/layouts/Base.astro'
+import Header from '@/components/layout/Header.astro'
+import Footer from '@/components/layout/Footer.astro'
+import ProductCard from '@/components/shop/ProductCard.astro'
+import CompareTray from '@/components/shop/CompareTray.astro'
+import { getProducts, getProductCategories, getVariantOptions, localizeProduct, localizeProductCategory } from '@/lib/directus'
+
+const rawProducts = await getProducts().catch(() => [])
+const rawCategories = await getProductCategories().catch(() => [])
+const variantOptions = await getVariantOptions().catch(() => [])
+
+const products = rawProducts.map(p => localizeProduct(p, 'en'))
+const categories = rawCategories.map(c => localizeProductCategory(c, 'en'))
+
+const analyticsItems = JSON.stringify(products.map((p, i) => ({
+  item_id: String(p.id),
+  item_name: p.name,
+  item_category: p.category_id?.name ?? '',
+  price: p.variants?.[0]?.price_override ?? p.base_price,
+  index: i,
+})))
+
+const variantOptionsJson = JSON.stringify(variantOptions)
+---
+
+<Base title="Shop" description="Discover all our products" lang="en">
+  <Header lang="en" />
+  <main class="container py-12">
+    <h1 class="text-4xl font-bold mb-8" data-animate="fade-up">Shop</h1>
+
+    <!-- Search bar -->
+    <div class="mb-6">
+      <div class="relative max-w-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-muted)] pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z" />
+        </svg>
+        <input
+          id="search-input"
+          type="search"
+          placeholder="Search products..."
+          autocomplete="off"
+          aria-autocomplete="list"
+          aria-controls="autocomplete-list"
+          aria-haspopup="listbox"
+          class="w-full pl-10 pr-4 py-2.5 border border-[var(--color-border)] rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent"
+        />
+        <div
+          id="autocomplete-dropdown"
+          class="absolute top-full left-0 right-0 mt-1 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg shadow-lg z-30 hidden overflow-hidden"
+          role="listbox"
+          id="autocomplete-list"
+          aria-label="Search suggestions"
+        ></div>
+      </div>
+    </div>
+
+    <!-- Filters row -->
+    <div class="flex flex-wrap gap-4 mb-4 items-center">
+      <div class="flex gap-2 flex-wrap">
+        <button type="button" data-category="" class="category-pill px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 bg-[var(--color-brand)] text-white">
+          All
+        </button>
+        {categories.map(cat => (
+          <button
+            type="button"
+            data-category={cat.slug}
+            class="category-pill px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 border border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-brand)]"
+          >
+            {cat.name}
+          </button>
+        ))}
+      </div>
+
+      <div class="flex gap-0 border border-[var(--color-border)] rounded-lg overflow-hidden text-sm">
+        <button type="button" data-type="" class="type-pill px-3 py-1.5 font-medium bg-[var(--color-brand)] text-white transition-colors">All</button>
+        <button type="button" data-type="physical" class="type-pill px-3 py-1.5 font-medium text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors">Physical</button>
+        <button type="button" data-type="digital" class="type-pill px-3 py-1.5 font-medium text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors">Digital</button>
+      </div>
+
+      <div class="flex items-center gap-2 text-sm text-[var(--color-muted)]">
+        <span>€</span>
+        <input id="min-price" type="number" min="0" placeholder="Min" class="w-20 px-2 py-1.5 border border-[var(--color-border)] rounded-md bg-[var(--color-bg)] text-[var(--color-text)] text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)]" />
+        <span>—</span>
+        <input id="max-price" type="number" min="0" placeholder="Max" class="w-20 px-2 py-1.5 border border-[var(--color-border)] rounded-md bg-[var(--color-bg)] text-[var(--color-text)] text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)]" />
+      </div>
+
+      <button id="reset-filters" type="button" class="hidden text-sm text-[var(--color-muted)] hover:text-[var(--color-brand)] transition-colors underline">
+        Reset filters
+      </button>
+    </div>
+
+    <!-- Variant attribute filters -->
+    {variantOptions.length > 0 && (
+      <div id="attr-filters" class="flex flex-wrap gap-6 mb-6 pb-4 border-b border-[var(--color-border)]">
+        {variantOptions.map(opt => (
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-sm font-medium text-[var(--color-text)] mr-1">{opt.name}:</span>
+            {opt.values.map(val => (
+              <button
+                type="button"
+                data-attr-name={opt.name}
+                data-attr-value={val}
+                class="attr-pill px-3 py-1 rounded-md text-sm border border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-brand)] transition-colors duration-200"
+              >
+                {val}
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+    )}
+
+    <p id="search-status" class="hidden text-sm text-[var(--color-muted)] mb-4"></p>
+
+    <div id="product-grid" data-analytics-list="shop" data-analytics-items={analyticsItems} data-variant-options={variantOptionsJson}>
+      {products.length === 0
+        ? <p class="text-[var(--color-muted)] py-12 text-center">No products available.</p>
+        : (
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-animate="stagger">
+            {products.map((p, i) => <ProductCard product={p} listName="shop" index={i} lang="en" baseUrl="/en/shop" />)}
+          </div>
+        )
+      }
+    </div>
+  </main>
+  <CompareTray lang="en" />
+  <Footer />
+</Base>
+
+<script>
+  import { toggleWishlist, wishlistItems } from '@/stores/wishlist'
+  import { applyConversion, selectedCurrency } from '@/stores/currency'
+  import { addToCompare, removeFromCompare, isInCompare, compareItems } from '@/stores/compare'
+
+  let activeCategory = ''
+  let activeType = ''
+  let minPrice = ''
+  let maxPrice = ''
+  let searchQuery = ''
+  const activeOptions: Map<string, Set<string>> = new Map()
+  let searchTimeout: ReturnType<typeof setTimeout>
+
+  const grid = document.getElementById('product-grid')!
+  const status = document.getElementById('search-status')!
+  const resetBtn = document.getElementById('reset-filters')!
+
+  // ── Autocomplete ───────────────────────────────────────────────────────────
+  const searchInput = document.getElementById('search-input') as HTMLInputElement
+  const dropdown = document.getElementById('autocomplete-dropdown')!
+  let acTimeout: ReturnType<typeof setTimeout>
+  let acIndex = -1
+  let acItems: HTMLElement[] = []
+
+  function closeDropdown() {
+    dropdown.classList.add('hidden')
+    dropdown.innerHTML = ''
+    acIndex = -1
+    acItems = []
+    searchInput.removeAttribute('aria-activedescendant')
+  }
+
+  function highlightItem(index: number) {
+    acItems.forEach((el, i) => el.classList.toggle('bg-[var(--color-surface)]', i === index))
+    if (acItems[index]) searchInput.setAttribute('aria-activedescendant', acItems[index].id)
+  }
+
+  async function fetchSuggestions(q: string) {
+    if (q.length < 2) { closeDropdown(); return }
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&limit=6&lang=en`)
+      if (!res.ok) return
+      const { results } = await res.json() as { results: SR[] }
+      if (!results.length) { closeDropdown(); return }
+
+      dropdown.innerHTML = results.map((p, i) => {
+        const escaped = p.name.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        const thumb = p.imageUrl
+          ? `<img src="${p.imageUrl}" alt="" class="w-10 h-10 rounded object-cover shrink-0" />`
+          : `<div class="w-10 h-10 rounded bg-[var(--color-surface)] shrink-0"></div>`
+        const priceStr = `€${p.price.toFixed(2)}`
+        return `<a
+          id="ac-item-${i}"
+          role="option"
+          href="/en/shop/${p.slug}"
+          class="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--color-surface)] transition-colors"
+          aria-selected="false"
+        >${thumb}<span class="flex-1 min-w-0"><span class="block text-sm font-medium text-[var(--color-text)] truncate">${escaped}</span>${p.categoryName ? `<span class="text-xs text-[var(--color-muted)]">${p.categoryName}</span>` : ''}</span><span class="text-sm font-bold text-[var(--color-brand)] shrink-0">${priceStr}</span></a>`
+      }).join('') +
+      `<div class="border-t border-[var(--color-border)]">
+        <button id="ac-all" type="button" class="w-full text-left px-4 py-2.5 text-sm text-[var(--color-brand)] hover:bg-[var(--color-surface)] transition-colors">
+          All results for "<strong>${q.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</strong>"
+        </button>
+      </div>`
+
+      dropdown.classList.remove('hidden')
+      acItems = Array.from(dropdown.querySelectorAll('[role="option"]')) as HTMLElement[]
+      acIndex = -1
+
+      dropdown.querySelector('#ac-all')?.addEventListener('click', () => {
+        closeDropdown()
+        scheduleSearch(0)
+      })
+    } catch { /* silent */ }
+  }
+
+  searchInput.addEventListener('keydown', e => {
+    if (dropdown.classList.contains('hidden')) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      acIndex = Math.min(acIndex + 1, acItems.length - 1)
+      highlightItem(acIndex)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      acIndex = Math.max(acIndex - 1, -1)
+      highlightItem(acIndex)
+    } else if (e.key === 'Enter' && acIndex >= 0) {
+      e.preventDefault()
+      ;(acItems[acIndex] as HTMLAnchorElement).click()
+    } else if (e.key === 'Escape') {
+      closeDropdown()
+    }
+  })
+
+  searchInput.addEventListener('blur', () => {
+    setTimeout(closeDropdown, 150)
+  })
+
+  document.addEventListener('click', e => {
+    if (!dropdown.contains(e.target as Node) && e.target !== searchInput) closeDropdown()
+  })
+
+  // ── Wishlist sync ──────────────────────────────────────────────────────────
+  function syncAllWishlistBtns() {
+    const items = wishlistItems.get()
+    const ids = new Set(items.map(i => i.productId))
+    document.querySelectorAll<HTMLButtonElement>('.wishlist-btn').forEach(btn => {
+      const id = btn.dataset.productId!
+      const active = ids.has(id)
+      btn.querySelector('.heart-outline')?.classList.toggle('hidden', active)
+      btn.querySelector('.heart-filled')?.classList.toggle('hidden', !active)
+      btn.setAttribute('aria-pressed', String(active))
+      btn.setAttribute('aria-label', active ? 'Remove from wishlist' : 'Add to wishlist')
+    })
+  }
+  wishlistItems.subscribe(syncAllWishlistBtns)
+
+  grid.addEventListener('click', e => {
+    const wishlistBtn = (e.target as Element).closest<HTMLButtonElement>('.wishlist-btn[data-dynamic]')
+    if (wishlistBtn) {
+      e.preventDefault()
+      e.stopPropagation()
+      toggleWishlist({
+        productId: wishlistBtn.dataset.productId!,
+        productSlug: wishlistBtn.dataset.productSlug!,
+        productName: wishlistBtn.dataset.productName!,
+        price: parseFloat(wishlistBtn.dataset.productPrice!),
+        image: wishlistBtn.dataset.productImage || null,
+        categoryName: wishlistBtn.dataset.productCategory ?? '',
+      })
+      return
+    }
+
+    const compareBtn = (e.target as Element).closest<HTMLButtonElement>('[data-dynamic-compare]')
+    if (compareBtn) {
+      e.preventDefault()
+      e.stopPropagation()
+      const id = compareBtn.dataset.compareId!
+      if (isInCompare(id)) {
+        removeFromCompare(id)
+      } else {
+        addToCompare({
+          id,
+          slug: compareBtn.dataset.compareSlug!,
+          name: compareBtn.dataset.compareName!,
+          imageUrl: compareBtn.dataset.compareImage || null,
+          price: parseFloat(compareBtn.dataset.comparePrice!),
+          comparePrice: compareBtn.dataset.compareComparePrice ? parseFloat(compareBtn.dataset.compareComparePrice) : null,
+          category: compareBtn.dataset.compareCategory || null,
+          type: compareBtn.dataset.compareType!,
+          isOutOfStock: compareBtn.dataset.compareOutOfStock === 'true',
+          weightG: parseInt(compareBtn.dataset.compareWeight ?? '0'),
+        })
+      }
+    }
+  })
+
+  compareItems.subscribe(() => {
+    grid.querySelectorAll<HTMLButtonElement>('[data-dynamic-compare]').forEach(btn => {
+      const id = btn.dataset.compareId!
+      const active = isInCompare(id)
+      const atMax = compareItems.get().length >= 3 && !active
+      btn.textContent = active ? '✓ Compare' : '+ Compare'
+      btn.setAttribute('aria-pressed', String(active))
+      btn.disabled = atMax
+      btn.classList.toggle('text-[var(--color-brand)]', active)
+    })
+  })
+
+  // ── Card HTML template (English) ───────────────────────────────────────────
+  interface SR { id:string; slug:string; name:string; imageUrl:string|null; categoryName:string|null; price:number; comparePrice:number|null; type:string; isOutOfStock:boolean; featured:boolean }
+
+  function cardHtml(p: SR) {
+    const escapedName = p.name.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')
+    const img = p.imageUrl
+      ? `<img src="${p.imageUrl}" alt="${escapedName}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />`
+      : `<div class="w-full h-full flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></div>`
+
+    const badges = [
+      p.isOutOfStock ? `<span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">Out of Stock</span>` : '',
+      (!p.isOutOfStock && p.featured) ? `<span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">Featured</span>` : '',
+      p.type === 'digital' ? `<span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700">Digital</span>` : '',
+    ].filter(Boolean).join('')
+
+    const inCompare = isInCompare(p.id)
+    const atMax = compareItems.get().length >= 3 && !inCompare
+
+    return `<article class="group relative rounded-lg overflow-hidden border border-[var(--color-border)] hover:shadow-md transition-shadow duration-300 bg-[var(--color-bg)]">
+      <button type="button" data-dynamic class="wishlist-btn absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow hover:bg-white transition-colors"
+        data-product-id="${p.id}" data-product-slug="${p.slug}" data-product-name="${escapedName}"
+        data-product-price="${p.price}" data-product-image="${p.imageUrl ?? ''}" data-product-category="${p.categoryName ?? ''}"
+        aria-label="Add to wishlist" aria-pressed="false">
+        <svg class="heart-outline w-4 h-4 text-[var(--color-muted)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
+        <svg class="heart-filled w-4 h-4 text-red-500 hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" /></svg>
+      </button>
+      <a href="/en/shop/${p.slug}" class="block">
+        <div class="aspect-square bg-[var(--color-surface)] overflow-hidden">${img}</div>
+        <div class="p-4">
+          ${p.categoryName ? `<p class="text-xs text-[var(--color-muted)] mb-1">${p.categoryName}</p>` : ''}
+          <h3 class="font-medium text-[var(--color-text)] leading-tight line-clamp-2">${p.name}</h3>
+          <div class="flex items-center gap-2 mt-2">
+            <span class="font-bold text-[var(--color-brand)]" data-eur-price="${p.price}">€${p.price.toFixed(2)}</span>
+            ${p.comparePrice ? `<span class="text-sm text-[var(--color-muted)] line-through" data-eur-price="${p.comparePrice}">€${p.comparePrice.toFixed(2)}</span>` : ''}
+          </div>
+          ${badges ? `<div class="flex gap-2 mt-3 flex-wrap">${badges}</div>` : ''}
+        </div>
+      </a>
+      <button type="button" data-dynamic-compare data-compare-id="${p.id}" data-compare-slug="${p.slug}"
+        data-compare-name="${escapedName}" data-compare-image="${p.imageUrl ?? ''}"
+        data-compare-price="${p.price}" data-compare-compare-price="${p.comparePrice ?? ''}"
+        data-compare-category="${p.categoryName ?? ''}" data-compare-type="${p.type}"
+        data-compare-out-of-stock="${p.isOutOfStock}" data-compare-weight="0"
+        aria-pressed="${inCompare}" ${atMax ? 'disabled' : ''}
+        class="w-full text-xs transition-colors py-2 border-t border-[var(--color-border)] ${inCompare ? 'text-[var(--color-brand)]' : 'text-[var(--color-muted)] hover:text-[var(--color-brand)]'}">
+        ${inCompare ? '✓ Compare' : '+ Compare'}
+      </button>
+    </article>`
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function hasActiveOptions() {
+    for (const s of activeOptions.values()) if (s.size > 0) return true
+    return false
+  }
+
+  function isFiltered() {
+    return !!(searchQuery || activeCategory || activeType || minPrice || maxPrice || hasActiveOptions())
+  }
+
+  function updateResetBtn() {
+    resetBtn.classList.toggle('hidden', !isFiltered())
+  }
+
+  function setSearchStatus(text: string) {
+    status.textContent = text
+    status.classList.toggle('hidden', !text)
+  }
+
+  function buildOptionParams(): string[] {
+    const parts: string[] = []
+    for (const [name, values] of activeOptions.entries()) {
+      for (const v of values) parts.push(`option=${encodeURIComponent(name)}:${encodeURIComponent(v)}`)
+    }
+    return parts
+  }
+
+  async function runSearch() {
+    const params = new URLSearchParams()
+    if (searchQuery) params.set('q', searchQuery)
+    if (activeCategory) params.set('category', activeCategory)
+    if (activeType) params.set('type', activeType)
+    if (minPrice) params.set('min_price', minPrice)
+    if (maxPrice) params.set('max_price', maxPrice)
+    params.set('lang', 'en')
+
+    const optParts = buildOptionParams()
+    const qs = [params.toString(), ...optParts].filter(Boolean).join('&')
+
+    setSearchStatus('Searching…')
+
+    try {
+      const res = await fetch(`/api/search?${qs}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Error')
+
+      const results: SR[] = data.results
+      if (results.length === 0) {
+        grid.innerHTML = '<p class="text-[var(--color-muted)] py-12 text-center">No products found.</p>'
+      } else {
+        grid.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">${results.map(cardHtml).join('')}</div>`
+        syncAllWishlistBtns()
+        if (selectedCurrency.get() !== 'EUR') applyConversion()
+      }
+      setSearchStatus(`${results.length} product${results.length === 1 ? '' : 's'} found`)
+    } catch {
+      setSearchStatus('Search error. Please try again.')
+    }
+  }
+
+  function scheduleSearch(delay = 350) {
+    clearTimeout(searchTimeout)
+    closeDropdown()
+    updateResetBtn()
+    if (!isFiltered()) { location.reload(); return }
+    searchTimeout = setTimeout(runSearch, delay)
+  }
+
+  // ── Event listeners ────────────────────────────────────────────────────────
+  searchInput.addEventListener('input', e => {
+    searchQuery = (e.target as HTMLInputElement).value.trim()
+    scheduleSearch(350)
+    clearTimeout(acTimeout)
+    acTimeout = setTimeout(() => fetchSuggestions(searchQuery), 250)
+  })
+
+  document.querySelectorAll<HTMLButtonElement>('.category-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeCategory = btn.dataset.category ?? ''
+      document.querySelectorAll<HTMLButtonElement>('.category-pill').forEach(b => {
+        const active = b === btn
+        b.classList.toggle('bg-[var(--color-brand)]', active)
+        b.classList.toggle('text-white', active)
+        b.classList.toggle('border', !active)
+        b.classList.toggle('border-[var(--color-border)]', !active)
+        b.classList.toggle('text-[var(--color-text)]', !active)
+      })
+      scheduleSearch(0)
+    })
+  })
+
+  document.querySelectorAll<HTMLButtonElement>('.type-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeType = btn.dataset.type ?? ''
+      document.querySelectorAll<HTMLButtonElement>('.type-pill').forEach(b => {
+        const active = b === btn
+        b.classList.toggle('bg-[var(--color-brand)]', active)
+        b.classList.toggle('text-white', active)
+        b.classList.toggle('text-[var(--color-text)]', !active)
+      })
+      scheduleSearch(0)
+    })
+  })
+
+  document.getElementById('min-price')?.addEventListener('input', e => {
+    minPrice = (e.target as HTMLInputElement).value
+    scheduleSearch(500)
+  })
+
+  document.getElementById('max-price')?.addEventListener('input', e => {
+    maxPrice = (e.target as HTMLInputElement).value
+    scheduleSearch(500)
+  })
+
+  document.querySelectorAll<HTMLButtonElement>('.attr-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const name = btn.dataset.attrName!
+      const value = btn.dataset.attrValue!
+      if (!activeOptions.has(name)) activeOptions.set(name, new Set())
+      const set = activeOptions.get(name)!
+
+      if (set.has(value)) {
+        set.delete(value)
+      } else {
+        set.add(value)
+      }
+
+      document.querySelectorAll<HTMLButtonElement>(`.attr-pill[data-attr-name="${CSS.escape(name)}"]`).forEach(b => {
+        const selected = set.has(b.dataset.attrValue!)
+        b.classList.toggle('bg-[var(--color-brand)]', selected)
+        b.classList.toggle('text-white', selected)
+        b.classList.toggle('border-[var(--color-brand)]', selected)
+      })
+
+      scheduleSearch(0)
+    })
+  })
+
+  resetBtn.addEventListener('click', () => {
+    searchQuery = ''; activeCategory = ''; activeType = ''; minPrice = ''; maxPrice = ''
+    activeOptions.clear()
+    ;(document.getElementById('search-input') as HTMLInputElement).value = ''
+    ;(document.getElementById('min-price') as HTMLInputElement).value = ''
+    ;(document.getElementById('max-price') as HTMLInputElement).value = ''
+
+    document.querySelectorAll<HTMLButtonElement>('.attr-pill').forEach(b => {
+      b.classList.remove('bg-[var(--color-brand)]', 'text-white', 'border-[var(--color-brand)]')
+    })
+
+    updateResetBtn()
+    location.reload()
+  })
+</script>

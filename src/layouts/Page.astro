@@ -15,7 +15,7 @@ const { title, description, image, lang } = Astro.props
 ---
 
 <Base title={title} description={description} image={image} lang={lang}>
-  <Header />
+  <Header lang={lang as 'it' | 'en' | undefined} />
   <main>
     <slot />
   </main>

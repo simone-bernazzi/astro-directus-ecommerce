@@ -1,5 +1,14 @@
 ---
 // src/components/shop/CompareTray.astro — sticky tray + comparison modal
+import { useTranslations, shopBase as getShopBase } from '@/i18n'
+import type { Lang } from '@/i18n'
+
+interface Props {
+  lang?: Lang
+}
+const { lang = 'it' } = Astro.props
+const t = useTranslations(lang)
+const shopBaseUrl = getShopBase(lang)
 ---
 
 <!-- Tray -->
@@ -19,7 +28,7 @@
           type="button"
           class="text-sm text-[var(--color-muted)] hover:text-[var(--color-brand)] transition-colors underline"
         >
-          Svuota
+          {t('compare.clear')}
         </button>
         <button
           id="compare-open"
@@ -27,7 +36,7 @@
           class="px-5 py-2 rounded-lg bg-[var(--color-brand)] text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
           disabled
         >
-          Confronta (<span id="compare-count">0</span>)
+          {t('compare.cta')} (<span id="compare-count">0</span>)
         </button>
       </div>
     </div>
@@ -40,14 +49,14 @@
   class="fixed inset-0 z-50 hidden"
   role="dialog"
   aria-modal="true"
-  aria-label="Confronta prodotti"
+  aria-label={t('compare.title')}
 >
   <div class="absolute inset-0 bg-black/50" id="compare-backdrop"></div>
   <div class="absolute inset-x-0 bottom-0 bg-[var(--color-bg)] rounded-t-2xl overflow-auto max-h-[90dvh] shadow-2xl">
     <div class="container py-6">
       <div class="flex items-center justify-between mb-6">
-        <h2 class="text-xl font-bold">Confronta prodotti</h2>
-        <button id="compare-close" type="button" class="p-2 hover:text-[var(--color-brand)] transition-colors" aria-label="Chiudi">
+        <h2 class="text-xl font-bold">{t('compare.title')}</h2>
+        <button id="compare-close" type="button" class="p-2 hover:text-[var(--color-brand)] transition-colors" aria-label={t('compare.close')}>
           <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -58,7 +67,23 @@
   </div>
 </div>
 
-<script>
+<script define:vars={{
+  shopBaseUrl,
+  i18n: {
+    emptySlot: t('shop.empty_compare_slot'),
+    remove: t('compare.remove'),
+    price: t('compare.attr.price'),
+    category: t('compare.attr.category'),
+    type: t('compare.attr.type'),
+    availability: t('compare.attr.availability'),
+    weight: t('compare.attr.weight'),
+    physical: t('compare.physical'),
+    digital: t('compare.digital'),
+    available: t('compare.available'),
+    unavailable: t('compare.unavailable'),
+    viewProduct: t('compare.view_product'),
+  },
+}}>
   import { compareItems, removeFromCompare, clearCompare, MAX_COMPARE } from '@/stores/compare'
   import { formatPrice, selectedCurrency, exchangeRates } from '@/stores/currency'
   import type { CompareItem } from '@/stores/compare'
@@ -89,7 +114,7 @@
       return `<div class="flex items-center gap-2 border border-[var(--color-border)] rounded-lg px-3 py-2 bg-[var(--color-surface)] text-sm max-w-[180px]">
         ${img}
         <span class="truncate text-[var(--color-text)] flex-1">${escapedName}</span>
-        <button type="button" data-remove="${p.id}" class="shrink-0 text-[var(--color-muted)] hover:text-red-500 transition-colors" aria-label="Rimuovi">
+        <button type="button" data-remove="${p.id}" class="shrink-0 text-[var(--color-muted)] hover:text-red-500 transition-colors" aria-label="${i18n.remove}">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -100,7 +125,7 @@
     // Empty slots
     const empty = MAX_COMPARE - items.length
     for (let i = 0; i < empty; i++) {
-      slots.innerHTML += `<div class="flex items-center gap-2 border border-dashed border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-muted)] w-[160px]">+ Aggiungi prodotto</div>`
+      slots.innerHTML += `<div class="flex items-center gap-2 border border-dashed border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-muted)] w-[160px]">${i18n.emptySlot}</div>`
     }
   }
 
@@ -112,13 +137,13 @@
         const img = p.imageUrl
           ? `<img src="${p.imageUrl}" alt="${p.name.replace(/&/g,'&amp;')}" class="w-full h-40 object-cover rounded-lg mb-3" />`
           : `<div class="w-full h-40 bg-[var(--color-surface)] rounded-lg mb-3"></div>`
-        return `${img}<a href="/negozio/${p.slug}" class="font-semibold hover:text-[var(--color-brand)] transition-colors">${p.name.replace(/&/g,'&amp;')}</a>`
+        return `${img}<a href="${shopBaseUrl}/${p.slug}" class="font-semibold hover:text-[var(--color-brand)] transition-colors">${p.name.replace(/&/g,'&amp;')}</a>`
       })],
-      ['Prezzo', items.map(p => `<span class="font-bold text-[var(--color-brand)]">${price(p.price)}</span>${p.comparePrice ? ` <span class="text-[var(--color-muted)] line-through text-sm">${price(p.comparePrice)}</span>` : ''}`)],
-      ['Categoria', items.map(p => p.category ?? '—')],
-      ['Tipo', items.map(p => p.type === 'digital' ? 'Digitale' : 'Fisico')],
-      ['Disponibilità', items.map(p => p.isOutOfStock ? '<span class="text-red-600 font-medium">Esaurito</span>' : '<span class="text-green-600 font-medium">Disponibile</span>')],
-      ['Peso', items.map(p => p.weightG > 0 ? `${p.weightG}g` : '—')],
+      [i18n.price, items.map(p => `<span class="font-bold text-[var(--color-brand)]">${price(p.price)}</span>${p.comparePrice ? ` <span class="text-[var(--color-muted)] line-through text-sm">${price(p.comparePrice)}</span>` : ''}`)],
+      [i18n.category, items.map(p => p.category ?? '—')],
+      [i18n.type, items.map(p => p.type === 'digital' ? i18n.digital : i18n.physical)],
+      [i18n.availability, items.map(p => p.isOutOfStock ? `<span class="text-red-600 font-medium">${i18n.unavailable}</span>` : `<span class="text-green-600 font-medium">${i18n.available}</span>`)],
+      [i18n.weight, items.map(p => p.weightG > 0 ? `${p.weightG}g` : '—')],
     ]
 
     const colWidth = `${Math.floor(100 / (items.length + 1))}%`
@@ -137,7 +162,7 @@
         `).join('')}
         <tr>
           <td class="py-3 px-4"></td>
-          ${items.map(p => `<td class="py-3 px-4"><a href="/negozio/${p.slug}" class="inline-block px-4 py-2 rounded-lg bg-[var(--color-brand)] text-white text-sm font-medium hover:opacity-90 transition-opacity">Vedi prodotto</a></td>`).join('')}
+          ${items.map(p => `<td class="py-3 px-4"><a href="${shopBaseUrl}/${p.slug}" class="inline-block px-4 py-2 rounded-lg bg-[var(--color-brand)] text-white text-sm font-medium hover:opacity-90 transition-opacity">${i18n.viewProduct}</a></td>`).join('')}
         </tr>
       </tbody>
     </table>`

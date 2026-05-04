@@ -3,6 +3,14 @@
 import Nav from './Nav.astro'
 import CurrencySelector from '@/components/ui/CurrencySelector.astro'
 import { getSiteSettings, getDirectusImageUrl } from '@/lib/directus'
+import { langSwitchUrl } from '@/i18n'
+import type { Lang } from '@/i18n'
+
+interface Props {
+  lang?: Lang
+}
+
+const { lang = 'it' } = Astro.props
 
 const settings = await getSiteSettings().catch((err) => {
   if (import.meta.env.DEV) console.error('[Header.astro] getSiteSettings failed:', err)
@@ -11,6 +19,8 @@ const settings = await getSiteSettings().catch((err) => {
 
 const navLinks = settings.nav_links ?? []
 const currentPath = Astro.url.pathname
+const switchUrl = langSwitchUrl(lang, currentPath)
+const switchLabel = lang === 'it' ? 'EN' : 'IT'
 ---
 
 <header class="header sticky top-0 z-50 bg-[var(--color-bg)] border-b border-[var(--color-border)]">
@@ -26,6 +36,15 @@ const currentPath = Astro.url.pathname
     <div class="hidden md:block">
       <Nav links={navLinks} currentPath={currentPath} />
     </div>
+
+    <!-- Language switcher -->
+    <a
+      href={switchUrl}
+      hreflang={lang === 'it' ? 'en' : 'it'}
+      class="text-xs font-semibold px-2 py-1 border border-[var(--color-border)] rounded hover:border-[var(--color-brand)] transition-colors"
+    >
+      {switchLabel}
+    </a>
 
     <!-- Currency selector -->
     <CurrencySelector />

@@ -8,6 +8,7 @@ interface Props {
   description?: string
   image?: string
   lang?: string
+  alternates?: Array<{ lang: string; href: string }>
 }
 
 const settings = await getSiteSettings().catch((err) => {
@@ -20,6 +21,7 @@ const {
   description = '',
   image = '',
   lang = 'it',
+  alternates = [],
 } = Astro.props
 
 const pageTitle = title === settings.site_name
@@ -54,6 +56,7 @@ const gtmId = import.meta.env.PUBLIC_GTM_ID
     <meta name="twitter:title" content={pageTitle} />
     {description && <meta name="twitter:description" content={description} />}
     {image && <meta name="twitter:image" content={image} />}
+    {alternates.map(alt => <link rel="alternate" hreflang={alt.lang} href={alt.href} />)}
     <title>{pageTitle}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />

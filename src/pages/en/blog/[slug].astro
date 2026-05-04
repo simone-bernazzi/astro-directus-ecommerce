@@ -1,0 +1,19 @@
+---
+// src/pages/en/blog/[slug].astro
+import Post from '@/layouts/Post.astro'
+import { getPosts, getPostBySlug, localizePost } from '@/lib/directus'
+
+export async function getStaticPaths() {
+  const posts = await getPosts().catch(() => [])
+  return posts.map((post) => ({ params: { slug: post.slug } }))
+}
+
+const { slug } = Astro.params
+if (!slug) return Astro.redirect('/en/blog')
+const rawPost = await getPostBySlug(slug).catch(() => null)
+if (!rawPost) return Astro.redirect('/en/blog')
+
+const post = localizePost(rawPost, 'en')
+---
+
+<Post post={post} lang="en" />
