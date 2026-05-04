@@ -31,6 +31,19 @@
 
 ---
 
+## [0.16.0] — 2026-05-04
+
+### Aggiunto
+- `[FEAT]` **Campo `digital_file_url` su variante prodotto** — alternativa al proxy Directus per i download digitali:
+  - Se valorizzato, `/api/download/[token]` emette un redirect 302 verso l'URL; zero memoria sul server, zero rischio timeout Netlify
+  - Funziona con qualsiasi servizio: AWS S3, Google Cloud Storage, Bunny CDN, URL pubblici Directus
+  - Se vuoto, mantiene il comportamento precedente (proxy stream da Directus)
+  - Il contatore download viene incrementato prima del redirect in entrambi i casi
+  - `setup-collections.mjs` — campo aggiunto a `product_variants` (nota 150 MB visibile nell'admin Directus)
+  - README — sezione "Prodotti digitali" aggiornata con tabella comparativa modalità e nota advisory 150 MB per file ospitati su Directus
+
+---
+
 ## [0.15.0] — 2026-05-04
 
 ### Aggiunto
