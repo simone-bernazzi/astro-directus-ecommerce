@@ -37,8 +37,20 @@ const variantOptionsJson = JSON.stringify(variantOptions)
           id="search-input"
           type="search"
           placeholder="Cerca prodotti..."
+          autocomplete="off"
+          aria-autocomplete="list"
+          aria-controls="autocomplete-list"
+          aria-haspopup="listbox"
           class="w-full pl-10 pr-4 py-2.5 border border-[var(--color-border)] rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent"
         />
+        <!-- Autocomplete dropdown -->
+        <div
+          id="autocomplete-dropdown"
+          class="absolute top-full left-0 right-0 mt-1 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg shadow-lg z-30 hidden overflow-hidden"
+          role="listbox"
+          id="autocomplete-list"
+          aria-label="Suggerimenti di ricerca"
+        ></div>
       </div>
     </div>
 
@@ -138,6 +150,93 @@ const variantOptionsJson = JSON.stringify(variantOptions)
   const grid = document.getElementById('product-grid')!
   const status = document.getElementById('search-status')!
   const resetBtn = document.getElementById('reset-filters')!
+
+  // ── Autocomplete ───────────────────────────────────────────────────────────
+  const searchInput = document.getElementById('search-input') as HTMLInputElement
+  const dropdown = document.getElementById('autocomplete-dropdown')!
+  let acTimeout: ReturnType<typeof setTimeout>
+  let acIndex = -1
+  let acItems: HTMLElement[] = []
+
+  function closeDropdown() {
+    dropdown.classList.add('hidden')
+    dropdown.innerHTML = ''
+    acIndex = -1
+    acItems = []
+    searchInput.removeAttribute('aria-activedescendant')
+  }
+
+  function highlightItem(index: number) {
+    acItems.forEach((el, i) => el.classList.toggle('bg-[var(--color-surface)]', i === index))
+    if (acItems[index]) searchInput.setAttribute('aria-activedescendant', acItems[index].id)
+  }
+
+  async function fetchSuggestions(q: string) {
+    if (q.length < 2) { closeDropdown(); return }
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&limit=6`)
+      if (!res.ok) return
+      const { results } = await res.json() as { results: SR[] }
+
+      if (!results.length) { closeDropdown(); return }
+
+      dropdown.innerHTML = results.map((p, i) => {
+        const escaped = p.name.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        const thumb = p.imageUrl
+          ? `<img src="${p.imageUrl}" alt="" class="w-10 h-10 rounded object-cover shrink-0" />`
+          : `<div class="w-10 h-10 rounded bg-[var(--color-surface)] shrink-0"></div>`
+        const priceStr = `€${p.price.toFixed(2)}`
+        return `<a
+          id="ac-item-${i}"
+          role="option"
+          href="/negozio/${p.slug}"
+          class="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--color-surface)] transition-colors"
+          aria-selected="false"
+        >${thumb}<span class="flex-1 min-w-0"><span class="block text-sm font-medium text-[var(--color-text)] truncate">${escaped}</span>${p.categoryName ? `<span class="text-xs text-[var(--color-muted)]">${p.categoryName}</span>` : ''}</span><span class="text-sm font-bold text-[var(--color-brand)] shrink-0">${priceStr}</span></a>`
+      }).join('') +
+      `<div class="border-t border-[var(--color-border)]">
+        <button id="ac-all" type="button" class="w-full text-left px-4 py-2.5 text-sm text-[var(--color-brand)] hover:bg-[var(--color-surface)] transition-colors">
+          Tutti i risultati per "<strong>${q.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</strong>"
+        </button>
+      </div>`
+
+      dropdown.classList.remove('hidden')
+      acItems = Array.from(dropdown.querySelectorAll('[role="option"]')) as HTMLElement[]
+      acIndex = -1
+
+      dropdown.querySelector('#ac-all')?.addEventListener('click', () => {
+        closeDropdown()
+        scheduleSearch(0)
+      })
+    } catch { /* silent */ }
+  }
+
+  searchInput.addEventListener('keydown', e => {
+    if (dropdown.classList.contains('hidden')) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      acIndex = Math.min(acIndex + 1, acItems.length - 1)
+      highlightItem(acIndex)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      acIndex = Math.max(acIndex - 1, -1)
+      highlightItem(acIndex)
+    } else if (e.key === 'Enter' && acIndex >= 0) {
+      e.preventDefault()
+      ;(acItems[acIndex] as HTMLAnchorElement).click()
+    } else if (e.key === 'Escape') {
+      closeDropdown()
+    }
+  })
+
+  searchInput.addEventListener('blur', () => {
+    // Delay to allow click on dropdown items to fire first
+    setTimeout(closeDropdown, 150)
+  })
+
+  document.addEventListener('click', e => {
+    if (!dropdown.contains(e.target as Node) && e.target !== searchInput) closeDropdown()
+  })
 
   // ── Wishlist sync for dynamically rendered cards ───────────────────────────
   function syncAllWishlistBtns() {
@@ -319,15 +418,19 @@ const variantOptionsJson = JSON.stringify(variantOptions)
 
   function scheduleSearch(delay = 350) {
     clearTimeout(searchTimeout)
+    closeDropdown()
     updateResetBtn()
     if (!isFiltered()) { location.reload(); return }
     searchTimeout = setTimeout(runSearch, delay)
   }
 
   // ── Event listeners ────────────────────────────────────────────────────────
-  document.getElementById('search-input')?.addEventListener('input', e => {
+  searchInput.addEventListener('input', e => {
     searchQuery = (e.target as HTMLInputElement).value.trim()
     scheduleSearch(350)
+    // Autocomplete with shorter debounce
+    clearTimeout(acTimeout)
+    acTimeout = setTimeout(() => fetchSuggestions(searchQuery), 250)
   })
 
   document.querySelectorAll<HTMLButtonElement>('.category-pill').forEach(btn => {

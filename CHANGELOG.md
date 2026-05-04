@@ -14,7 +14,7 @@
 ### Funzionalità da aggiungere (backlog)
 
 - `[x]` **Multi-currency** — ~~visualizzazione prezzi in valuta locale via exchangerate API, checkout sempre in EUR~~ ✓ v0.12.0
-- `[ ]` **Ricerca prodotti avanzata** — suggerimenti autocompletamento, ricerca fulltext con Meilisearch/Algolia
+- `[x]` **Ricerca prodotti avanzata** — ~~suggerimenti autocompletamento~~ ✓ v0.14.0 (Meilisearch/Algolia non implementato — non necessario)
 - `[ ]` **Internazionalizzazione shop** — slug e contenuti prodotto in IT/EN, routing `/en/shop/`
 - `[x]` **Comparazione prodotti** — ~~seleziona fino a 3 prodotti e confronta attributi~~ ✓ v0.13.0
 
@@ -28,6 +28,19 @@
 ### Bug aperti
 
 - `[ ]` **`BUG-004`** `api/download/[token].ts` — il proxy scarica l'intero file in memoria prima di rispondere; su file grandi (es. video) questo può causare timeout su Netlify (limite 10 secondi)
+
+---
+
+## [0.14.0] — 2026-05-04
+
+### Aggiunto
+- `[FEAT]` **Autocomplete ricerca prodotti** — dropdown suggerimenti sotto la search bar:
+  - Fetch a `/api/search?q=...&limit=6` con debounce 250ms (separato dal debounce 350ms della griglia)
+  - Ogni riga: thumbnail 40×40 + nome + categoria + prezzo
+  - Ultima voce: "Tutti i risultati per '...'" che esegue la ricerca completa nella griglia
+  - Navigazione tastiera: ↑↓ tra le voci, Invio per navigare/selezionare, Escape per chiudere
+  - Accessibilità: `role="listbox"`, `role="option"`, `aria-autocomplete`, `aria-activedescendant`
+  - Chiusura automatica su blur (con delay 150ms per permettere il click), click esterno, cambio filtri
 
 ---
 
