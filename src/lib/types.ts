@@ -134,6 +134,7 @@ export interface Product {
   tags: Array<{ tags_id: string }> | null
   variants: ProductVariant[]
   status: 'published' | 'draft'
+  cross_sell_ids: string[] | null
 }
 
 export interface ShippingZone {

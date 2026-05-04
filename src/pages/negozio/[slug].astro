@@ -6,7 +6,8 @@ import Footer from '@/components/layout/Footer.astro'
 import Badge from '@/components/ui/Badge.astro'
 import VariantSelector from '@/components/shop/VariantSelector.astro'
 import AddToCart from '@/components/shop/AddToCart.astro'
-import { getProductBySlug, getProductSlugs, getDirectusImageUrl, getProducts } from '@/lib/directus'
+import StockNotify from '@/components/shop/StockNotify.astro'
+import { getProductBySlug, getProductSlugs, getDirectusImageUrl, getProducts, getProductsByIds } from '@/lib/directus'
 import type { DirectusFile } from '@/lib/types'
 
 export async function getStaticPaths() {
@@ -33,9 +34,17 @@ const images = (product.images ?? []).map(img => {
   return getDirectusImageUrl(id, { width: 900, quality: 85 })
 }).filter(Boolean)
 
-// Related products (same category, excluding current)
+// Cross-sell: manually curated via cross_sell_ids field in Directus
+const crossSell = product.cross_sell_ids?.length
+  ? (await getProductsByIds(product.cross_sell_ids).catch(() => [])).filter(p => p.slug !== slug)
+  : []
+
+// Related products: same category, excluding current and cross-sell IDs
+const crossSellIds = new Set(crossSell.map(p => p.id))
 const related = product.category_id
-  ? (await getProducts({ categorySlug: product.category_id.slug, limit: 4 }).catch(() => [])).filter(p => p.slug !== slug)
+  ? (await getProducts({ categorySlug: product.category_id.slug, limit: 8 }).catch(() => []))
+      .filter(p => p.slug !== slug && !crossSellIds.has(p.id))
+      .slice(0, 4)
   : []
 ---
 
@@ -116,11 +125,43 @@ const related = product.category_id
           </div>
         )}
 
+        {isOutOfStock && (
+          <StockNotify productId={String(product.id)} />
+        )}
+
         {product.type === 'physical' && product.weight_g > 0 && (
           <p class="text-xs text-[var(--color-muted)] mt-4">Peso: {product.weight_g}g — spedizione calcolata al checkout</p>
         )}
       </div>
     </div>
+
+    <!-- Cross-sell: manually curated -->
+    {crossSell.length > 0 && (
+      <section class="mt-20">
+        <h2 class="text-2xl font-bold mb-8" data-animate="fade-up">Spesso acquistato insieme</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" data-animate="stagger">
+          {crossSell.slice(0, 4).map(p => {
+            const csFile = p.images?.[0]?.directus_files_id
+            const csId = typeof csFile === 'string' ? csFile : (csFile as DirectusFile)?.id ?? null
+            const csUrl = getDirectusImageUrl(csId, { width: 400, quality: 75 })
+            return (
+              <article class="group rounded-lg overflow-hidden border border-[var(--color-border)] hover:shadow-md transition-shadow">
+                <a href={`/negozio/${p.slug}`}>
+                  {csUrl
+                    ? <img src={csUrl} alt={p.name} class="aspect-square w-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                    : <div class="aspect-square bg-[var(--color-surface)]" />
+                  }
+                  <div class="p-3">
+                    <p class="font-medium text-sm truncate">{p.name}</p>
+                    <p class="text-[var(--color-brand)] font-bold text-sm mt-1">€{(p.variants?.[0]?.price_override ?? p.base_price).toFixed(2)}</p>
+                  </div>
+                </a>
+              </article>
+            )
+          })}
+        </div>
+      </section>
+    )}
 
     <!-- Related products -->
     {related.length > 0 && (

@@ -243,6 +243,15 @@ export interface GetProductsOptions {
   limit?: number
 }
 
+const PRODUCT_FIELDS = [
+  '*',
+  'images.directus_files_id.*',
+  'category_id.*',
+  'variants.*',
+  'variants.image_id.*',
+  'variants.digital_file.*',
+]
+
 export async function getProducts(options: GetProductsOptions = {}): Promise<Product[]> {
   const client = getClient()
   const filter: Record<string, unknown> = { status: { _eq: 'published' }, is_active: { _eq: true } }
@@ -253,15 +262,20 @@ export async function getProducts(options: GetProductsOptions = {}): Promise<Pro
     readItems('products', {
       filter,
       limit: options.limit ?? -1,
-      fields: [
-        '*',
-        'images.directus_files_id.*',
-        'category_id.*',
-        'variants.*',
-        'variants.image_id.*',
-        'variants.digital_file.*',
-      ],
+      fields: PRODUCT_FIELDS,
       sort: ['sort_order', 'name'],
+    })
+  )
+  return items as Product[]
+}
+
+export async function getProductsByIds(ids: string[]): Promise<Product[]> {
+  if (ids.length === 0) return []
+  const client = getClient()
+  const items = await client.request(
+    readItems('products', {
+      filter: { id: { _in: ids }, status: { _eq: 'published' }, is_active: { _eq: true } },
+      fields: PRODUCT_FIELDS,
     })
   )
   return items as Product[]
@@ -273,14 +287,7 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
     readItems('products', {
       filter: { slug: { _eq: slug }, status: { _eq: 'published' }, is_active: { _eq: true } },
       limit: 1,
-      fields: [
-        '*',
-        'images.directus_files_id.*',
-        'category_id.*',
-        'variants.*',
-        'variants.image_id.*',
-        'variants.digital_file.*',
-      ],
+      fields: PRODUCT_FIELDS,
     })
   )
   const list = items as Product[]

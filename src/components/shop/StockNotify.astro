@@ -1,0 +1,74 @@
+---
+// src/components/shop/StockNotify.astro — "Avvisami quando torna disponibile" form
+interface Props {
+  productId: string
+  variantId?: string | null
+}
+const { productId, variantId = null } = Astro.props
+---
+
+<div id="stock-notify-wrap" class="mt-6 p-4 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)]">
+  <p class="text-sm font-medium text-[var(--color-text)] mb-3">
+    Vuoi essere avvisato quando torna disponibile?
+  </p>
+  <form id="stock-notify-form" class="flex gap-2 flex-wrap">
+    <input
+      type="email"
+      id="stock-notify-email"
+      placeholder="la-tua@email.it"
+      required
+      class="flex-1 min-w-0 px-3 py-2 text-sm border border-[var(--color-border)] rounded-md bg-[var(--color-bg)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent"
+    />
+    <button
+      type="submit"
+      class="px-4 py-2 bg-[var(--color-brand)] text-white text-sm font-medium rounded-md hover:opacity-90 transition-opacity whitespace-nowrap"
+    >
+      Avvisami
+    </button>
+  </form>
+  <p id="stock-notify-msg" class="text-sm mt-2 hidden"></p>
+</div>
+
+<script define:vars={{ productId, variantId }}>
+  const form = document.getElementById('stock-notify-form')
+  const emailInput = document.getElementById('stock-notify-email')
+  const msg = document.getElementById('stock-notify-msg')
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault()
+    const email = emailInput?.value?.trim()
+    if (!email) return
+
+    const btn = form.querySelector('button[type="submit"]')
+    if (btn) btn.setAttribute('disabled', 'true')
+
+    try {
+      const res = await fetch('/api/stock-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, product_id: productId, variant_id: variantId }),
+      })
+      const data = await res.json()
+
+      if (msg) {
+        msg.classList.remove('hidden', 'text-red-500', 'text-green-600')
+        if (res.ok) {
+          msg.textContent = '✓ Perfetto! Ti avviseremo non appena tornerà disponibile.'
+          msg.classList.add('text-green-600')
+          form.classList.add('hidden')
+        } else {
+          msg.textContent = data.error ?? 'Si è verificato un errore. Riprova.'
+          msg.classList.add('text-red-500')
+          if (btn) btn.removeAttribute('disabled')
+        }
+      }
+    } catch {
+      if (msg) {
+        msg.classList.remove('hidden')
+        msg.classList.add('text-red-500')
+        msg.textContent = 'Impossibile inviare la richiesta. Controlla la connessione.'
+      }
+      if (btn) btn.removeAttribute('disabled')
+    }
+  })
+</script>

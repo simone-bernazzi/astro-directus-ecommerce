@@ -74,6 +74,7 @@ async function main() {
   await field('products', 'sort_order', 'integer', { default_value: 0 }, { interface: 'input' })
   await field('products', 'seo_title', 'string', {}, { interface: 'input' })
   await field('products', 'seo_description', 'text', {}, { interface: 'input-multiline' })
+  await field('products', 'cross_sell_ids', 'json', { is_nullable: true }, { interface: 'input-code', options: { language: 'json' }, note: 'Array JSON di ID prodotto da mostrare come "Spesso acquistato insieme"' })
 
   // ── product_variants ──────────────────────────────────────────────────────
   await collection('product_variants', 'tune', '{{name}} ({{sku}})')
@@ -172,6 +173,13 @@ async function main() {
   await field('contact_submissions', 'status', 'string', { default_value: 'new' }, { interface: 'select-dropdown', options: { choices: [{ text: 'Nuovo', value: 'new' }, { text: 'Letto', value: 'read' }, { text: 'Risposto', value: 'replied' }, { text: 'Archiviato', value: 'archived' }] } })
   await field('contact_submissions', 'ip_address', 'string', { is_nullable: true }, { interface: 'input', hidden: true })
   await field('contact_submissions', 'notes', 'text', { is_nullable: true }, { interface: 'input-multiline' })
+
+  // ── stock_notifications ────────────────────────────────────────────────────
+  await collection('stock_notifications', 'notifications', '{{email}} — {{product_id}}')
+  await field('stock_notifications', 'email', 'string', { is_nullable: false }, { interface: 'input', required: true })
+  await field('stock_notifications', 'product_id', 'string', { is_nullable: false }, { interface: 'input', required: true })
+  await field('stock_notifications', 'variant_id', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('stock_notifications', 'notified_at', 'timestamp', { is_nullable: true }, { interface: 'datetime' })
 
   // ── Relations ─────────────────────────────────────────────────────────────
   console.log('\nCreazione relazioni FK...')

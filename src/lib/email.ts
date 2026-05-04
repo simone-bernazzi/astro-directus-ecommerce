@@ -220,6 +220,31 @@ async function sendMail(to: string, subject: string, html: string): Promise<void
   })
 }
 
+export function renderRestockNotification(productName: string, productUrl: string): string {
+  const content = `
+    <h2 style="margin:0 0 8px;font-size:22px;">Il prodotto è di nuovo disponibile! 🎉</h2>
+    <p style="margin:0 0 24px;color:#6b7280;font-size:15px;">Ottima notizia! Il prodotto che stavi aspettando è tornato disponibile.</p>
+
+    <div style="margin:24px 0;padding:20px;background:#f9fafb;border-radius:6px;text-align:center;">
+      <p style="margin:0 0 16px;font-size:18px;font-weight:700;">${productName}</p>
+      <a href="${productUrl}" style="display:inline-block;padding:12px 28px;background:#111827;color:#ffffff;text-decoration:none;border-radius:6px;font-size:15px;font-weight:600;">Acquista ora →</a>
+    </div>
+
+    <p style="margin:24px 0 0;font-size:13px;color:#9ca3af;text-align:center;">Non vuoi più ricevere queste notifiche? Ignora questa email — non ti invieremo altri avvisi per questo prodotto.</p>
+  `
+  return baseTemplate(`${productName} è di nuovo disponibile`, content)
+}
+
+export async function sendRestockNotification(to: string, productName: string, productUrl: string): Promise<void> {
+  if (!to) return
+  try {
+    const html = renderRestockNotification(productName, productUrl)
+    await sendMail(to, `${productName} è di nuovo disponibile — ${siteName()}`, html)
+  } catch (err) {
+    console.error('[email] sendRestockNotification failed:', err)
+  }
+}
+
 export async function sendOrderConfirmation(order: EmailOrder, items: EmailOrderItem[]): Promise<void> {
   if (!order.customer_email) return
   try {

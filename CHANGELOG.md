@@ -13,9 +13,6 @@
 
 ### Funzionalità da aggiungere (backlog)
 
-- `[ ]` **Notifica disponibilità** — form email "avvisami quando torna disponibile" per prodotti esauriti
-- `[ ]` **Notifica disponibilità** — form email "avvisami quando torna disponibile" per prodotti esauriti
-- `[ ]` **Upsell / cross-sell** — sezione "Spesso acquistato insieme" con logica configurabile in Directus
 - `[ ]` **Multi-currency** — visualizzazione prezzi in valuta locale via exchangerate API, checkout sempre in EUR
 - `[ ]` **Account: gestione indirizzi** — rubrica indirizzi di spedizione salvati per checkout rapido
 - `[ ]` **Account: reset password** — flow email con token temporaneo
@@ -35,6 +32,23 @@
 ### Bug aperti
 
 - `[ ]` **`BUG-004`** `api/download/[token].ts` — il proxy scarica l'intero file in memoria prima di rispondere; su file grandi (es. video) questo può causare timeout su Netlify (limite 10 secondi)
+
+---
+
+## [0.8.0] — 2026-05-04
+
+### Aggiunto
+- `[FEAT]` **Notifica disponibilità** — form "Avvisami quando torna disponibile" sulla PDP per prodotti esauriti:
+  - `StockNotify.astro` — componente con input email, chiamata fetch a `/api/stock-notify`, feedback inline
+  - `api/stock-notify.ts` — salva la richiesta su Directus (`stock_notifications`), con deduplication su email + product_id
+  - `api/admin/notify-restock.ts` — endpoint protetto (`x-admin-key`) che invia email a tutti i subscriber in attesa e marca come notificati; integrabile con Directus Flows
+  - `email.ts` — aggiunto `renderRestockNotification` / `sendRestockNotification`
+  - `setup-collections.mjs` — aggiunta collezione `stock_notifications`
+- `[FEAT]` **Upsell / Cross-sell** — sezione "Spesso acquistato insieme" sulla PDP, configurabile da Directus:
+  - Campo `cross_sell_ids` (JSON array di ID prodotto) aggiunto a `products` e a `setup-collections.mjs`
+  - `getProductsByIds()` aggiunto a `directus.ts`
+  - `PRODUCT_FIELDS` estratto in costante condivisa tra `getProducts`, `getProductsByIds`, `getProductBySlug`
+  - La sezione cross-sell appare sopra i prodotti correlati per categoria; i cross-sell sono esclusi dalla griglia "Potrebbe interessarti anche" per evitare duplicati
 
 ---
 
