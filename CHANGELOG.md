@@ -16,7 +16,7 @@
 - `[x]` **Multi-currency** — ~~visualizzazione prezzi in valuta locale via exchangerate API, checkout sempre in EUR~~ ✓ v0.12.0
 - `[ ]` **Ricerca prodotti avanzata** — suggerimenti autocompletamento, ricerca fulltext con Meilisearch/Algolia
 - `[ ]` **Internazionalizzazione shop** — slug e contenuti prodotto in IT/EN, routing `/en/shop/`
-- `[ ]` **Comparazione prodotti** — seleziona fino a 3 prodotti e confronta attributi
+- `[x]` **Comparazione prodotti** — ~~seleziona fino a 3 prodotti e confronta attributi~~ ✓ v0.13.0
 
 ### Funzionalità non prioritarie
 
@@ -28,6 +28,17 @@
 ### Bug aperti
 
 - `[ ]` **`BUG-004`** `api/download/[token].ts` — il proxy scarica l'intero file in memoria prima di rispondere; su file grandi (es. video) questo può causare timeout su Netlify (limite 10 secondi)
+
+---
+
+## [0.13.0] — 2026-05-04
+
+### Aggiunto
+- `[FEAT]` **Comparazione prodotti** — confronto affiancato fino a 3 prodotti:
+  - `stores/compare.ts` — `compareItems` (persistentAtom, max 3), `addToCompare`, `removeFromCompare`, `clearCompare`, `isInCompare`
+  - `components/shop/CompareTray.astro` — barra fissa in basso con slot prodotti selezionati (X per rimuovere, slot vuoti visualizzati), pulsante "Confronta" abilitato da 2 prodotti in su, pulsante "Svuota"; modal slide-up con tabella attributi (immagine, nome, prezzo, categoria, tipo, disponibilità, peso) e CTA "Vedi prodotto"; chiusura con ESC, click backdrop o pulsante X
+  - `ProductCard.astro` — pulsante "Confronta" in fondo alla card; stato sincronizzato con lo store; disabilitato quando si raggiunge il max e il prodotto non è già in confronto
+  - `negozio/index.astro` — `CompareTray` incluso; pulsante confronta nelle card dinamiche (search results) con event delegation e sync store
 
 ---
 

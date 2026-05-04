@@ -88,12 +88,32 @@ const isNew = product.featured
       </div>
     </div>
   </a>
+
+  <!-- Compare button -->
+  <button
+    type="button"
+    class="compare-btn w-full text-xs text-[var(--color-muted)] hover:text-[var(--color-brand)] transition-colors py-2 border-t border-[var(--color-border)]"
+    data-compare-id={String(product.id)}
+    data-compare-slug={product.slug}
+    data-compare-name={product.name}
+    data-compare-image={imageUrl ?? ''}
+    data-compare-price={price}
+    data-compare-compare-price={product.compare_price ?? ''}
+    data-compare-category={product.category_id?.name ?? ''}
+    data-compare-type={product.type}
+    data-compare-out-of-stock={isOutOfStock}
+    data-compare-weight={product.weight_g}
+    aria-pressed="false"
+  >
+    + Confronta
+  </button>
 </article>
 
 <script>
   import { trackSelectItem } from '@/lib/analytics'
   import { toggleWishlist, wishlistItems } from '@/stores/wishlist'
   import { applyConversion, selectedCurrency } from '@/stores/currency'
+  import { addToCompare, removeFromCompare, isInCompare, compareItems } from '@/stores/compare'
 
   if (selectedCurrency.get() !== 'EUR') applyConversion()
 
@@ -134,6 +154,43 @@ const isNew = product.featured
         image: btn.dataset.productImage || null,
         categoryName: btn.dataset.productCategory ?? '',
       })
+    })
+  })
+
+  function syncCompareBtns() {
+    document.querySelectorAll<HTMLButtonElement>('.compare-btn').forEach(btn => {
+      const active = isInCompare(btn.dataset.compareId!)
+      const atMax = compareItems.get().length >= 3 && !active
+      btn.textContent = active ? '✓ Confronta' : '+ Confronta'
+      btn.setAttribute('aria-pressed', String(active))
+      btn.classList.toggle('text-[var(--color-brand)]', active)
+      btn.disabled = atMax
+    })
+  }
+
+  compareItems.subscribe(syncCompareBtns)
+
+  document.querySelectorAll<HTMLButtonElement>('.compare-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.preventDefault()
+      e.stopPropagation()
+      const id = btn.dataset.compareId!
+      if (isInCompare(id)) {
+        removeFromCompare(id)
+      } else {
+        addToCompare({
+          id,
+          slug: btn.dataset.compareSlug!,
+          name: btn.dataset.compareName!,
+          imageUrl: btn.dataset.compareImage || null,
+          price: parseFloat(btn.dataset.comparePrice!),
+          comparePrice: btn.dataset.compareComparePrice ? parseFloat(btn.dataset.compareComparePrice) : null,
+          category: btn.dataset.compareCategory || null,
+          type: btn.dataset.compareType!,
+          isOutOfStock: btn.dataset.compareOutOfStock === 'true',
+          weightG: parseInt(btn.dataset.compareWeight ?? '0'),
+        })
+      }
     })
   })
 </script>

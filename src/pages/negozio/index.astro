@@ -4,6 +4,7 @@ import Base from '@/layouts/Base.astro'
 import Header from '@/components/layout/Header.astro'
 import Footer from '@/components/layout/Footer.astro'
 import ProductCard from '@/components/shop/ProductCard.astro'
+import CompareTray from '@/components/shop/CompareTray.astro'
 import { getProducts, getProductCategories, getVariantOptions } from '@/lib/directus'
 
 const products = await getProducts().catch(() => [])
@@ -115,12 +116,14 @@ const variantOptionsJson = JSON.stringify(variantOptions)
       }
     </div>
   </main>
+  <CompareTray />
   <Footer />
 </Base>
 
 <script>
   import { toggleWishlist, wishlistItems } from '@/stores/wishlist'
   import { applyConversion, selectedCurrency } from '@/stores/currency'
+  import { addToCompare, removeFromCompare, isInCompare, compareItems } from '@/stores/compare'
 
   // ── State ─────────────────────────────────────────────────────────────────
   let activeCategory = ''
@@ -153,17 +156,55 @@ const variantOptionsJson = JSON.stringify(variantOptions)
 
   // Single delegated handler — skips buttons already wired by ProductCard.astro
   grid.addEventListener('click', e => {
-    const btn = (e.target as Element).closest<HTMLButtonElement>('.wishlist-btn[data-dynamic]')
-    if (!btn) return
-    e.preventDefault()
-    e.stopPropagation()
-    toggleWishlist({
-      productId: btn.dataset.productId!,
-      productSlug: btn.dataset.productSlug!,
-      productName: btn.dataset.productName!,
-      price: parseFloat(btn.dataset.productPrice!),
-      image: btn.dataset.productImage || null,
-      categoryName: btn.dataset.productCategory ?? '',
+    const wishlistBtn = (e.target as Element).closest<HTMLButtonElement>('.wishlist-btn[data-dynamic]')
+    if (wishlistBtn) {
+      e.preventDefault()
+      e.stopPropagation()
+      toggleWishlist({
+        productId: wishlistBtn.dataset.productId!,
+        productSlug: wishlistBtn.dataset.productSlug!,
+        productName: wishlistBtn.dataset.productName!,
+        price: parseFloat(wishlistBtn.dataset.productPrice!),
+        image: wishlistBtn.dataset.productImage || null,
+        categoryName: wishlistBtn.dataset.productCategory ?? '',
+      })
+      return
+    }
+
+    const compareBtn = (e.target as Element).closest<HTMLButtonElement>('[data-dynamic-compare]')
+    if (compareBtn) {
+      e.preventDefault()
+      e.stopPropagation()
+      const id = compareBtn.dataset.compareId!
+      if (isInCompare(id)) {
+        removeFromCompare(id)
+      } else {
+        addToCompare({
+          id,
+          slug: compareBtn.dataset.compareSlug!,
+          name: compareBtn.dataset.compareName!,
+          imageUrl: compareBtn.dataset.compareImage || null,
+          price: parseFloat(compareBtn.dataset.comparePrice!),
+          comparePrice: compareBtn.dataset.compareComparePrice ? parseFloat(compareBtn.dataset.compareComparePrice) : null,
+          category: compareBtn.dataset.compareCategory || null,
+          type: compareBtn.dataset.compareType!,
+          isOutOfStock: compareBtn.dataset.compareOutOfStock === 'true',
+          weightG: parseInt(compareBtn.dataset.compareWeight ?? '0'),
+        })
+      }
+    }
+  })
+
+  // Sync dynamic compare buttons when store changes
+  compareItems.subscribe(() => {
+    grid.querySelectorAll<HTMLButtonElement>('[data-dynamic-compare]').forEach(btn => {
+      const id = btn.dataset.compareId!
+      const active = isInCompare(id)
+      const atMax = compareItems.get().length >= 3 && !active
+      btn.textContent = active ? '✓ Confronta' : '+ Confronta'
+      btn.setAttribute('aria-pressed', String(active))
+      btn.disabled = atMax
+      btn.classList.toggle('text-[var(--color-brand)]', active)
     })
   })
 
@@ -181,6 +222,9 @@ const variantOptionsJson = JSON.stringify(variantOptions)
       (!p.isOutOfStock && p.featured) ? `<span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">In evidenza</span>` : '',
       p.type === 'digital' ? `<span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700">Digitale</span>` : '',
     ].filter(Boolean).join('')
+
+    const inCompare = isInCompare(p.id)
+    const atMax = compareItems.get().length >= 3 && !inCompare
 
     return `<article class="group relative rounded-lg overflow-hidden border border-[var(--color-border)] hover:shadow-md transition-shadow duration-300 bg-[var(--color-bg)]">
       <button type="button" data-dynamic class="wishlist-btn absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow hover:bg-white transition-colors"
@@ -202,6 +246,15 @@ const variantOptionsJson = JSON.stringify(variantOptions)
           ${badges ? `<div class="flex gap-2 mt-3 flex-wrap">${badges}</div>` : ''}
         </div>
       </a>
+      <button type="button" data-dynamic-compare data-compare-id="${p.id}" data-compare-slug="${p.slug}"
+        data-compare-name="${escapedName}" data-compare-image="${p.imageUrl ?? ''}"
+        data-compare-price="${p.price}" data-compare-compare-price="${p.comparePrice ?? ''}"
+        data-compare-category="${p.categoryName ?? ''}" data-compare-type="${p.type}"
+        data-compare-out-of-stock="${p.isOutOfStock}" data-compare-weight="0"
+        aria-pressed="${inCompare}" ${atMax ? 'disabled' : ''}
+        class="w-full text-xs transition-colors py-2 border-t border-[var(--color-border)] ${inCompare ? 'text-[var(--color-brand)]' : 'text-[var(--color-muted)] hover:text-[var(--color-brand)]'}">
+        ${inCompare ? '✓ Confronta' : '+ Confronta'}
+      </button>
     </article>`
   }
 
