@@ -9,10 +9,13 @@ Template completo per e-commerce con blog, portfolio e area clienti. Stack: **As
 | Area | Funzionalità |
 |---|---|
 | 🛍️ Shop | Prodotti, varianti, categorie, filtri, ricerca live |
+| 🔍 Ricerca | Autocomplete dropdown (AJAX), filtri categoria/tipo/prezzo, filtri attributi variante |
 | 🛒 Carrello | nanostores persistent, coupon, gift card |
 | 💳 Checkout | Stripe Checkout hosted + ordini gratuiti (coupon 100%) |
 | 📦 Ordini | Conferma, tracking spedizione, re-download digitali |
 | ❤️ Wishlist | localStorage, badge header, pagina dedicata |
+| ⚖️ Comparazione | Confronto affiancato fino a 3 prodotti (tray + modal) |
+| 💱 Multi-valuta | EUR/USD/GBP/CHF display-only, tassi da frankfurter.app, checkout sempre in EUR |
 | 🔔 Notifiche | Avvisami disponibilità, email spedizione, email conferma ordine |
 | 👤 Account | Login/logout, reset password, rubrica indirizzi, storico ordini |
 | 🔒 Admin | Dashboard metriche, alert stock, trigger backup |
@@ -32,7 +35,7 @@ Template completo per e-commerce con blog, portfolio e area clienti. Stack: **As
 | Animazioni | GSAP + ScrollTrigger + Lenis |
 | CMS | Directus (self-hosted su cPanel/VPS) |
 | Pagamenti | Stripe Checkout (hosted) + Webhooks |
-| Stato client | nanostores + @nanostores/persistent (localStorage) |
+| Stato client | nanostores + @nanostores/persistent (cart, wishlist, valuta, confronto) |
 | Validazione | Zod v3 |
 | Email | nodemailer (SMTP) |
 | Analytics | GTM + GA4 Enhanced Ecommerce via `window.dataLayer` |
@@ -135,14 +138,15 @@ stripe listen --forward-to localhost:4321/api/webhook/stripe
 src/
 ├── components/
 │   ├── blocks/         # Hero, Features, CTA, BlogGrid, ContactForm, ...
-│   ├── layout/         # Header (cart + wishlist badge), Footer, Nav
+│   ├── layout/         # Header (cart + wishlist badge + CurrencySelector), Footer, Nav
 │   ├── shop/           # ProductCard, ProductGrid, VariantSelector,
-│   │                   # AddToCart, CartSummary, StockNotify
-│   └── ui/             # Button, Card, Badge
+│   │                   # AddToCart, CartSummary, StockNotify,
+│   │                   # CompareTray (tray + modal)
+│   └── ui/             # Button, Card, Badge, CurrencySelector
 ├── layouts/            # Base.astro, Page.astro, Post.astro
 ├── lib/
-│   ├── directus.ts     # Client Directus + helpers (getProducts supporta
-│   │                   # query, type, price range, cross_sell_ids)
+│   ├── directus.ts     # Client Directus + helpers (getProducts, getVariantOptions,
+│   │                   # getProductsByIds — tutti usano PRODUCT_FIELDS costante)
 │   ├── email.ts        # Template email HTML + sendOrderConfirmation,
 │   │                   # sendShippingNotification, sendRestockNotification
 │   ├── analytics.ts    # GA4 Enhanced Ecommerce via window.dataLayer
@@ -166,7 +170,8 @@ src/
 │   │   ├── download/[token].ts    # Download prodotti digitali
 │   │   ├── giftcard/validate.ts
 │   │   ├── order-status.ts        # Lookup per session_id o order_id
-│   │   ├── search.ts              # Ricerca prodotti + filtri
+│   │   ├── search.ts              # Ricerca + filtri (categoria, tipo, prezzo,
+│   │   │                          # attributi variante via ?option=Nome:Valore)
 │   │   ├── stock-notify.ts        # Sottoscrizione notifica disponibilità
 │   │   ├── contact.ts
 │   │   └── webhook/stripe.ts
@@ -181,7 +186,8 @@ src/
 │   │   └── ordini/                # Lista e dettaglio ordini (SSR)
 │   ├── checkout/                  # Success (session_id o order_id), Cancel
 │   ├── negozio/
-│   │   ├── index.astro            # Griglia + ricerca + filtri live
+│   │   ├── index.astro            # Griglia + autocomplete + filtri live
+│   │   │                          # + filtri attributi variante + comparazione
 │   │   ├── [categoria].astro      # Prodotti per categoria (SSG)
 │   │   └── [slug].astro           # PDP con cross-sell + notifica stock
 │   ├── login.astro
@@ -189,7 +195,9 @@ src/
 │   └── ...
 ├── stores/
 │   ├── cart.ts                    # cartItems, cartCount, addToCart, ...
-│   └── wishlist.ts                # wishlistItems, wishlistCount, toggleWishlist
+│   ├── wishlist.ts                # wishlistItems, wishlistCount, toggleWishlist
+│   ├── currency.ts                # selectedCurrency, applyConversion(), formatPrice()
+│   └── compare.ts                 # compareItems (max 3), addToCompare, isInCompare
 └── styles/
     ├── theme.css                  # ← personalizza qui
     └── global.css
@@ -284,17 +292,6 @@ SMTP_FROM=noreply@tuodominio.it
 SMTP_FROM_NAME=Il mio negozio
 ```
 
-Per segnare un ordine come spedito e inviare la notifica:
-
-```bash
-curl -X POST https://tuodominio.it/api/admin/notify-shipped \
-  -H "x-admin-key: $ADMIN_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"order_id":"abc123","tracking_number":"IT123456IT","tracking_url":"https://..."}'
-```
-
-Questo endpoint è integrabile con un **Directus Flow** attivato al cambio di status ordine.
-
 ---
 
 ## Admin Dashboard
@@ -304,6 +301,31 @@ Protetta da password (`ADMIN_KEY`). Accessibile su `/admin`.
 Mostra: ordini totali, fatturato, ordini da processare, varianti in esaurimento, tabella ultimi 10 ordini, alert stock, pulsante backup.
 
 Soglia alert stock configurabile: `ADMIN_LOW_STOCK_THRESHOLD=5` (default: 5 unità).
+
+---
+
+## Multi-valuta
+
+Il selector EUR/USD/GBP/CHF nel header converte i prezzi visualizzati in tempo reale. I tassi vengono scaricati da [frankfurter.app](https://www.frankfurter.app/) (gratuito, nessuna API key) e cachati 1 ora in localStorage.
+
+**Il checkout avviene sempre in EUR** — Stripe riceve sempre l'importo in euro.
+
+Per aggiungere altre valute: modifica `CURRENCIES` in `src/stores/currency.ts` e aggiungi l'`<option>` corrispondente in `CurrencySelector.astro`.
+
+---
+
+## Comparazione prodotti
+
+Dalla griglia del negozio, ogni card ha un pulsante "+ Confronta". Seleziona fino a 3 prodotti: compare una barra fissa in basso con i prodotti selezionati. Clicca "Confronta" per aprire la tabella comparativa affiancata (immagine, prezzo, categoria, tipo, disponibilità, peso).
+
+---
+
+## Ricerca e filtri
+
+La pagina negozio combina:
+- **Autocomplete**: dropdown AJAX con thumbnail e prezzo mentre scrivi (debounce 250ms)
+- **Filtri**: categoria, tipo prodotto, fascia di prezzo
+- **Filtri attributi variante**: pill multi-select per Taglia, Colore, ecc. — generati automaticamente dagli attributi `option_1/2` delle varianti nel catalogo
 
 ---
 
@@ -319,13 +341,13 @@ I prodotti con `product_type = 'digital'` ricevono automaticamente un link di do
 
 ## Cross-sell / Upsell
 
-Sulla PDP è presente una sezione "Spesso acquistato insieme" configurabile da Directus. Imposta il campo `cross_sell_ids` (JSON array di ID prodotto) su ogni prodotto. I prodotti cross-sell vengono esclusi automaticamente dalla griglia "Potrebbe interessarti anche".
+Sulla PDP è presente una sezione "Spesso acquistato insieme" configurabile da Directus. Imposta il campo `cross_sell_ids` (JSON array di ID prodotto) su ogni prodotto.
 
 ---
 
 ## Notifica disponibilità
 
-Se un prodotto è esaurito, sulla PDP compare il form "Avvisami quando torna disponibile". Gli indirizzi email vengono salvati nella collezione `stock_notifications`. Per inviare le notifiche quando il prodotto torna disponibile:
+Se un prodotto è esaurito, sulla PDP compare il form "Avvisami quando torna disponibile". Per inviare le notifiche quando il prodotto torna disponibile:
 
 ```bash
 curl -X POST https://tuodominio.it/api/admin/notify-restock \
