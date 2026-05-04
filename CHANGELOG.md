@@ -15,15 +15,6 @@
 
 - `[ ]` **Multi-currency** — visualizzazione prezzi in valuta locale via exchangerate API, checkout sempre in EUR
 - `[ ]` **Ricerca prodotti avanzata** — suggerimenti autocompletamento, ricerca fulltext con Meilisearch/Algolia
-- `[ ]` **Filtri negozio avanzati** — sidebar con attributi dinamici (taglia, colore, materiale) da product_variants
-- `[ ]` **Admin dashboard** — pagina protetta `/admin` con metriche ordini, top prodotti, stato backup
-- `[ ]` **Internazionalizzazione shop** — slug e contenuti prodotto in IT/EN, routing `/en/shop/`
-- `[ ]` **Comparazione prodotti** — seleziona fino a 3 prodotti e confronta attributi
-- `[ ]` **Account: gestione indirizzi** — rubrica indirizzi di spedizione salvati per checkout rapido
-- `[ ]` **Account: reset password** — flow email con token temporaneo
-- `[ ]` **Ricerca prodotti** — input search con filtri live (categoria, prezzo min/max, tipo) via Directus API
-- `[ ]` **Filtri negozio avanzati** — sidebar con attributi dinamici (taglia, colore, materiale) da product_variants
-- `[ ]` **Admin dashboard** — pagina protetta `/admin` con metriche ordini, top prodotti, stato backup
 - `[ ]` **Internazionalizzazione shop** — slug e contenuti prodotto in IT/EN, routing `/en/shop/`
 - `[ ]` **Comparazione prodotti** — seleziona fino a 3 prodotti e confronta attributi
 
@@ -37,6 +28,16 @@
 ### Bug aperti
 
 - `[ ]` **`BUG-004`** `api/download/[token].ts` — il proxy scarica l'intero file in memoria prima di rispondere; su file grandi (es. video) questo può causare timeout su Netlify (limite 10 secondi)
+
+---
+
+## [0.11.0] — 2026-05-04
+
+### Aggiunto
+- `[FEAT]` **Filtri negozio avanzati** — pill multi-select per attributi variante (`option_1_name/value`, `option_2_name/value`) mostrate dinamicamente dal catalogo:
+  - `getVariantOptions()` in `lib/directus.ts` — aggrega gruppi di attributi unici da tutte le varianti attive di prodotti pubblicati
+  - `/api/search.ts` — nuovo param `option=Nome:Valore` (ripetibile); filtra i prodotti che hanno almeno una variante attiva con l'attributo richiesto; logica AND tra gruppi, OR tra valori dello stesso gruppo
+  - `negozio/index.astro` — sezione filtri attributi generata a SSG, nascosta automaticamente se nessun prodotto ha varianti con opzioni; selezione multi-valore con toggle visivo; integrata nello stato `isFiltered()` e nel reset generale
 
 ---
 

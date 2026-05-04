@@ -4,10 +4,11 @@ import Base from '@/layouts/Base.astro'
 import Header from '@/components/layout/Header.astro'
 import Footer from '@/components/layout/Footer.astro'
 import ProductCard from '@/components/shop/ProductCard.astro'
-import { getProducts, getProductCategories } from '@/lib/directus'
+import { getProducts, getProductCategories, getVariantOptions } from '@/lib/directus'
 
 const products = await getProducts().catch(() => [])
 const categories = await getProductCategories().catch(() => [])
+const variantOptions = await getVariantOptions().catch(() => [])
 
 const analyticsItems = JSON.stringify(products.map((p, i) => ({
   item_id: String(p.id),
@@ -16,6 +17,8 @@ const analyticsItems = JSON.stringify(products.map((p, i) => ({
   price: p.variants?.[0]?.price_override ?? p.base_price,
   index: i,
 })))
+
+const variantOptionsJson = JSON.stringify(variantOptions)
 ---
 
 <Base title="Negozio" description="Scopri tutti i nostri prodotti">
@@ -39,7 +42,7 @@ const analyticsItems = JSON.stringify(products.map((p, i) => ({
     </div>
 
     <!-- Filters row -->
-    <div class="flex flex-wrap gap-4 mb-6 items-center">
+    <div class="flex flex-wrap gap-4 mb-4 items-center">
       <!-- Category pills -->
       <div class="flex gap-2 flex-wrap">
         <button type="button" data-category="" class="category-pill px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 bg-[var(--color-brand)] text-white">
@@ -76,11 +79,32 @@ const analyticsItems = JSON.stringify(products.map((p, i) => ({
       </button>
     </div>
 
+    <!-- Variant attribute filters -->
+    {variantOptions.length > 0 && (
+      <div id="attr-filters" class="flex flex-wrap gap-6 mb-6 pb-4 border-b border-[var(--color-border)]">
+        {variantOptions.map(opt => (
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-sm font-medium text-[var(--color-text)] mr-1">{opt.name}:</span>
+            {opt.values.map(val => (
+              <button
+                type="button"
+                data-attr-name={opt.name}
+                data-attr-value={val}
+                class="attr-pill px-3 py-1 rounded-md text-sm border border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-brand)] transition-colors duration-200"
+              >
+                {val}
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+    )}
+
     <!-- Search status -->
     <p id="search-status" class="hidden text-sm text-[var(--color-muted)] mb-4"></p>
 
     <!-- Product grid — initially SSG rendered -->
-    <div id="product-grid" data-analytics-list="negozio" data-analytics-items={analyticsItems}>
+    <div id="product-grid" data-analytics-list="negozio" data-analytics-items={analyticsItems} data-variant-options={variantOptionsJson}>
       {products.length === 0
         ? <p class="text-[var(--color-muted)] py-12 text-center">Nessun prodotto disponibile.</p>
         : (
@@ -103,6 +127,8 @@ const analyticsItems = JSON.stringify(products.map((p, i) => ({
   let minPrice = ''
   let maxPrice = ''
   let searchQuery = ''
+  // Map of attr name → Set of selected values
+  const activeOptions: Map<string, Set<string>> = new Map()
   let searchTimeout: ReturnType<typeof setTimeout>
 
   const grid = document.getElementById('product-grid')!
@@ -179,8 +205,13 @@ const analyticsItems = JSON.stringify(products.map((p, i) => ({
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
+  function hasActiveOptions() {
+    for (const s of activeOptions.values()) if (s.size > 0) return true
+    return false
+  }
+
   function isFiltered() {
-    return !!(searchQuery || activeCategory || activeType || minPrice || maxPrice)
+    return !!(searchQuery || activeCategory || activeType || minPrice || maxPrice || hasActiveOptions())
   }
 
   function updateResetBtn() {
@@ -192,6 +223,14 @@ const analyticsItems = JSON.stringify(products.map((p, i) => ({
     status.classList.toggle('hidden', !text)
   }
 
+  function buildOptionParams(): string[] {
+    const parts: string[] = []
+    for (const [name, values] of activeOptions.entries()) {
+      for (const v of values) parts.push(`option=${encodeURIComponent(name)}:${encodeURIComponent(v)}`)
+    }
+    return parts
+  }
+
   async function runSearch() {
     const params = new URLSearchParams()
     if (searchQuery) params.set('q', searchQuery)
@@ -200,10 +239,13 @@ const analyticsItems = JSON.stringify(products.map((p, i) => ({
     if (minPrice) params.set('min_price', minPrice)
     if (maxPrice) params.set('max_price', maxPrice)
 
+    const optParts = buildOptionParams()
+    const qs = [params.toString(), ...optParts].filter(Boolean).join('&')
+
     setSearchStatus('Ricerca in corso…')
 
     try {
-      const res = await fetch(`/api/search?${params}`)
+      const res = await fetch(`/api/search?${qs}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Errore')
 
@@ -271,11 +313,44 @@ const analyticsItems = JSON.stringify(products.map((p, i) => ({
     scheduleSearch(500)
   })
 
+  // Variant attribute pills — toggle multi-select within each group
+  document.querySelectorAll<HTMLButtonElement>('.attr-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const name = btn.dataset.attrName!
+      const value = btn.dataset.attrValue!
+      if (!activeOptions.has(name)) activeOptions.set(name, new Set())
+      const set = activeOptions.get(name)!
+
+      if (set.has(value)) {
+        set.delete(value)
+      } else {
+        set.add(value)
+      }
+
+      // Update visual state for all pills in this group
+      document.querySelectorAll<HTMLButtonElement>(`.attr-pill[data-attr-name="${CSS.escape(name)}"]`).forEach(b => {
+        const selected = set.has(b.dataset.attrValue!)
+        b.classList.toggle('bg-[var(--color-brand)]', selected)
+        b.classList.toggle('text-white', selected)
+        b.classList.toggle('border-[var(--color-brand)]', selected)
+      })
+
+      scheduleSearch(0)
+    })
+  })
+
   resetBtn.addEventListener('click', () => {
     searchQuery = ''; activeCategory = ''; activeType = ''; minPrice = ''; maxPrice = ''
+    activeOptions.clear()
     ;(document.getElementById('search-input') as HTMLInputElement).value = ''
     ;(document.getElementById('min-price') as HTMLInputElement).value = ''
     ;(document.getElementById('max-price') as HTMLInputElement).value = ''
+
+    // Reset attr pills visual state
+    document.querySelectorAll<HTMLButtonElement>('.attr-pill').forEach(b => {
+      b.classList.remove('bg-[var(--color-brand)]', 'text-white', 'border-[var(--color-brand)]')
+    })
+
     updateResetBtn()
     location.reload()
   })

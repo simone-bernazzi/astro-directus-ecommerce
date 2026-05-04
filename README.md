@@ -4,6 +4,25 @@ Template completo per e-commerce con blog, portfolio e area clienti. Stack: **As
 
 ---
 
+## Funzionalità principali
+
+| Area | Funzionalità |
+|---|---|
+| 🛍️ Shop | Prodotti, varianti, categorie, filtri, ricerca live |
+| 🛒 Carrello | nanostores persistent, coupon, gift card |
+| 💳 Checkout | Stripe Checkout hosted + ordini gratuiti (coupon 100%) |
+| 📦 Ordini | Conferma, tracking spedizione, re-download digitali |
+| ❤️ Wishlist | localStorage, badge header, pagina dedicata |
+| 🔔 Notifiche | Avvisami disponibilità, email spedizione, email conferma ordine |
+| 👤 Account | Login/logout, reset password, rubrica indirizzi, storico ordini |
+| 🔒 Admin | Dashboard metriche, alert stock, trigger backup |
+| 📧 Email | Conferma ordine, spedizione, riassortimento — HTML responsive |
+| 📥 Digitali | Download sicuro con token, scadenza, limite download |
+| 🗺️ SEO | Sitemap.xml auto, robots.txt, OG tags, GA4 Enhanced Ecommerce |
+| 💾 Backup | Script CLI + Netlify Scheduled Function + upload S3 |
+
+---
+
 ## Stack
 
 | Layer | Tecnologia |
@@ -13,8 +32,10 @@ Template completo per e-commerce con blog, portfolio e area clienti. Stack: **As
 | Animazioni | GSAP + ScrollTrigger + Lenis |
 | CMS | Directus (self-hosted su cPanel/VPS) |
 | Pagamenti | Stripe Checkout (hosted) + Webhooks |
-| Cart | nanostores + @nanostores/persistent (localStorage) |
+| Stato client | nanostores + @nanostores/persistent (localStorage) |
 | Validazione | Zod v3 |
+| Email | nodemailer (SMTP) |
+| Analytics | GTM + GA4 Enhanced Ecommerce via `window.dataLayer` |
 | Deploy | Netlify (SSR Functions + Scheduled Functions) |
 | AI | @directus/content-mcp (Claude Code integration) |
 
@@ -52,7 +73,10 @@ STRIPE_PUBLISHABLE_KEY=pk_live_xxxxx
 STRIPE_WEBHOOK_SECRET=whsec_xxxxx
 PUBLIC_SITE_URL=https://tuodominio.it
 ALLOWED_ORIGIN=https://tuodominio.it
+ADMIN_KEY=your_random_admin_secret
 ```
+
+> Il sito funziona senza Stripe (solo pagine + blog). Il checkout è disabilitato finché `STRIPE_SECRET_KEY` non è configurata.
 
 ### 4. Crea le collezioni Directus
 
@@ -64,7 +88,11 @@ Crea automaticamente tutte le collezioni necessarie:
 
 **CMS base:** `pages`, `posts`, `categories`, `portfolio`, `faq`, `site_settings`
 
-**E-commerce:** `products`, `product_categories`, `product_variants`, `shipping_zones`, `orders`, `order_items`, `customers`, `coupons`, `gift_cards`, `contact_submissions`
+**E-commerce:** `products`, `product_categories`, `product_variants`, `shipping_zones`, `orders`, `order_items`, `customers`, `coupons`, `gift_cards`
+
+**Notifiche:** `contact_submissions`, `stock_notifications`
+
+> Alcuni campi relazione (M2M immagini prodotto, collegamento customer → user Directus) richiedono un passaggio manuale dall'admin Directus — vedi output del comando.
 
 ### 5. Personalizza il tema
 
@@ -106,44 +134,74 @@ stripe listen --forward-to localhost:4321/api/webhook/stripe
 ```
 src/
 ├── components/
-│   ├── blocks/       # Hero, Features, CTA, BlogGrid, ContactForm, ...
-│   ├── layout/       # Header (con cart badge), Footer
-│   ├── shop/         # ProductCard, ProductGrid, VariantSelector, AddToCart, CartSummary
-│   └── ui/           # Button, Card, Badge
-├── layouts/          # Base.astro, Page.astro, Post.astro
+│   ├── blocks/         # Hero, Features, CTA, BlogGrid, ContactForm, ...
+│   ├── layout/         # Header (cart + wishlist badge), Footer, Nav
+│   ├── shop/           # ProductCard, ProductGrid, VariantSelector,
+│   │                   # AddToCart, CartSummary, StockNotify
+│   └── ui/             # Button, Card, Badge
+├── layouts/            # Base.astro, Page.astro, Post.astro
 ├── lib/
-│   ├── directus.ts   # Client Directus + helpers per ogni collezione
-│   └── types.ts      # Tutti i tipi TypeScript (CMS + e-commerce)
+│   ├── directus.ts     # Client Directus + helpers (getProducts supporta
+│   │                   # query, type, price range, cross_sell_ids)
+│   ├── email.ts        # Template email HTML + sendOrderConfirmation,
+│   │                   # sendShippingNotification, sendRestockNotification
+│   ├── analytics.ts    # GA4 Enhanced Ecommerce via window.dataLayer
+│   └── types.ts        # Tutti i tipi TypeScript (CMS + e-commerce)
 ├── pages/
 │   ├── api/
-│   │   ├── admin/backup.ts        # Trigger backup protetto
-│   │   ├── checkout.ts            # Crea sessione Stripe
+│   │   ├── admin/
+│   │   │   ├── auth.ts            # Login/logout sessione admin
+│   │   │   ├── backup.ts          # Trigger backup (BACKUP_ADMIN_KEY)
+│   │   │   ├── notify-shipped.ts  # Aggiorna ordine + email spedizione
+│   │   │   └── notify-restock.ts  # Email riassortimento subscriber
+│   │   ├── auth/
+│   │   │   ├── login.ts           # Directus auth → cookie httpOnly
+│   │   │   ├── logout.ts          # Revoca token + cancella cookie
+│   │   │   ├── reset-request.ts   # Richiesta reset password
+│   │   │   └── reset-confirm.ts   # Conferma nuova password
+│   │   ├── account/
+│   │   │   └── addresses.ts       # CRUD rubrica indirizzi
+│   │   ├── checkout.ts            # Sessione Stripe + ordine gratuito
 │   │   ├── coupon/validate.ts
 │   │   ├── download/[token].ts    # Download prodotti digitali
 │   │   ├── giftcard/validate.ts
-│   │   ├── order-status.ts
-│   │   ├── contact.ts             # Form contatti + reCAPTCHA
-│   │   └── webhook/stripe.ts      # Gestisce eventi Stripe
-│   ├── account/      # Area clienti SSR (login, ordini, dettaglio ordine)
-│   ├── checkout/     # Success, Cancel
-│   ├── negozio/      # Index, [categoria], [slug] PDP
-│   ├── blog/
-│   ├── portfolio/
-│   └── contatti.astro
+│   │   ├── order-status.ts        # Lookup per session_id o order_id
+│   │   ├── search.ts              # Ricerca prodotti + filtri
+│   │   ├── stock-notify.ts        # Sottoscrizione notifica disponibilità
+│   │   ├── contact.ts
+│   │   └── webhook/stripe.ts
+│   ├── admin/
+│   │   ├── index.astro            # Dashboard (SSR, protetta da ADMIN_KEY)
+│   │   └── login.astro            # Login admin
+│   ├── account/
+│   │   ├── index.astro            # Profilo (SSR)
+│   │   ├── indirizzi.astro        # Rubrica indirizzi (SSR)
+│   │   ├── wishlist.astro         # Lista desideri (SSG, client-side)
+│   │   ├── recupera-password.astro # Reset password (SSG, dual state)
+│   │   └── ordini/                # Lista e dettaglio ordini (SSR)
+│   ├── checkout/                  # Success (session_id o order_id), Cancel
+│   ├── negozio/
+│   │   ├── index.astro            # Griglia + ricerca + filtri live
+│   │   ├── [categoria].astro      # Prodotti per categoria (SSG)
+│   │   └── [slug].astro           # PDP con cross-sell + notifica stock
+│   ├── login.astro
+│   ├── blog/, portfolio/, contatti.astro, robots.txt.ts
+│   └── ...
 ├── stores/
-│   └── cart.ts       # nanostores: cartItems, cartCount, cartDiscount, addToCart
+│   ├── cart.ts                    # cartItems, cartCount, addToCart, ...
+│   └── wishlist.ts                # wishlistItems, wishlistCount, toggleWishlist
 └── styles/
-    ├── theme.css     # ← personalizza qui
+    ├── theme.css                  # ← personalizza qui
     └── global.css
 netlify/
 └── functions/
-    └── scheduled-backup.mts  # Backup automatico schedulato
+    └── scheduled-backup.mts      # Backup automatico schedulato
 scripts/
-├── setup-collections.mjs     # Crea collezioni Directus
-├── backup.mjs                # Backup manuale
-├── restore.mjs               # Restore da backup
-└── migrate.mjs               # Migrazione dominio / env
-backup.config.mjs             # Configurazione backup centralizzata
+├── setup-collections.mjs         # Crea tutte le collezioni Directus
+├── backup.mjs                    # Backup manuale + S3
+├── restore.mjs                   # Restore con --remap-domain
+└── migrate.mjs                   # Migrazione dominio / env
+backup.config.mjs
 ```
 
 ---
@@ -184,25 +242,13 @@ La Netlify Scheduled Function `scheduled-backup.mts` si attiva automaticamente.
 ### Restore
 
 ```bash
-# Ripristina tutto
 npm run restore backups/daily-2026-05-03.tar.gz
-
-# Solo schema
 npm run restore backups/daily-2026-05-03.tar.gz -- --schema-only
-
-# Solo dati
-npm run restore backups/daily-2026-05-03.tar.gz -- --data-only
-
-# Solo una collezione
 npm run restore backups/daily-2026-05-03.tar.gz -- --collection products
-
-# Anteprima senza modifiche
 npm run restore backups/daily-2026-05-03.tar.gz -- --dry-run
 ```
 
 ### Migrazione su nuovo server/dominio
-
-**Metodo A — Import diretto con sostituzione dominio (consigliato):**
 
 ```bash
 # 1. Sul vecchio server: crea backup
@@ -215,55 +261,97 @@ npm run restore backup.tar.gz -- --schema-only
 npm run restore backup.tar.gz -- --data-only --remap-domain vecchio.com:nuovo.com
 ```
 
-**Metodo B — Aggiorna dominio su installazione esistente:**
+---
 
-```bash
-node scripts/migrate.mjs domain --old vecchio.com --new nuovo.com
-node scripts/migrate.mjs domain --old vecchio.com --new nuovo.com --dry-run  # preview
+## Email transazionali
+
+Le email vengono inviate automaticamente via SMTP:
+
+| Evento | Email |
+|---|---|
+| Ordine pagato (Stripe o gratuito) | Conferma ordine con riepilogo e link download |
+| Ordine spedito | Notifica spedizione con tracking |
+| Prodotto tornato disponibile | Email ai subscriber "Avvisami" |
+
+Configura nel `.env`:
+
+```env
+SMTP_HOST=smtp.tuoprovider.it
+SMTP_PORT=587
+SMTP_USER=noreply@tuodominio.it
+SMTP_PASS=...
+SMTP_FROM=noreply@tuodominio.it
+SMTP_FROM_NAME=Il mio negozio
 ```
 
-**Genera nuovo .env per il nuovo ambiente:**
+Per segnare un ordine come spedito e inviare la notifica:
 
 ```bash
-node scripts/migrate.mjs env --output .env.new
-# Apri .env.new, aggiorna i valori, rinomina in .env
+curl -X POST https://tuodominio.it/api/admin/notify-shipped \
+  -H "x-admin-key: $ADMIN_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"order_id":"abc123","tracking_number":"IT123456IT","tracking_url":"https://..."}'
 ```
 
-**Checklist completa migrazione:**
+Questo endpoint è integrabile con un **Directus Flow** attivato al cambio di status ordine.
 
-```bash
-node scripts/migrate.mjs checklist
-```
+---
+
+## Admin Dashboard
+
+Protetta da password (`ADMIN_KEY`). Accessibile su `/admin`.
+
+Mostra: ordini totali, fatturato, ordini da processare, varianti in esaurimento, tabella ultimi 10 ordini, alert stock, pulsante backup.
+
+Soglia alert stock configurabile: `ADMIN_LOW_STOCK_THRESHOLD=5` (default: 5 unità).
 
 ---
 
 ## Prodotti digitali
 
 I prodotti con `product_type = 'digital'` ricevono automaticamente un link di download sicuro dopo il pagamento. Il link è:
-- Protetto da token con scadenza configurabile
-- Limitato al numero di download impostato su Directus
+- Protetto da token con scadenza configurabile (`download_expires_hours`)
+- Limitato al numero di download (`download_limit`)
 - Servito dal proxy `/api/download/[token]`
+- Incluso nell'email di conferma ordine
+
+---
+
+## Cross-sell / Upsell
+
+Sulla PDP è presente una sezione "Spesso acquistato insieme" configurabile da Directus. Imposta il campo `cross_sell_ids` (JSON array di ID prodotto) su ogni prodotto. I prodotti cross-sell vengono esclusi automaticamente dalla griglia "Potrebbe interessarti anche".
+
+---
+
+## Notifica disponibilità
+
+Se un prodotto è esaurito, sulla PDP compare il form "Avvisami quando torna disponibile". Gli indirizzi email vengono salvati nella collezione `stock_notifications`. Per inviare le notifiche quando il prodotto torna disponibile:
+
+```bash
+curl -X POST https://tuodominio.it/api/admin/notify-restock \
+  -H "x-admin-key: $ADMIN_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"product_id":"abc123"}'
+```
+
+---
 
 ## Form contatti + reCAPTCHA v3
-
-Il form contatti usa reCAPTCHA v3 (invisible, score-based). Configura:
 
 ```env
 PUBLIC_RECAPTCHA_SITE_KEY=...
 RECAPTCHA_SECRET_KEY=...
-RECAPTCHA_MIN_SCORE=0.5   # 0.0–1.0, default 0.5
+RECAPTCHA_MIN_SCORE=0.5
 ```
 
-Le submission vengono salvate nella collezione `contact_submissions` su Directus.
-Se configurato, invia anche una notifica email via SMTP (`SMTP_*` nel `.env`).
+---
 
 ## Integrazione AI (Claude Code)
 
 Il file `.mcp.json` configura il server MCP ufficiale di Directus per Claude Code.
-Permette di interrogare e modificare i contenuti CMS direttamente dalla chat.
 
 ```bash
-# In Claude Code — il server MCP si attiva automaticamente
+# Il server MCP si attiva automaticamente in Claude Code
 # Richiede DIRECTUS_URL e DIRECTUS_TOKEN nel .env
 ```
 

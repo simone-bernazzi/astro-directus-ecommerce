@@ -321,6 +321,41 @@ export async function getProductSlugs(): Promise<string[]> {
   return items.map(i => i.slug)
 }
 
+export interface VariantOption {
+  name: string
+  values: string[]
+}
+
+export async function getVariantOptions(): Promise<VariantOption[]> {
+  const client = getClient()
+  const variants = await client.request(
+    readItems('product_variants', {
+      filter: {
+        is_active: { _eq: true },
+        product_id: { status: { _eq: 'published' }, is_active: { _eq: true } },
+      },
+      fields: ['option_1_name', 'option_1_value', 'option_2_name', 'option_2_value'],
+      limit: -1,
+    })
+  ) as Array<{ option_1_name: string | null; option_1_value: string | null; option_2_name: string | null; option_2_value: string | null }>
+
+  const map = new Map<string, Set<string>>()
+  for (const v of variants) {
+    if (v.option_1_name && v.option_1_value) {
+      if (!map.has(v.option_1_name)) map.set(v.option_1_name, new Set())
+      map.get(v.option_1_name)!.add(v.option_1_value)
+    }
+    if (v.option_2_name && v.option_2_value) {
+      if (!map.has(v.option_2_name)) map.set(v.option_2_name, new Set())
+      map.get(v.option_2_name)!.add(v.option_2_value)
+    }
+  }
+
+  return Array.from(map.entries())
+    .filter(([, s]) => s.size > 0)
+    .map(([name, set]) => ({ name, values: Array.from(set).sort() }))
+}
+
 // ---------------------------------------------------------------------------
 // Product Categories
 // ---------------------------------------------------------------------------
