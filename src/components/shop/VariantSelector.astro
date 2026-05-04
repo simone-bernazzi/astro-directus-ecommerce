@@ -79,10 +79,12 @@ const option2Label = active.find(v => v.option_2_name)?.option_2_name ?? null
   }
 
   <p id="variant-stock" class="text-sm text-[var(--color-muted)] mt-2 hidden"></p>
-  <p id="variant-price" class="text-2xl font-bold text-[var(--color-brand)] mt-2"></p>
+  <p id="variant-price" class="text-2xl font-bold text-[var(--color-brand)] mt-2" data-eur-price="0"></p>
 </div>
 
 <script>
+  import { applyConversion } from '@/stores/currency'
+
   const selector = document.getElementById('variant-selector')
   if (selector) {
     const variants = JSON.parse(selector.dataset.variants ?? '[]')
@@ -101,7 +103,12 @@ const option2Label = active.find(v => v.option_2_name)?.option_2_name ?? null
       })
       if (match && hiddenInput) {
         hiddenInput.value = match.id
-        if (priceEl) priceEl.textContent = `€${(match.price_override ?? basePrice).toFixed(2)}`
+        const eurPrice = (match.price_override ?? basePrice) as number
+        if (priceEl) {
+          priceEl.dataset.eurPrice = String(eurPrice)
+          priceEl.textContent = `€${eurPrice.toFixed(2)}`
+        }
+        applyConversion()
         if (stockEl) {
           if (match.stock_quantity === 0) {
             stockEl.textContent = 'Esaurito'
@@ -150,7 +157,12 @@ const option2Label = active.find(v => v.option_2_name)?.option_2_name ?? null
       const first = variants.find((v: Record<string, unknown>) => v.is_active)
       if (first && hiddenInput) {
         hiddenInput.value = first.id
-        if (priceEl) priceEl.textContent = `€${((first.price_override ?? basePrice) as number).toFixed(2)}`
+        const eurPrice = (first.price_override ?? basePrice) as number
+        if (priceEl) {
+          priceEl.dataset.eurPrice = String(eurPrice)
+          priceEl.textContent = `€${eurPrice.toFixed(2)}`
+        }
+        applyConversion()
         selector.dispatchEvent(new CustomEvent('variant-selected', { detail: first, bubbles: true }))
       }
     }

@@ -120,6 +120,7 @@ const variantOptionsJson = JSON.stringify(variantOptions)
 
 <script>
   import { toggleWishlist, wishlistItems } from '@/stores/wishlist'
+  import { applyConversion, selectedCurrency } from '@/stores/currency'
 
   // ── State ─────────────────────────────────────────────────────────────────
   let activeCategory = ''
@@ -195,8 +196,8 @@ const variantOptionsJson = JSON.stringify(variantOptions)
           ${p.categoryName ? `<p class="text-xs text-[var(--color-muted)] mb-1">${p.categoryName}</p>` : ''}
           <h3 class="font-medium text-[var(--color-text)] leading-tight line-clamp-2">${p.name}</h3>
           <div class="flex items-center gap-2 mt-2">
-            <span class="font-bold text-[var(--color-brand)]">€${p.price.toFixed(2)}</span>
-            ${p.comparePrice ? `<span class="text-sm text-[var(--color-muted)] line-through">€${p.comparePrice.toFixed(2)}</span>` : ''}
+            <span class="font-bold text-[var(--color-brand)]" data-eur-price="${p.price}">€${p.price.toFixed(2)}</span>
+            ${p.comparePrice ? `<span class="text-sm text-[var(--color-muted)] line-through" data-eur-price="${p.comparePrice}">€${p.comparePrice.toFixed(2)}</span>` : ''}
           </div>
           ${badges ? `<div class="flex gap-2 mt-3 flex-wrap">${badges}</div>` : ''}
         </div>
@@ -255,6 +256,7 @@ const variantOptionsJson = JSON.stringify(variantOptions)
       } else {
         grid.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">${results.map(cardHtml).join('')}</div>`
         syncAllWishlistBtns()
+        if (selectedCurrency.get() !== 'EUR') applyConversion()
       }
       setSearchStatus(`${results.length} prodott${results.length === 1 ? 'o trovato' : 'i trovati'}`)
     } catch {

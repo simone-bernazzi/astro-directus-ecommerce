@@ -1,0 +1,33 @@
+---
+// src/components/ui/CurrencySelector.astro
+---
+<select
+  id="currency-selector"
+  aria-label="Valuta"
+  class="text-sm border border-[var(--color-border)] rounded-md px-2 py-1 bg-[var(--color-bg)] text-[var(--color-text)] focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] cursor-pointer"
+>
+  <option value="EUR">EUR €</option>
+  <option value="USD">USD $</option>
+  <option value="GBP">GBP £</option>
+  <option value="CHF">CHF</option>
+</select>
+
+<script>
+  import { selectedCurrency, applyConversion } from '@/stores/currency'
+
+  const select = document.getElementById('currency-selector') as HTMLSelectElement
+  if (select) {
+    // Restore persisted selection
+    select.value = selectedCurrency.get()
+
+    select.addEventListener('change', async () => {
+      selectedCurrency.set(select.value)
+      await applyConversion(select.value)
+    })
+
+    // Apply on load (handles non-EUR persisted choice)
+    if (selectedCurrency.get() !== 'EUR') {
+      applyConversion(selectedCurrency.get())
+    }
+  }
+</script>

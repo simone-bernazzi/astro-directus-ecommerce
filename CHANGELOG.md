@@ -13,7 +13,7 @@
 
 ### Funzionalità da aggiungere (backlog)
 
-- `[ ]` **Multi-currency** — visualizzazione prezzi in valuta locale via exchangerate API, checkout sempre in EUR
+- `[x]` **Multi-currency** — ~~visualizzazione prezzi in valuta locale via exchangerate API, checkout sempre in EUR~~ ✓ v0.12.0
 - `[ ]` **Ricerca prodotti avanzata** — suggerimenti autocompletamento, ricerca fulltext con Meilisearch/Algolia
 - `[ ]` **Internazionalizzazione shop** — slug e contenuti prodotto in IT/EN, routing `/en/shop/`
 - `[ ]` **Comparazione prodotti** — seleziona fino a 3 prodotti e confronta attributi
@@ -28,6 +28,20 @@
 ### Bug aperti
 
 - `[ ]` **`BUG-004`** `api/download/[token].ts` — il proxy scarica l'intero file in memoria prima di rispondere; su file grandi (es. video) questo può causare timeout su Netlify (limite 10 secondi)
+
+---
+
+## [0.12.0] — 2026-05-04
+
+### Aggiunto
+- `[FEAT]` **Multi-currency** — visualizzazione prezzi in valuta locale (EUR/USD/GBP/CHF), checkout sempre in EUR:
+  - `stores/currency.ts` — `selectedCurrency` (persistentAtom), cache tassi 1h via frankfurter.app (free, no API key), `formatPrice()`, `applyConversion()` globale che aggiorna tutti gli elementi `[data-eur-price]`
+  - `components/ui/CurrencySelector.astro` — `<select>` dropdown nel header, ripristina valuta persistita e applica conversione al cambio
+  - `Header.astro` — CurrencySelector inserito tra nav e icone wishlist/cart
+  - `ProductCard.astro` — attributi `data-eur-price` su prezzo e prezzo barrato; conversione applicata al caricamento se valuta non EUR
+  - `VariantSelector.astro` — `#variant-price` mantiene `data-eur-price` sincronizzato con la variante selezionata; chiama `applyConversion()` ad ogni cambio variante
+  - `negozio/index.astro` — `data-eur-price` nelle card dinamiche (search results); `applyConversion()` dopo ogni ricerca
+  - `negozio/[slug].astro` — `data-eur-price` su prezzo principale, prezzo barrato, cross-sell e related products
 
 ---
 

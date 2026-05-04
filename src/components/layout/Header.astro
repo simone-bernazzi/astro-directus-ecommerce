@@ -1,6 +1,7 @@
 ---
 // src/components/layout/Header.astro
 import Nav from './Nav.astro'
+import CurrencySelector from '@/components/ui/CurrencySelector.astro'
 import { getSiteSettings, getDirectusImageUrl } from '@/lib/directus'
 
 const settings = await getSiteSettings().catch((err) => {
@@ -25,6 +26,9 @@ const currentPath = Astro.url.pathname
     <div class="hidden md:block">
       <Nav links={navLinks} currentPath={currentPath} />
     </div>
+
+    <!-- Currency selector -->
+    <CurrencySelector />
 
     <!-- Wishlist icon -->
     <a href="/account/wishlist" class="relative p-2 hover:text-[var(--color-brand)] transition-colors" aria-label="Wishlist">

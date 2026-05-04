@@ -75,9 +75,9 @@ const isNew = product.featured
       <h3 class="font-medium text-[var(--color-text)] leading-tight line-clamp-2">{product.name}</h3>
 
       <div class="flex items-center gap-2 mt-2">
-        <span class="font-bold text-[var(--color-brand)]">€{price.toFixed(2)}</span>
+        <span class="font-bold text-[var(--color-brand)]" data-eur-price={price}>€{price.toFixed(2)}</span>
         {product.compare_price && (
-          <span class="text-sm text-[var(--color-muted)] line-through">€{product.compare_price.toFixed(2)}</span>
+          <span class="text-sm text-[var(--color-muted)] line-through" data-eur-price={product.compare_price}>€{product.compare_price.toFixed(2)}</span>
         )}
       </div>
 
@@ -93,6 +93,9 @@ const isNew = product.featured
 <script>
   import { trackSelectItem } from '@/lib/analytics'
   import { toggleWishlist, wishlistItems } from '@/stores/wishlist'
+  import { applyConversion, selectedCurrency } from '@/stores/currency'
+
+  if (selectedCurrency.get() !== 'EUR') applyConversion()
 
   // Analytics — select_item
   document.querySelectorAll<HTMLAnchorElement>('[data-analytics-item]').forEach(link => {
