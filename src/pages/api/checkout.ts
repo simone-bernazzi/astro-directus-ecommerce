@@ -8,6 +8,7 @@ import { createDirectus, rest, staticToken, createItem, createItems, updateItem,
 import { randomUUID } from 'node:crypto'
 import { getProducts, getCouponByCode, getGiftCardByCode, getShippingZones } from '@/lib/directus'
 import type { CartItem, ShippingZone } from '@/lib/types'
+import { sendOrderConfirmation } from '@/lib/email'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Schema = Record<string, any>
@@ -223,6 +224,28 @@ export const POST: APIRoute = async ({ request }) => {
 
       await directus.request(
         createItems('order_items', orderItemsData.map(i => ({ ...i, order_id: freeOrder.id })))
+      )
+
+      // Send order confirmation email (best-effort — customer_email may be empty for anonymous free orders)
+      await sendOrderConfirmation(
+        {
+          id: freeOrder.id,
+          customer_email: '',
+          customer_name: '',
+          subtotal,
+          discount_amount: discountAmount + giftCardAmount,
+          shipping_cost: shippingCost,
+          total: Math.max(0, totalCents / 100),
+          shipping_address: null,
+        },
+        orderItemsData.map(i => ({
+          product_name: i.product_name,
+          variant_name: i.variant_name,
+          sku: i.sku,
+          unit_price: i.unit_price,
+          quantity: i.quantity,
+          download_token: i.download_token,
+        }))
       )
 
       // Decrement stock

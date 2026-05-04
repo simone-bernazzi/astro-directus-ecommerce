@@ -6,6 +6,7 @@ import Stripe from 'stripe'
 import { createDirectus, rest, staticToken, createItem, createItems, updateItem, readItems } from '@directus/sdk'
 import { randomUUID } from 'node:crypto'
 import type { CartItem } from '@/lib/types'
+import { sendOrderConfirmation, type EmailOrder } from '@/lib/email'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Schema = Record<string, any>
@@ -140,6 +141,28 @@ export const POST: APIRoute = async ({ request }) => {
     // Create order_items with FK to order
     await directus.request(
       createItems('order_items', orderItemsData.map(i => ({ ...i, order_id: order.id })))
+    )
+
+    // Send order confirmation email
+    await sendOrderConfirmation(
+      {
+        id: order.id,
+        customer_email: session.customer_details?.email ?? '',
+        customer_name: session.customer_details?.name ?? '',
+        subtotal: subtotalCents / 100,
+        discount_amount: discountAmount,
+        shipping_cost: shippingCost,
+        total: totalCents / 100,
+        shipping_address: shipping_address as EmailOrder['shipping_address'],
+      },
+      orderItemsData.map(i => ({
+        product_name: i.product_name,
+        variant_name: i.variant_name,
+        sku: i.sku,
+        unit_price: i.unit_price,
+        quantity: i.quantity,
+        download_token: i.download_token,
+      }))
     )
 
     // Decrement stock

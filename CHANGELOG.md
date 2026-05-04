@@ -13,7 +13,7 @@
 
 ### Funzionalità da aggiungere (backlog)
 
-- `[ ]` **Email transazionali** — template HTML per conferma ordine, spedizione, download digitale
+- `[ ]` **Notifica disponibilità** — form email "avvisami quando torna disponibile" per prodotti esauriti
 - `[ ]` **Notifica disponibilità** — form email "avvisami quando torna disponibile" per prodotti esauriti
 - `[ ]` **Upsell / cross-sell** — sezione "Spesso acquistato insieme" con logica configurabile in Directus
 - `[ ]` **Multi-currency** — visualizzazione prezzi in valuta locale via exchangerate API, checkout sempre in EUR
@@ -35,6 +35,17 @@
 ### Bug aperti
 
 - `[ ]` **`BUG-004`** `api/download/[token].ts` — il proxy scarica l'intero file in memoria prima di rispondere; su file grandi (es. video) questo può causare timeout su Netlify (limite 10 secondi)
+
+---
+
+## [0.7.0] — 2026-05-04
+
+### Aggiunto
+- `[FEAT]` **Email transazionali** — `src/lib/email.ts` con due template HTML responsive (table-based per compatibilità client email):
+  - **Conferma ordine** (`sendOrderConfirmation`) — inviata automaticamente da `api/webhook/stripe.ts` e dal path ordine gratuito in `api/checkout.ts`; include riepilogo prodotti, totali, indirizzo di spedizione e link di download per prodotti digitali
+  - **Notifica spedizione** (`sendShippingNotification`) — inviata da `api/admin/notify-shipped.ts`; include numero di tracking e link tracciamento corriere
+- `[FEAT]` `api/admin/notify-shipped.ts` — endpoint protetto (`x-admin-key`) che aggiorna `status: shipped`, salva `tracking_number` / `tracking_url` su Directus e invia l'email di spedizione; integrabile con Directus Flows
+- Aggiunto `SMTP_FROM` e `SMTP_FROM_NAME` a `.env.example`
 
 ---
 
