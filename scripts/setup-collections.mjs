@@ -54,6 +54,11 @@ async function main() {
   await field('product_categories', 'sort_order', 'integer', { default_value: 0 }, { interface: 'input' })
   await field('product_categories', 'seo_title', 'string', {}, { interface: 'input' })
   await field('product_categories', 'seo_description', 'text', {}, { interface: 'input-multiline' })
+  // i18n EN
+  await field('product_categories', 'name_en', 'string', { is_nullable: true }, { interface: 'input', note: 'Nome categoria in inglese' })
+  await field('product_categories', 'description_en', 'text', { is_nullable: true }, { interface: 'input-multiline' })
+  await field('product_categories', 'seo_title_en', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('product_categories', 'seo_description_en', 'text', { is_nullable: true }, { interface: 'input-multiline' })
 
   // ── products ──────────────────────────────────────────────────────────────
   await collection('products', 'shopping_bag', '{{name}}')
@@ -75,6 +80,11 @@ async function main() {
   await field('products', 'seo_title', 'string', {}, { interface: 'input' })
   await field('products', 'seo_description', 'text', {}, { interface: 'input-multiline' })
   await field('products', 'cross_sell_ids', 'json', { is_nullable: true }, { interface: 'input-code', options: { language: 'json' }, note: 'Array JSON di ID prodotto da mostrare come "Spesso acquistato insieme"' })
+  // i18n EN
+  await field('products', 'name_en', 'string', { is_nullable: true }, { interface: 'input', note: 'Nome prodotto in inglese' })
+  await field('products', 'description_en', 'text', { is_nullable: true }, { interface: 'input-rich-text-html', note: 'Descrizione in inglese' })
+  await field('products', 'seo_title_en', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('products', 'seo_description_en', 'text', { is_nullable: true }, { interface: 'input-multiline' })
 
   // ── product_variants ──────────────────────────────────────────────────────
   await collection('product_variants', 'tune', '{{name}} ({{sku}})')
@@ -88,6 +98,7 @@ async function main() {
   await field('product_variants', 'stock_quantity', 'integer', { default_value: 0 }, { interface: 'input' })
   await field('product_variants', 'low_stock_threshold', 'integer', { default_value: 5 }, { interface: 'input' })
   await field('product_variants', 'stripe_price_id', 'string', {}, { interface: 'input' })
+  await field('product_variants', 'digital_file_url', 'string', { is_nullable: true }, { interface: 'input', note: 'URL file digitale (esterno o Directus). Per file su Directus non superare 150 MB.' })
   await field('product_variants', 'download_limit', 'integer', { default_value: 3 }, { interface: 'input' })
   await field('product_variants', 'download_expires_hours', 'integer', { default_value: 168 }, { interface: 'input' })
   await field('product_variants', 'is_active', 'boolean', { default_value: true }, { interface: 'boolean' })

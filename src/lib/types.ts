@@ -122,6 +122,7 @@ export interface ProductVariant {
   low_stock_threshold: number
   stripe_price_id: string
   digital_file: DirectusFile | null
+  digital_file_url: string | null
   download_limit: number
   download_expires_hours: number
   image_id: DirectusFile | null

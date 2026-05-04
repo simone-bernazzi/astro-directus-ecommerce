@@ -334,8 +334,18 @@ La pagina negozio combina:
 I prodotti con `product_type = 'digital'` ricevono automaticamente un link di download sicuro dopo il pagamento. Il link è:
 - Protetto da token con scadenza configurabile (`download_expires_hours`)
 - Limitato al numero di download (`download_limit`)
-- Servito dal proxy `/api/download/[token]`
 - Incluso nell'email di conferma ordine
+
+### Hosting del file
+
+Sulla variante prodotto sono disponibili due modalità:
+
+| Campo | Comportamento |
+|-------|---------------|
+| `digital_file_url` (consigliato) | URL diretto (S3, CDN, Directus pubblico). Il proxy esegue un redirect 302 → zero memoria sul server. |
+| `digital_file` (relazione Directus) | File caricato in Directus. Il proxy scarica e riversa il file al client. **Limite consigliato: 150 MB** — su Netlify Functions la risposta ha un timeout di 10 s e la RAM è limitata. |
+
+Usa `digital_file_url` per file grandi o per file ospitati su servizi esterni (AWS S3, Google Cloud Storage, Bunny CDN, ecc.).
 
 ---
 

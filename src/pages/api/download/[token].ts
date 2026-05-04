@@ -39,20 +39,30 @@ export const GET: APIRoute = async ({ params }) => {
     return new Response('Limite download raggiunto', { status: 403 })
   }
 
-  // Get file from Directus
-  const digitalFile = (orderItem.variant_id as Record<string, unknown>)?.digital_file as Record<string, unknown> | null
-  if (!digitalFile?.id) {
-    return new Response('File non trovato', { status: 404 })
-  }
+  const variant = orderItem.variant_id as Record<string, unknown>
 
-  // Increment download count
+  // Increment download count before serving
   await directus.request(
     updateItem('order_items', orderItem.id as string, {
       download_count: (orderItem.download_count as number) + 1,
     })
   )
 
-  // Proxy the file from Directus (avoids exposing direct Directus URLs)
+  // If a direct URL is configured, redirect to it (works for external CDNs and public Directus assets)
+  const digitalFileUrl = variant?.digital_file_url as string | null
+  if (digitalFileUrl) {
+    return new Response(null, {
+      status: 302,
+      headers: { Location: digitalFileUrl, 'Cache-Control': 'no-store' },
+    })
+  }
+
+  // Fallback: proxy the file from Directus (for protected assets)
+  const digitalFile = variant?.digital_file as Record<string, unknown> | null
+  if (!digitalFile?.id) {
+    return new Response('File non trovato', { status: 404 })
+  }
+
   const fileUrl = `${process.env.DIRECTUS_URL}/assets/${digitalFile.id}`
   const fileResponse = await fetch(fileUrl, {
     headers: { Authorization: `Bearer ${process.env.DIRECTUS_TOKEN}` },
