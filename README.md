@@ -44,6 +44,251 @@ Template completo per e-commerce con blog, portfolio e area clienti. Stack: **As
 
 ---
 
+## Hosting Directus
+
+Directus va installato **prima** di fare il setup del progetto Astro. Scegli una delle opzioni seguenti.
+
+---
+
+### Opzione A — cPanel (hosting condiviso / VPS con cPanel)
+
+**Prerequisiti:** SSH abilitato, Node.js Selector attivo nel pannello, accesso al gestore MySQL.
+
+#### 1. Crea database MySQL in cPanel
+
+In cPanel → **MySQL Databases**:
+- Crea database: `cpaneluser_directus`
+- Crea utente: `cpaneluser_cms` con password sicura
+- Aggiungi utente al database con **tutti i privilegi**
+
+#### 2. Crea il sottodominio
+
+In cPanel → **Subdomains**: crea `cms.tuodominio.it` puntato a una cartella dedicata (es. `~/cms.tuodominio.it`). Aggiungi record DNS A se necessario.
+
+#### 3. Installa Directus via SSH
+
+```bash
+ssh utente@tuodominio.it
+mkdir ~/cms.tuodominio.it && cd ~/cms.tuodominio.it
+
+# Crea package.json
+cat > package.json <<'EOF'
+{
+  "name": "directus",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": { "start": "directus start" },
+  "dependencies": { "directus": "^11.0.0" }
+}
+EOF
+
+npm install
+```
+
+#### 4. Configura le variabili ambiente
+
+```bash
+cat > .env <<'EOF'
+HOST=0.0.0.0
+PORT=8055
+PUBLIC_URL=https://cms.tuodominio.it
+
+DB_CLIENT=mysql
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=cpaneluser_directus
+DB_USER=cpaneluser_cms
+DB_PASSWORD=PASSWORD_SICURA
+
+KEY=genera-stringa-random-32-char
+SECRET=genera-stringa-random-32-char
+
+ADMIN_EMAIL=admin@tuodominio.it
+ADMIN_PASSWORD=PASSWORD_ADMIN
+
+STORAGE_LOCATIONS=local
+STORAGE_LOCAL_ROOT=./uploads
+EOF
+```
+
+Genera KEY e SECRET con: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` (esegui due volte).
+
+#### 5. Bootstrap e creazione admin
+
+```bash
+npx directus bootstrap
+```
+
+Crea lo schema del database e l'utente admin definiti nel `.env`.
+
+#### 6. Crea il file di avvio per cPanel
+
+cPanel richiede un file `.js` come entry point (non può eseguire direttamente `npm start`):
+
+```bash
+cat > server.js <<'EOF'
+// server.js — wrapper per cPanel Node.js Selector
+import { fileURLToPath } from 'url'
+import { spawn } from 'child_process'
+import { dirname, join } from 'path'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const bin = join(__dirname, 'node_modules', '.bin', 'directus')
+
+const proc = spawn(bin, ['start'], { stdio: 'inherit', env: process.env })
+proc.on('close', code => process.exit(code ?? 0))
+EOF
+```
+
+#### 7. Configura l'applicazione Node.js in cPanel
+
+In cPanel → **Setup Node.js App** → **Create Application**:
+
+| Campo | Valore |
+|-------|--------|
+| Node.js version | 20.x LTS (o superiore) |
+| Application mode | Production |
+| Application root | `cms.tuodominio.it` |
+| Application URL | `cms.tuodominio.it` |
+| Application startup file | `server.js` |
+
+Clicca **Run NPM Install**, poi **Create** → **Restart**.
+
+#### 8. Verifica
+
+Apri `https://cms.tuodominio.it/admin` — dovresti vedere il login di Directus.
+
+> **Uploads persistenti**: la cartella `uploads/` è su disco locale. In caso di migrazione server usa `scripts/backup.mjs` e `scripts/restore.mjs`.
+
+---
+
+### Opzione B — Railway (Docker, consigliato per semplicità)
+
+Railway gestisce infrastruttura, scaling e certificati SSL automaticamente.
+
+#### 1. Crea il progetto su Railway
+
+Vai su [railway.app](https://railway.app) → **New Project**.
+
+#### 2. Aggiungi il database PostgreSQL
+
+**Add service** → **Database** → **PostgreSQL**.
+
+Railway crea il DB e inietta automaticamente `DATABASE_URL` nel progetto.
+
+#### 3. Aggiungi il servizio Directus
+
+**Add service** → **Docker Image** → inserisci:
+
+```
+directus/directus:latest
+```
+
+#### 4. Configura le variabili ambiente
+
+Nel tab **Variables** del servizio Directus, aggiungi:
+
+```env
+HOST=0.0.0.0
+PORT=8055
+PUBLIC_URL=https://nome-progetto.up.railway.app   # aggiorna dopo il deploy
+
+DB_CLIENT=pg
+DB_CONNECTION_STRING=${{Postgres.DATABASE_URL}}    # variabile Railway auto-injected
+
+KEY=genera-stringa-random-32-char
+SECRET=genera-stringa-random-32-char
+
+ADMIN_EMAIL=admin@tuodominio.it
+ADMIN_PASSWORD=PASSWORD_ADMIN
+
+STORAGE_LOCATIONS=local
+STORAGE_LOCAL_ROOT=./uploads
+```
+
+> Usa `${{NomeServizio.VARIABILE}}` per referenziare variabili di altri servizi Railway.
+
+#### 5. Aggiungi un volume per gli uploads
+
+Nel servizio Directus → **Volumes** → aggiungi volume montato su `/directus/uploads`. Senza questo, i file caricati si perdono ad ogni redeploy.
+
+#### 6. Genera il dominio e aggiorna PUBLIC_URL
+
+**Settings** → **Networking** → **Generate Domain**. Copia l'URL generato e aggiorna `PUBLIC_URL` nelle variabili.
+
+#### 7. Deploy e verifica
+
+Railway parte automaticamente. Dopo il primo deploy, apri `https://nome-progetto.up.railway.app/admin`.
+
+---
+
+### Opzione C — Render (Docker)
+
+#### 1. Crea il database PostgreSQL
+
+**New** → **PostgreSQL** → nota i valori di `Host`, `Database`, `Username`, `Password`.
+
+#### 2. Crea il Web Service
+
+**New** → **Web Service** → **Deploy an existing image** → inserisci:
+
+```
+directus/directus:latest
+```
+
+Configurazione:
+| Campo | Valore |
+|-------|--------|
+| Port | `8055` |
+| Health check path | `/server/health` |
+
+#### 3. Configura le variabili ambiente
+
+```env
+HOST=0.0.0.0
+PORT=8055
+PUBLIC_URL=https://nome-servizio.onrender.com
+
+DB_CLIENT=pg
+DB_HOST=<host-db-render>
+DB_PORT=5432
+DB_DATABASE=<nome-db>
+DB_USER=<utente-db>
+DB_PASSWORD=<password-db>
+DB_SSL__REJECT_UNAUTHORIZED=false
+
+KEY=genera-stringa-random-32-char
+SECRET=genera-stringa-random-32-char
+
+ADMIN_EMAIL=admin@tuodominio.it
+ADMIN_PASSWORD=PASSWORD_ADMIN
+
+STORAGE_LOCATIONS=local
+STORAGE_LOCAL_ROOT=./uploads
+```
+
+#### 4. Aggiungi disco persistente
+
+**Disks** → aggiungi disco montato su `/directus/uploads` (minimo 1 GB).
+
+#### 5. Deploy e verifica
+
+Render avvia il container. Apri `https://nome-servizio.onrender.com/admin`.
+
+> **Nota Render Free tier**: il servizio va in sleep dopo 15 minuti di inattività. Per Directus in produzione usa il piano Starter ($7/mese).
+
+---
+
+### Dopo l'installazione di Directus
+
+Indipendentemente dall'opzione scelta:
+
+1. Accedi all'admin Directus e crea un **Static Token** per l'integrazione Astro (Impostazioni → Utenti → il tuo utente admin → Token)
+2. Imposta `DIRECTUS_URL` e `DIRECTUS_TOKEN` nel `.env` del progetto Astro
+3. Esegui `node scripts/setup-collections.mjs` per creare le collezioni
+
+---
+
 ## Setup nuovo progetto
 
 ### 1. Crea repo dal template
