@@ -14,7 +14,6 @@
 ### Funzionalità da aggiungere (backlog)
 
 - `[ ]` **Multi-currency** — visualizzazione prezzi in valuta locale via exchangerate API, checkout sempre in EUR
-- `[ ]` **Account: gestione indirizzi** — rubrica indirizzi di spedizione salvati per checkout rapido
 - `[ ]` **Ricerca prodotti avanzata** — suggerimenti autocompletamento, ricerca fulltext con Meilisearch/Algolia
 - `[ ]` **Filtri negozio avanzati** — sidebar con attributi dinamici (taglia, colore, materiale) da product_variants
 - `[ ]` **Admin dashboard** — pagina protetta `/admin` con metriche ordini, top prodotti, stato backup
@@ -38,6 +37,22 @@
 ### Bug aperti
 
 - `[ ]` **`BUG-004`** `api/download/[token].ts` — il proxy scarica l'intero file in memoria prima di rispondere; su file grandi (es. video) questo può causare timeout su Netlify (limite 10 secondi)
+
+---
+
+## [0.10.0] — 2026-05-04
+
+### Aggiunto
+- `[FEAT]` **Admin dashboard** (`/admin`) — area protetta da password (`ADMIN_KEY`):
+  - `/admin/login` — form password con cookie di sessione `admin_session` (httpOnly, 8h)
+  - `/api/admin/auth` — POST imposta cookie, DELETE lo cancella (logout)
+  - `/admin/index.astro` — SSR dashboard con 4 KPI cards (ordini totali, fatturato, da processare, stock in esaurimento), tabella ultimi 10 ordini con badge stato, lista varianti sotto soglia `ADMIN_LOW_STOCK_THRESHOLD` (default: 5), pulsante backup integrato
+- `[FEAT]` **Account: gestione indirizzi** (`/account/indirizzi`) — rubrica indirizzi di spedizione:
+  - `api/account/addresses.ts` — GET/POST/DELETE/PATCH; identifica il cliente via `/users/me` Directus con il token cookie; crea il record `customers` al primo accesso
+  - `indirizzi.astro` — SSR: lista indirizzi con "Predefinito" badge, form aggiunta, elimina, imposta come predefinito
+  - `setup-collections.mjs` — aggiunti `email`, `directus_user_id`, `shipping_addresses` (JSON array) a customers
+  - Sidebar account aggiornata con link "Indirizzi"
+- Aggiunti `ADMIN_KEY` e `ADMIN_LOW_STOCK_THRESHOLD` a `.env.example`
 
 ---
 

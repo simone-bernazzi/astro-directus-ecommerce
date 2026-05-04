@@ -155,9 +155,12 @@ async function main() {
 
   // ── customers ─────────────────────────────────────────────────────────────
   await collection('customers', 'person', '{{first_name}} {{last_name}}')
+  await field('customers', 'email', 'string', { is_unique: true }, { interface: 'input', required: true })
+  await field('customers', 'directus_user_id', 'string', { is_nullable: true, is_unique: true }, { interface: 'input' })
   await field('customers', 'first_name', 'string', {}, { interface: 'input' })
   await field('customers', 'last_name', 'string', {}, { interface: 'input' })
   await field('customers', 'phone', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('customers', 'shipping_addresses', 'json', { is_nullable: true, default_value: '[]' }, { interface: 'input-code', options: { language: 'json' }, note: 'Array JSON di indirizzi: [{id,label,name,line1,line2,city,postal_code,country,is_default}]' })
   await field('customers', 'default_shipping_address', 'json', { is_nullable: true }, { interface: 'input-code', options: { language: 'json' } })
   await field('customers', 'stripe_customer_id', 'string', { is_nullable: true }, { interface: 'input' })
   await field('customers', 'total_orders', 'integer', { default_value: 0 }, { interface: 'input' })
