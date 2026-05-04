@@ -15,6 +15,12 @@
 
 - `[ ]` **Multi-currency** — visualizzazione prezzi in valuta locale via exchangerate API, checkout sempre in EUR
 - `[ ]` **Account: gestione indirizzi** — rubrica indirizzi di spedizione salvati per checkout rapido
+- `[ ]` **Ricerca prodotti avanzata** — suggerimenti autocompletamento, ricerca fulltext con Meilisearch/Algolia
+- `[ ]` **Filtri negozio avanzati** — sidebar con attributi dinamici (taglia, colore, materiale) da product_variants
+- `[ ]` **Admin dashboard** — pagina protetta `/admin` con metriche ordini, top prodotti, stato backup
+- `[ ]` **Internazionalizzazione shop** — slug e contenuti prodotto in IT/EN, routing `/en/shop/`
+- `[ ]` **Comparazione prodotti** — seleziona fino a 3 prodotti e confronta attributi
+- `[ ]` **Account: gestione indirizzi** — rubrica indirizzi di spedizione salvati per checkout rapido
 - `[ ]` **Account: reset password** — flow email con token temporaneo
 - `[ ]` **Ricerca prodotti** — input search con filtri live (categoria, prezzo min/max, tipo) via Directus API
 - `[ ]` **Filtri negozio avanzati** — sidebar con attributi dinamici (taglia, colore, materiale) da product_variants
@@ -32,6 +38,24 @@
 ### Bug aperti
 
 - `[ ]` **`BUG-004`** `api/download/[token].ts` — il proxy scarica l'intero file in memoria prima di rispondere; su file grandi (es. video) questo può causare timeout su Netlify (limite 10 secondi)
+
+---
+
+## [0.9.0] — 2026-05-04
+
+### Aggiunto
+- `[FEAT]` **Ricerca prodotti + Filtri negozio** — completamente client-side, SSG iniziale preservato per SEO:
+  - `api/search.ts` — endpoint GET con params `q`, `category`, `type`, `min_price`, `max_price`; restituisce `SearchProduct[]` con `imageUrl` pre-computato
+  - `getProducts()` aggiornato con supporto `query` (`_icontains` su nome/descrizione), `productType`, `minPrice`, `maxPrice` tramite `_and` compound filter
+  - `negozio/index.astro` — search bar + category pills (client-side filter) + type toggle (Tutti/Fisici/Digitali) + price range + "Azzera filtri"; griglia aggiornata dinamicamente con wishlist pulsante funzionante via event delegation `[data-dynamic]`
+- `[FEAT]` **Login + Reset password**:
+  - `login.astro` — pagina di accesso con form email/password, link a "Hai dimenticato la password?"
+  - `api/auth/login.ts` — autentica su Directus `/auth/login`, imposta cookie `directus_token` + `directus_refresh_token` (httpOnly, secure in prod)
+  - `api/auth/logout.ts` — revoca token su Directus + cancella cookie
+  - `account/recupera-password.astro` — pagina a doppio stato: richiesta reset (stato base) e conferma nuova password (`?token=xxx` da email Directus)
+  - `api/auth/reset-request.ts` — chiama Directus `/auth/password/request` con `reset_url` puntando alla nostra pagina
+  - `api/auth/reset-confirm.ts` — chiama Directus `/auth/password/reset` con il token; redirect a `/login` dopo successo
+  - Logout button in `account/index.astro` aggiornato per chiamare `/api/auth/logout`
 
 ---
 

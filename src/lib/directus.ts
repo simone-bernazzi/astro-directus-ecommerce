@@ -241,6 +241,10 @@ export interface GetProductsOptions {
   featured?: boolean
   categorySlug?: string
   limit?: number
+  query?: string
+  productType?: 'physical' | 'digital'
+  minPrice?: number
+  maxPrice?: number
 }
 
 const PRODUCT_FIELDS = [
@@ -254,13 +258,25 @@ const PRODUCT_FIELDS = [
 
 export async function getProducts(options: GetProductsOptions = {}): Promise<Product[]> {
   const client = getClient()
-  const filter: Record<string, unknown> = { status: { _eq: 'published' }, is_active: { _eq: true } }
-  if (options.featured) filter.featured = { _eq: true }
-  if (options.categorySlug) filter.category_id = { slug: { _eq: options.categorySlug } }
+  const andClauses: Record<string, unknown>[] = [
+    { status: { _eq: 'published' } },
+    { is_active: { _eq: true } },
+  ]
+  if (options.featured) andClauses.push({ featured: { _eq: true } })
+  if (options.categorySlug) andClauses.push({ category_id: { slug: { _eq: options.categorySlug } } })
+  if (options.productType) andClauses.push({ type: { _eq: options.productType } })
+  if (options.minPrice !== undefined) andClauses.push({ base_price: { _gte: options.minPrice } })
+  if (options.maxPrice !== undefined) andClauses.push({ base_price: { _lte: options.maxPrice } })
+  if (options.query) {
+    andClauses.push({ _or: [
+      { name: { _icontains: options.query } },
+      { description: { _icontains: options.query } },
+    ] })
+  }
 
   const items = await client.request(
     readItems('products', {
-      filter,
+      filter: { _and: andClauses },
       limit: options.limit ?? -1,
       fields: PRODUCT_FIELDS,
       sort: ['sort_order', 'name'],

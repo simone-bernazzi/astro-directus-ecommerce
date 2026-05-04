@@ -61,8 +61,8 @@ if (!token) {
 </Base>
 
 <script>
-  document.getElementById('logout-btn')?.addEventListener('click', () => {
-    document.cookie = 'directus_token=; Max-Age=0; path=/'
+  document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {})
     window.location.href = '/'
   })
 </script>

@@ -1,20 +1,282 @@
 ---
-// src/pages/negozio/index.astro — SSG
+// src/pages/negozio/index.astro — SSG with client-side search + filter
 import Base from '@/layouts/Base.astro'
 import Header from '@/components/layout/Header.astro'
 import Footer from '@/components/layout/Footer.astro'
-import ProductGrid from '@/components/shop/ProductGrid.astro'
+import ProductCard from '@/components/shop/ProductCard.astro'
 import { getProducts, getProductCategories } from '@/lib/directus'
 
 const products = await getProducts().catch(() => [])
 const categories = await getProductCategories().catch(() => [])
+
+const analyticsItems = JSON.stringify(products.map((p, i) => ({
+  item_id: String(p.id),
+  item_name: p.name,
+  item_category: p.category_id?.name ?? '',
+  price: p.variants?.[0]?.price_override ?? p.base_price,
+  index: i,
+})))
 ---
 
 <Base title="Negozio" description="Scopri tutti i nostri prodotti">
   <Header />
   <main class="container py-12">
     <h1 class="text-4xl font-bold mb-8" data-animate="fade-up">Negozio</h1>
-    <ProductGrid products={products} categories={categories} />
+
+    <!-- Search bar -->
+    <div class="mb-6">
+      <div class="relative max-w-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-muted)] pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z" />
+        </svg>
+        <input
+          id="search-input"
+          type="search"
+          placeholder="Cerca prodotti..."
+          class="w-full pl-10 pr-4 py-2.5 border border-[var(--color-border)] rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent"
+        />
+      </div>
+    </div>
+
+    <!-- Filters row -->
+    <div class="flex flex-wrap gap-4 mb-6 items-center">
+      <!-- Category pills -->
+      <div class="flex gap-2 flex-wrap">
+        <button type="button" data-category="" class="category-pill px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 bg-[var(--color-brand)] text-white">
+          Tutti
+        </button>
+        {categories.map(cat => (
+          <button
+            type="button"
+            data-category={cat.slug}
+            class="category-pill px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 border border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-brand)]"
+          >
+            {cat.name}
+          </button>
+        ))}
+      </div>
+
+      <!-- Type filter -->
+      <div class="flex gap-0 border border-[var(--color-border)] rounded-lg overflow-hidden text-sm">
+        <button type="button" data-type="" class="type-pill px-3 py-1.5 font-medium bg-[var(--color-brand)] text-white transition-colors">Tutti</button>
+        <button type="button" data-type="physical" class="type-pill px-3 py-1.5 font-medium text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors">Fisici</button>
+        <button type="button" data-type="digital" class="type-pill px-3 py-1.5 font-medium text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors">Digitali</button>
+      </div>
+
+      <!-- Price range -->
+      <div class="flex items-center gap-2 text-sm text-[var(--color-muted)]">
+        <span>€</span>
+        <input id="min-price" type="number" min="0" placeholder="Min" class="w-20 px-2 py-1.5 border border-[var(--color-border)] rounded-md bg-[var(--color-bg)] text-[var(--color-text)] text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)]" />
+        <span>—</span>
+        <input id="max-price" type="number" min="0" placeholder="Max" class="w-20 px-2 py-1.5 border border-[var(--color-border)] rounded-md bg-[var(--color-bg)] text-[var(--color-text)] text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)]" />
+      </div>
+
+      <button id="reset-filters" type="button" class="hidden text-sm text-[var(--color-muted)] hover:text-[var(--color-brand)] transition-colors underline">
+        Azzera filtri
+      </button>
+    </div>
+
+    <!-- Search status -->
+    <p id="search-status" class="hidden text-sm text-[var(--color-muted)] mb-4"></p>
+
+    <!-- Product grid — initially SSG rendered -->
+    <div id="product-grid" data-analytics-list="negozio" data-analytics-items={analyticsItems}>
+      {products.length === 0
+        ? <p class="text-[var(--color-muted)] py-12 text-center">Nessun prodotto disponibile.</p>
+        : (
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-animate="stagger">
+            {products.map((p, i) => <ProductCard product={p} listName="negozio" index={i} />)}
+          </div>
+        )
+      }
+    </div>
   </main>
   <Footer />
 </Base>
+
+<script>
+  import { toggleWishlist, wishlistItems } from '@/stores/wishlist'
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  let activeCategory = ''
+  let activeType = ''
+  let minPrice = ''
+  let maxPrice = ''
+  let searchQuery = ''
+  let searchTimeout: ReturnType<typeof setTimeout>
+
+  const grid = document.getElementById('product-grid')!
+  const status = document.getElementById('search-status')!
+  const resetBtn = document.getElementById('reset-filters')!
+
+  // ── Wishlist sync for dynamically rendered cards ───────────────────────────
+  function syncAllWishlistBtns() {
+    const items = wishlistItems.get()
+    const ids = new Set(items.map(i => i.productId))
+    document.querySelectorAll<HTMLButtonElement>('.wishlist-btn').forEach(btn => {
+      const id = btn.dataset.productId!
+      const active = ids.has(id)
+      btn.querySelector('.heart-outline')?.classList.toggle('hidden', active)
+      btn.querySelector('.heart-filled')?.classList.toggle('hidden', !active)
+      btn.setAttribute('aria-pressed', String(active))
+      btn.setAttribute('aria-label', active ? 'Rimuovi dalla wishlist' : 'Aggiungi alla wishlist')
+    })
+  }
+  wishlistItems.subscribe(syncAllWishlistBtns)
+
+  // Single delegated handler — skips buttons already wired by ProductCard.astro
+  grid.addEventListener('click', e => {
+    const btn = (e.target as Element).closest<HTMLButtonElement>('.wishlist-btn[data-dynamic]')
+    if (!btn) return
+    e.preventDefault()
+    e.stopPropagation()
+    toggleWishlist({
+      productId: btn.dataset.productId!,
+      productSlug: btn.dataset.productSlug!,
+      productName: btn.dataset.productName!,
+      price: parseFloat(btn.dataset.productPrice!),
+      image: btn.dataset.productImage || null,
+      categoryName: btn.dataset.productCategory ?? '',
+    })
+  })
+
+  // ── Card HTML template ─────────────────────────────────────────────────────
+  interface SR { id:string; slug:string; name:string; imageUrl:string|null; categoryName:string|null; price:number; comparePrice:number|null; type:string; isOutOfStock:boolean; featured:boolean }
+
+  function cardHtml(p: SR) {
+    const escapedName = p.name.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')
+    const img = p.imageUrl
+      ? `<img src="${p.imageUrl}" alt="${escapedName}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />`
+      : `<div class="w-full h-full flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></div>`
+
+    const badges = [
+      p.isOutOfStock ? `<span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">Esaurito</span>` : '',
+      (!p.isOutOfStock && p.featured) ? `<span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">In evidenza</span>` : '',
+      p.type === 'digital' ? `<span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700">Digitale</span>` : '',
+    ].filter(Boolean).join('')
+
+    return `<article class="group relative rounded-lg overflow-hidden border border-[var(--color-border)] hover:shadow-md transition-shadow duration-300 bg-[var(--color-bg)]">
+      <button type="button" data-dynamic class="wishlist-btn absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow hover:bg-white transition-colors"
+        data-product-id="${p.id}" data-product-slug="${p.slug}" data-product-name="${escapedName}"
+        data-product-price="${p.price}" data-product-image="${p.imageUrl ?? ''}" data-product-category="${p.categoryName ?? ''}"
+        aria-label="Aggiungi alla wishlist" aria-pressed="false">
+        <svg class="heart-outline w-4 h-4 text-[var(--color-muted)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
+        <svg class="heart-filled w-4 h-4 text-red-500 hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" /></svg>
+      </button>
+      <a href="/negozio/${p.slug}" class="block">
+        <div class="aspect-square bg-[var(--color-surface)] overflow-hidden">${img}</div>
+        <div class="p-4">
+          ${p.categoryName ? `<p class="text-xs text-[var(--color-muted)] mb-1">${p.categoryName}</p>` : ''}
+          <h3 class="font-medium text-[var(--color-text)] leading-tight line-clamp-2">${p.name}</h3>
+          <div class="flex items-center gap-2 mt-2">
+            <span class="font-bold text-[var(--color-brand)]">€${p.price.toFixed(2)}</span>
+            ${p.comparePrice ? `<span class="text-sm text-[var(--color-muted)] line-through">€${p.comparePrice.toFixed(2)}</span>` : ''}
+          </div>
+          ${badges ? `<div class="flex gap-2 mt-3 flex-wrap">${badges}</div>` : ''}
+        </div>
+      </a>
+    </article>`
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function isFiltered() {
+    return !!(searchQuery || activeCategory || activeType || minPrice || maxPrice)
+  }
+
+  function updateResetBtn() {
+    resetBtn.classList.toggle('hidden', !isFiltered())
+  }
+
+  function setSearchStatus(text: string) {
+    status.textContent = text
+    status.classList.toggle('hidden', !text)
+  }
+
+  async function runSearch() {
+    const params = new URLSearchParams()
+    if (searchQuery) params.set('q', searchQuery)
+    if (activeCategory) params.set('category', activeCategory)
+    if (activeType) params.set('type', activeType)
+    if (minPrice) params.set('min_price', minPrice)
+    if (maxPrice) params.set('max_price', maxPrice)
+
+    setSearchStatus('Ricerca in corso…')
+
+    try {
+      const res = await fetch(`/api/search?${params}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Errore')
+
+      const results: SR[] = data.results
+      if (results.length === 0) {
+        grid.innerHTML = '<p class="text-[var(--color-muted)] py-12 text-center">Nessun prodotto trovato.</p>'
+      } else {
+        grid.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">${results.map(cardHtml).join('')}</div>`
+        syncAllWishlistBtns()
+      }
+      setSearchStatus(`${results.length} prodott${results.length === 1 ? 'o trovato' : 'i trovati'}`)
+    } catch {
+      setSearchStatus('Errore durante la ricerca. Riprova.')
+    }
+  }
+
+  function scheduleSearch(delay = 350) {
+    clearTimeout(searchTimeout)
+    updateResetBtn()
+    if (!isFiltered()) { location.reload(); return }
+    searchTimeout = setTimeout(runSearch, delay)
+  }
+
+  // ── Event listeners ────────────────────────────────────────────────────────
+  document.getElementById('search-input')?.addEventListener('input', e => {
+    searchQuery = (e.target as HTMLInputElement).value.trim()
+    scheduleSearch(350)
+  })
+
+  document.querySelectorAll<HTMLButtonElement>('.category-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeCategory = btn.dataset.category ?? ''
+      document.querySelectorAll<HTMLButtonElement>('.category-pill').forEach(b => {
+        const active = b === btn
+        b.classList.toggle('bg-[var(--color-brand)]', active)
+        b.classList.toggle('text-white', active)
+        b.classList.toggle('border', !active)
+        b.classList.toggle('border-[var(--color-border)]', !active)
+        b.classList.toggle('text-[var(--color-text)]', !active)
+      })
+      scheduleSearch(0)
+    })
+  })
+
+  document.querySelectorAll<HTMLButtonElement>('.type-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeType = btn.dataset.type ?? ''
+      document.querySelectorAll<HTMLButtonElement>('.type-pill').forEach(b => {
+        const active = b === btn
+        b.classList.toggle('bg-[var(--color-brand)]', active)
+        b.classList.toggle('text-white', active)
+        b.classList.toggle('text-[var(--color-text)]', !active)
+      })
+      scheduleSearch(0)
+    })
+  })
+
+  document.getElementById('min-price')?.addEventListener('input', e => {
+    minPrice = (e.target as HTMLInputElement).value
+    scheduleSearch(500)
+  })
+
+  document.getElementById('max-price')?.addEventListener('input', e => {
+    maxPrice = (e.target as HTMLInputElement).value
+    scheduleSearch(500)
+  })
+
+  resetBtn.addEventListener('click', () => {
+    searchQuery = ''; activeCategory = ''; activeType = ''; minPrice = ''; maxPrice = ''
+    ;(document.getElementById('search-input') as HTMLInputElement).value = ''
+    ;(document.getElementById('min-price') as HTMLInputElement).value = ''
+    ;(document.getElementById('max-price') as HTMLInputElement).value = ''
+    updateResetBtn()
+    location.reload()
+  })
+</script>
