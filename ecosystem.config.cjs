@@ -3,11 +3,11 @@
 module.exports = {
   apps: [
     {
-      name: 'frontend',
+      name: process.env.DEPLOY_PM2_APP || 'frontend',
       script: './dist/server/entry.mjs',
       env: {
         HOST: '127.0.0.1',
-        PORT: 4321,
+        PORT: parseInt(process.env.DEPLOY_PORT) || 4321,
         NODE_ENV: 'production',
       },
     },
