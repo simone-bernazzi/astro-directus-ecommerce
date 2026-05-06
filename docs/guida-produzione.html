@@ -379,7 +379,7 @@
      COVER
 ════════════════════════════════════════════════════════ -->
 <div class="cover">
-  <div class="cover-badge">Template · Astro 6 + Directus + Stripe · Netlify o VPS</div>
+  <div class="cover-badge">Template · Astro 6 + Directus + Stripe · VPS (Node.js + PM2 + Nginx)</div>
   <h1>Guida alla messa<br>in produzione</h1>
   <p class="subtitle">Setup completo: hosting, variabili d'ambiente, Stripe, backup e go-live checklist</p>
   <p class="meta">astro-directus-ecommerce · github.com/simone-bernazzi/astro-directus-ecommerce · Maggio 2026</p>
@@ -405,7 +405,7 @@
   <div class="phase-card">
     <div class="phase-num">Fase 4</div>
     <div class="phase-title">Frontend Deploy</div>
-    <div class="phase-desc">Netlify (default) oppure VPS con Node.js + PM2 + Nginx</div>
+    <div class="phase-desc">VPS con Node.js + PM2 + Nginx, deploy automatico con npm run deploy</div>
   </div>
   <div class="phase-card">
     <div class="phase-num">Fase 5</div>
@@ -691,7 +691,7 @@ PUBLIC_SITE_URL=<span class="url">https://staging.tuodominio.it</span></pre>
 </ul>
 
 <h3>1.6 Creare le collezioni con lo script (da locale)</h3>
-<p>Lo script va eseguito <strong>in locale</strong> dalla root della repo Astro, puntando all'istanza Directus di produzione. Non va eseguito su Netlify né su cPanel.</p>
+<p>Lo script va eseguito <strong>in locale</strong> dalla root della repo Astro, puntando all'istanza Directus di produzione. Non va eseguito sul server né su cPanel.</p>
 <ul class="checklist">
   <li><span class="check-box"></span><div>Verifica che nel file <code>.env</code> locale siano già impostate le variabili Directus (passo 1.5)
 <pre style="margin-top:6px">DIRECTUS_URL=<span class="url">https://cms.tuodominio.it</span>
@@ -781,55 +781,11 @@ Da usare se non vuoi aggiornare il progetto client con lo script.</div>
      FASE 4 — FRONTEND DEPLOY
 ════════════════════════════════════════════════════════ -->
 <details class="section">
-<summary><h2><span class="num">4</span>Frontend Deploy — Netlify o VPS</h2></summary>
-<p>Scegli l'opzione in base al tuo hosting. Il progetto usa <code>@astrojs/netlify</code> di default; per VPS si sostituisce con <code>@astrojs/node</code>.</p>
-
-<details class="option">
-<summary>▸ Opzione A — Netlify (default)</summary>
-<div class="option-body">
-
-<h3>4.1 Creare il sito</h3>
-<ul class="checklist">
-  <li><span class="check-box"></span><div>Netlify → <strong>Add new site → Import an existing project</strong></div></li>
-  <li><span class="check-box"></span><div>Connetti GitHub → seleziona la repo del cliente</div></li>
-  <li><span class="check-box"></span><div>Build command: <code>npm run build</code></div></li>
-  <li><span class="check-box"></span><div>Publish directory: <code>dist</code></div></li>
-  <li><span class="check-box"></span><div>Node version: <strong>22</strong> (Site settings → Environment → Node version, oppure aggiungi <code>NODE_VERSION=22</code> nelle env vars)</div></li>
-</ul>
-
-<h3>4.2 Variabili d'ambiente su Netlify</h3>
-<p>Vai su <strong>Site settings → Environment variables</strong> e aggiungi tutte le variabili del <code>.env</code>:</p>
-<div class="callout warn"><strong>Attenzione ai prefissi:</strong> Le variabili con prefisso <code>PUBLIC_</code> sono esposte nel browser (bundle JS). Tutte le altre sono accessibili solo server-side. Non mettere mai segreti in variabili <code>PUBLIC_</code>.</div>
-
-<h3>4.3 Build hook per Directus</h3>
-<ul class="checklist">
-  <li><span class="check-box"></span><div>Netlify → Site settings → <strong>Build hooks → Add build hook</strong></div></li>
-  <li><span class="check-box"></span><div>Nome: "Directus Publish" → copia l'URL del hook</div></li>
-  <li><span class="check-box"></span><div>In Directus → Settings → <strong>Flows</strong> → crea un flow con trigger "Action" su save/publish di <code>pages</code>, <code>posts</code>, <code>products</code></div></li>
-  <li><span class="check-box"></span><div>Aggiungi step "Webhook" → incolla l'URL Netlify (metodo POST)</div></li>
-</ul>
-
-<h3>4.4 ALLOWED_ORIGIN per le API</h3>
-<p>La variabile <code>ALLOWED_ORIGIN</code> protegge le API da richieste cross-origin non autorizzate. Deve corrispondere esattamente all'URL del sito (senza slash finale):</p>
-<pre><span class="key">ALLOWED_ORIGIN</span>=<span class="url">https://tuodominio.it</span>   <span class="comment"># NO slash finale</span></pre>
-<div class="callout danger"><strong>Non usare <code>*</code></strong> in produzione: esporrebbe il checkout e le API a chiamate da qualsiasi origine.</div>
-</div></details>
-
-<details class="option" open>
-<summary>▸ Opzione B — VPS con Node.js + PM2 + Nginx <span class="option-badge">consigliato</span></summary>
-<div class="option-body">
-<p>Adatta a chi ha già un VPS (es. Hetzner) con Nginx e PM2. Directus e frontend girano sullo stesso server, nessun servizio esterno necessario.</p>
-
-<h3>4.5 Sostituire l'adapter Netlify con Node.js</h3>
-<p>Esegui in locale nella root della repo:</p>
-<pre><span class="cmd">npm</span> remove @astrojs/netlify
-<span class="cmd">npm</span> install @astrojs/node</pre>
-<p style="margin-top:8px">In <code>astro.config.mjs</code> commenta l'adapter Netlify e attiva quello Node:</p>
-<pre><span class="comment">// import netlify from '@astrojs/netlify'</span>
-<span class="val">import</span> node <span class="val">from</span> <span class="str">'@astrojs/node'</span>
-
-<span class="comment">// adapter: netlify(),</span>
-adapter: node({ mode: <span class="str">'standalone'</span> }),</pre>
+<summary><h2><span class="num">4</span>Frontend Deploy — VPS con Node.js + PM2 + Nginx</h2></summary>
+<p>Il progetto usa <code>@astrojs/node</code> in standalone mode. Directus e frontend girano sullo stesso VPS (es. Hetzner), nessun servizio esterno necessario.</p>
+<div class="callout warn"><strong>ALLOWED_ORIGIN</strong> deve corrispondere esattamente all'URL del sito (senza slash finale):
+<pre style="margin-top:6px"><span class="key">ALLOWED_ORIGIN</span>=<span class="url">https://tuodominio.it</span>   <span class="comment"># NO slash finale</span></pre>
+Non usare <code>*</code> in produzione: esporrebbe il checkout e le API a chiamate da qualsiasi origine.</div>
 
 <h3>4.6 Build e deploy sul server</h3>
 <ul class="checklist">
@@ -928,14 +884,12 @@ Incolla il seguente contenuto:
 </ul>
 <div class="callout info"><strong>Verifica finale:</strong> apri <code>https://cms.<span class="val">tuodominio.it</span>/admin</code> e <code>https://<span class="val">tuodominio.it</span></code> nel browser — il lucchetto verde conferma che SSL è attivo su entrambi.</div>
 
-<h3>4.9 Backup cron (alternativa alle Netlify Scheduled Functions)</h3>
-<p>Su VPS le Netlify Scheduled Functions non sono disponibili. Il backup si configura come cron job di sistema:</p>
+<h3>4.9 Backup cron</h3>
+<p>Il backup si configura come cron job di sistema sul VPS:</p>
 <pre><span class="cmd">crontab</span> -e
-<span class="comment"># Aggiunge backup giornaliero alle 2:00</span>
+<span class="comment"># Backup giornaliero alle 2:00</span>
 0 2 * * * cd /var/www/<span class="val">cliente</span>/frontend &amp;&amp; node scripts/backup.mjs &gt;&gt; /var/log/backup-<span class="val">cliente</span>.log 2&gt;&amp;1</pre>
 <div class="callout info">Vedi <strong>Fase 5</strong> per la configurazione completa del backup (chiave admin, S3, ecc.).</div>
-</div></details>
-
 
 </details>
 
@@ -952,13 +906,14 @@ Incolla il seguente contenuto:
 
 <span class="comment"># Oppure con openssl</span>
 <span class="cmd">openssl rand -hex 32</span></pre>
-<p>Copia l'output → <code>BACKUP_ADMIN_KEY</code>. Usa la stessa chiave su Netlify e nel file <code>.env</code> locale.</p>
+<p>Copia l'output → <code>BACKUP_ADMIN_KEY</code> nel file <code>.env</code> locale e sul server.</p>
 
-<h3>5.2 Schedule automatico</h3>
-<p>La Netlify Scheduled Function si attiva in base al valore di <code>BACKUP_CRON</code>:</p>
-<pre><span class="key">BACKUP_CRON</span>=<span class="val">@daily</span>        <span class="comment"># ogni giorno a mezzanotte UTC (default)</span>
-<span class="key">BACKUP_CRON</span>=<span class="val">0 2 * * *</span>    <span class="comment"># ogni giorno alle 02:00 UTC</span>
-<span class="key">BACKUP_CRON</span>=<span class="val">@weekly</span>       <span class="comment"># ogni domenica</span></pre>
+<h3>5.2 Schedule cron</h3>
+<p>Configura il cron job sul VPS (vedi 4.9). Esempi di schedule:</p>
+<pre><span class="comment"># Nel crontab del server (crontab -e)</span>
+0 2 * * *   <span class="comment"># ogni giorno alle 02:00</span>
+0 2 * * 0   <span class="comment"># ogni domenica alle 02:00</span>
+0 2 1 * *   <span class="comment"># il primo del mese alle 02:00</span></pre>
 
 <h3>5.3 Storage S3 (opzionale)</h3>
 <p>Per archiviare i backup su cloud (AWS S3, Backblaze B2, Cloudflare R2, MinIO):</p>
@@ -978,13 +933,13 @@ Incolla il seguente contenuto:
 <details class="section">
 <summary><h2><span class="num">6</span>Go-Live — DNS e checklist finale</h2></summary>
 
-<h3>6.1 Dominio su Netlify</h3>
+<h3>6.1 Go-live su VPS</h3>
+<p>Se hai fatto il deploy su staging e vuoi passare al dominio definitivo, segui la <strong>sezione 7</strong>. Altrimenti, verifica questi prerequisiti prima della checklist finale:</p>
 <ul class="checklist">
-  <li><span class="check-box"></span><div>Netlify → Domain management → <strong>Add custom domain</strong></div></li>
-  <li><span class="check-box"></span><div>Sul provider DNS crea record: <strong>CNAME</strong> <code>www</code> → <code>nome-sito.netlify.app</code></div></li>
-  <li><span class="check-box"></span><div>Per il dominio apex (<code>@</code>): usa i Netlify DNS (nameserver) oppure un record <strong>A</strong> → <code>75.2.60.5</code></div></li>
-  <li><span class="check-box"></span><div>Abilita <strong>HTTPS</strong> (automatico con Let's Encrypt dopo propagazione DNS)</div></li>
-  <li><span class="check-box"></span><div>Attendi propagazione DNS: da 15 minuti a 48 ore (media: 1-2 ore)</div></li>
+  <li><span class="check-box"></span><div>Record DNS <code>@</code> e <code>www</code> puntano all'IP del VPS (vedi 4.8)</div></li>
+  <li><span class="check-box"></span><div>Certificato SSL rilasciato per <code>tuodominio.it</code> e <code>www.tuodominio.it</code></div></li>
+  <li><span class="check-box"></span><div><code>PUBLIC_SITE_URL</code> aggiornato a <code>https://tuodominio.it</code> e deploy eseguito</div></li>
+  <li><span class="check-box"></span><div>Webhook Stripe aggiornato all'URL di produzione</div></li>
 </ul>
 
 <h3>6.2 Smoke test</h3>
@@ -998,7 +953,7 @@ Incolla il seguente contenuto:
   <li><span class="check-box"></span><div>Form contatti: invio → verifica su Directus + eventuale email</div></li>
   <li><span class="check-box"></span><div>Area account: login, lista ordini, dettaglio ordine</div></li>
   <li><span class="check-box"></span><div>Backup manuale: <code>npm run backup -- --dry-run</code> → verifica output</div></li>
-  <li><span class="check-box"></span><div>Build hook: pubblica un contenuto su Directus → verifica deploy automatico su Netlify</div></li>
+  <li><span class="check-box"></span><div>Deploy: esegui <code>npm run deploy</code> in locale → verifica riavvio PM2 sul server</div></li>
 </ul>
 
 
@@ -1171,7 +1126,7 @@ Incolla il seguente contenuto:
       <td>
         URL pubblico del sito, senza slash finale. Usato per costruire link assoluti (es. redirect Stripe success/cancel).<br>
         Es: <code>https://tuodominio.it</code><br>
-        <span class="where">→ Il dominio del cliente su Netlify</span>
+        <span class="where">→ Il dominio del cliente (staging o produzione)</span>
       </td>
     </tr>
     <tr>
@@ -1294,7 +1249,7 @@ Incolla il seguente contenuto:
       <td>
         Chiave segreta per proteggere l'endpoint <code>/api/admin/backup</code>.<br>
         Genera con: <code>node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"</code><br>
-        <span class="where">→ Genera localmente, copia su Netlify nelle env vars</span>
+        <span class="where">→ Genera localmente, copia nel file <code>.env</code> e sul server</span>
       </td>
     </tr>
     <tr>
@@ -1314,9 +1269,9 @@ Incolla il seguente contenuto:
     <tr>
       <td>BACKUP_CRON <span class="optional">OPZIONALE</span></td>
       <td>
-        Schedule per il backup automatico (Netlify Scheduled Function). Default: <code>@daily</code>.<br>
+        Schedule cron per il backup automatico. Default: <code>@daily</code>.<br>
         Esempi: <code>@daily</code>, <code>@weekly</code>, <code>0 2 * * *</code> (ogni notte alle 2 UTC).<br>
-        <span class="where">→ Imposta su Netlify nelle env vars</span>
+        <span class="where">→ Usato come riferimento per configurare il crontab sul server (vedi sezione 4.9)</span>
       </td>
     </tr>
     <tr>
