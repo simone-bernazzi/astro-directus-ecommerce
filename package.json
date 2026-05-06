@@ -17,10 +17,12 @@
     "backup:weekly": "node scripts/backup.mjs --type weekly",
     "backup:monthly": "node scripts/backup.mjs --type monthly",
     "restore": "node scripts/restore.mjs",
-    "migrate": "node scripts/migrate.mjs"
+    "migrate": "node scripts/migrate.mjs",
+    "claude": "bash scripts/claude.sh",
+    "deploy": "bash scripts/deploy.sh"
   },
   "dependencies": {
-    "@astrojs/netlify": "^7.0.8",
+    "@astrojs/node": "^10.0.0",
     "@astrojs/sitemap": "^3.7.2",
     "@directus/sdk": "^21.2.2",
     "@nanostores/persistent": "^0.10.2",
