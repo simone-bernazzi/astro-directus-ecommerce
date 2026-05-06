@@ -796,18 +796,23 @@ Non usare <code>*</code> in produzione: esporrebbe il checkout e le API a chiama
 
 <h3>4.6 Build e deploy sul server</h3>
 <ul class="checklist">
+  <li><span class="check-box"></span><div>Crea la cartella frontend sul server (solo al primo deploy)
+<pre style="margin-top:6px"><span class="cmd">ssh</span> deploy@<span class="val">ip-server</span> <span class="str">"mkdir -p /var/www/<span class="val">cliente</span>/frontend"</span></pre></div></li>
   <li><span class="check-box"></span><div>Build in locale (con Node 22)
 <pre style="margin-top:6px"><span class="cmd">npm</span> run build</pre></div></li>
-  <li><span class="check-box"></span><div>Crea la cartella del progetto sul server e carica i file
+  <li><span class="check-box"></span><div>Carica i file sul server con il comando di deploy automatico
+<pre style="margin-top:6px"><span class="cmd">npm</span> run deploy</pre>
+<span class="note">Lo script fa build → rsync dist/ + package.json → npm install --production → pm2 startOrRestart sul server. Richiede <code>DEPLOY_HOST</code>, <code>DEPLOY_USER</code>, <code>DEPLOY_PATH</code>, <code>DEPLOY_PM2_APP</code> nel <code>.env</code> locale.</span></div></li>
+  <li><span class="check-box"></span><div><em>In alternativa al deploy automatico</em> — carica manualmente e avvia
 <pre style="margin-top:6px"><span class="cmd">rsync</span> -avz --delete dist/ deploy@<span class="val">ip-server</span>:/var/www/<span class="val">cliente</span>/frontend/dist/
 <span class="cmd">rsync</span> -avz ecosystem.config.cjs deploy@<span class="val">ip-server</span>:/var/www/<span class="val">cliente</span>/frontend/
 <span class="cmd">rsync</span> -avz .env.production deploy@<span class="val">ip-server</span>:/var/www/<span class="val">cliente</span>/frontend/.env</pre>
 <span class="note">In alternativa: git clone + npm run build direttamente sul server.</span></div></li>
-  <li><span class="check-box"></span><div>Sul server come utente applicativo — installa le dipendenze e avvia con PM2
+  <li><span class="check-box"></span><div>Sul server — installa le dipendenze e avvia con PM2
 <pre style="margin-top:6px"><span class="cmd">cd</span> /var/www/<span class="val">cliente</span>/frontend
-<span class="cmd">nvm</span> use 22                         <span class="comment"># obbligatorio — npm altrimenti usa Node 20</span>
+<span class="cmd">nvm</span> use 22
 <span class="cmd">npm</span> install --production
-<span class="cmd">pm2</span> start ecosystem.config.cjs
+<span class="cmd">pm2</span> startOrRestart ecosystem.config.cjs --update-env
 <span class="cmd">pm2</span> save</pre>
 <span class="note">Con <code>@astrojs/node</code> standalone mode il <code>dist/</code> non include le dipendenze — è necessario <code>npm install</code> sul server. Porta sempre <code>package.json</code> e <code>package-lock.json</code> insieme al <code>dist/</code>.</span></div></li>
 </ul>
