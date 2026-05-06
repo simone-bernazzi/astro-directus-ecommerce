@@ -43,8 +43,8 @@ echo "▸ rsync dist/ → ${REMOTE}:${DEPLOY_PATH}/dist/"
 rsync -avz --delete dist/ "${REMOTE}:${DEPLOY_PATH}/dist/"
 
 echo ""
-echo "▸ rsync package.json + package-lock.json..."
-rsync -avz package.json package-lock.json "${REMOTE}:${DEPLOY_PATH}/"
+echo "▸ rsync package.json + package-lock.json + ecosystem.config.cjs..."
+rsync -avz package.json package-lock.json ecosystem.config.cjs "${REMOTE}:${DEPLOY_PATH}/"
 
 echo ""
 echo "▸ npm install --production + pm2 restart sul server..."
