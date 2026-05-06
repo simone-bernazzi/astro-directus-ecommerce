@@ -54,8 +54,8 @@ ssh "$REMOTE" "
   nvm use 22
   cd ${DEPLOY_PATH}
   npm install --production --silent
-  pm2 restart ${DEPLOY_PM2_APP}
-  pm2 status
+  pm2 startOrRestart ecosystem.config.cjs --update-env
+  pm2 save
 "
 
 echo ""
