@@ -625,12 +625,21 @@ RECAPTCHA_MIN_SCORE=0.5
 
 ## Integrazione AI (Claude Code)
 
-Il file `.mcp.json` configura il server MCP ufficiale di Directus per Claude Code.
+Il file `.mcp.json` configura il server MCP ufficiale di Directus per Claude Code.  
+Claude Code risolve `${DIRECTUS_URL}` e `${DIRECTUS_TOKEN}` dall'**ambiente shell** al momento del lancio — non carica il `.env` in automatico.
+
+Usa lo script incluso per avviare Claude Code con le variabili già esportate:
 
 ```bash
-# Il server MCP si attiva automaticamente in Claude Code
-# Richiede DIRECTUS_URL e DIRECTUS_TOKEN nel .env
+npm run claude          # oppure: bash scripts/claude.sh
 ```
+
+Lo script fa il `source .env` e poi lancia `claude`, così il server MCP si connette a Directus senza configurazione aggiuntiva.
+
+> **Alternativa rapida (una tantum):**
+> ```bash
+> set -a && source .env && set +a && claude
+> ```
 
 ---
 

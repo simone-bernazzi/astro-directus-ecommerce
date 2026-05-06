@@ -289,6 +289,78 @@
   /* ── Page break ── */
   .page-break { page-break-before: always; }
 
+  /* ── Collapsible sections (h2-level) ── */
+  details.section > summary {
+    list-style: none;
+    cursor: pointer;
+    display: block;
+  }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary > h2 {
+    justify-content: space-between;
+    cursor: pointer;
+  }
+  details.section > summary > h2::after {
+    content: '›';
+    font-size: 22px;
+    font-weight: 300;
+    line-height: 1;
+    color: var(--brand);
+    transition: transform 0.15s;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  details.section[open] > summary > h2::after { transform: rotate(90deg); }
+
+  /* ── Collapsible options ── */
+  details.option {
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    margin: 12px 0;
+    page-break-inside: avoid;
+  }
+  details.option > summary {
+    padding: 11px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--brand);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--gray-50);
+    border-radius: var(--radius);
+    user-select: none;
+  }
+  details.option > summary::-webkit-details-marker { display: none; }
+  details.option[open] > summary {
+    border-bottom: 1px solid var(--gray-200);
+    border-radius: var(--radius) var(--radius) 0 0;
+    background: var(--brand-light);
+  }
+  details.option > summary::after {
+    content: '›';
+    font-size: 17px;
+    line-height: 1;
+    margin-left: auto;
+    transition: transform 0.15s;
+    flex-shrink: 0;
+    color: var(--brand);
+  }
+  details.option[open] > summary::after { transform: rotate(90deg); }
+  .option-body { padding: 16px; }
+  .option-badge {
+    font-size: 10px;
+    font-weight: 700;
+    background: var(--success);
+    color: #fff;
+    padding: 2px 7px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+
   /* ── Footer ── */
   @page {
     margin: 12mm 14mm;
@@ -307,7 +379,7 @@
      COVER
 ════════════════════════════════════════════════════════ -->
 <div class="cover">
-  <div class="cover-badge">Template · Astro 6 + Directus + Stripe + Netlify</div>
+  <div class="cover-badge">Template · Astro 6 + Directus + Stripe · Netlify o VPS</div>
   <h1>Guida alla messa<br>in produzione</h1>
   <p class="subtitle">Setup completo: hosting, variabili d'ambiente, Stripe, backup e go-live checklist</p>
   <p class="meta">astro-directus-ecommerce · github.com/simone-bernazzi/astro-directus-ecommerce · Maggio 2026</p>
@@ -332,8 +404,8 @@
   </div>
   <div class="phase-card">
     <div class="phase-num">Fase 4</div>
-    <div class="phase-title">Netlify</div>
-    <div class="phase-desc">Deploy, variabili ambiente, funzioni schedulare, build hook</div>
+    <div class="phase-title">Frontend Deploy</div>
+    <div class="phase-desc">Netlify (default) oppure VPS con Node.js + PM2 + Nginx</div>
   </div>
   <div class="phase-card">
     <div class="phase-num">Fase 5</div>
@@ -368,21 +440,225 @@
 </ul>
 
 <h3>1.3 Installazione Directus</h3>
-<pre><span class="comment"># Via npm (su VPS o cPanel con Node.js)</span>
-<span class="cmd">npm init directus-project@latest</span> <span class="val">./cms</span>
-<span class="comment"># Seleziona: MySQL → inserisci credenziali DB</span>
-<span class="comment"># Crea admin email + password</span>
+<p>Scegli l'opzione corrispondente al tuo hosting.</p>
 
-<span class="comment"># Oppure via Docker</span>
-<span class="cmd">docker run</span> -p 8055:8055 \
-  -e DB_CLIENT=mysql \
-  -e DB_HOST=<span class="url">db-host</span> \
-  -e DB_PORT=3306 \
-  -e DB_DATABASE=<span class="url">nome_db</span> \
-  -e DB_USER=<span class="url">utente_db</span> \
-  -e DB_PASSWORD=<span class="url">password_db</span> \
-  -e SECRET=<span class="url">stringa_casuale_32_chars</span> \
-  directus/directus</pre>
+<details class="option">
+<summary>▸ Opzione A — cPanel con Node.js Selector</summary>
+<div class="option-body">
+<p>Adatta a provider condivisi (SiteGround, Aruba, Namecheap). Richiede accesso SSH e cPanel con Node.js Selector abilitato.</p>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>In cPanel → <strong>Domains → Subdomains</strong>: crea il sottodominio <code>cms.tuodominio.it</code><span class="note">Directus va sempre su un sottodominio dedicato (es. <code>cms.</code>, <code>admin.</code>, <code>api.</code>) — non nella root del dominio principale dove vive il frontend.</span></div></li>
+  <li><span class="check-box"></span><div>Accedi via SSH e crea la cartella del progetto fuori da <code>public_html</code>
+<pre style="margin-top:6px"><span class="cmd">ssh</span> utente@tuoserver.it
+<span class="cmd">mkdir</span> ~/cms</pre>
+<span class="note">La cartella è fuori da <code>public_html</code> — i file Node.js (incluso <code>.env</code>) non devono essere web-accessibili.</span></div></li>
+  <li><span class="check-box"></span><div>In cPanel → <strong>Setup Node.js App</strong>: crea l'applicazione <em>prima di installare i pacchetti</em> — questo genera il virtual environment che rende <code>npm</code> disponibile via SSH
+<table style="margin-top:8px; border-collapse:collapse; font-size:12px; width:100%">
+  <tr style="background:var(--gray-100)"><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">Campo</th><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">Valore</th></tr>
+  <tr><td style="padding:5px 8px; border:1px solid var(--gray-200)">Node.js version</td><td style="padding:5px 8px; border:1px solid var(--gray-200)">20.x o 22.x</td></tr>
+  <tr><td style="padding:5px 8px; border:1px solid var(--gray-200)">Application mode</td><td style="padding:5px 8px; border:1px solid var(--gray-200)">Production</td></tr>
+  <tr><td style="padding:5px 8px; border:1px solid var(--gray-200)">Application root</td><td style="padding:5px 8px; border:1px solid var(--gray-200)"><code>cms</code> (path relativo alla home, fuori da public_html)</td></tr>
+  <tr><td style="padding:5px 8px; border:1px solid var(--gray-200)">Application URL</td><td style="padding:5px 8px; border:1px solid var(--gray-200)"><code>https://cms.tuodominio.it</code></td></tr>
+  <tr><td style="padding:5px 8px; border:1px solid var(--gray-200)">Application startup file</td><td style="padding:5px 8px; border:1px solid var(--gray-200)"><code>server.js</code></td></tr>
+</table></div></li>
+  <li><span class="check-box"></span><div>Dal pannello dell'app appena creata, copia il comando <strong>Enter to virtual environment</strong> (es. <code>source /home/utente/nodevenv/cms/22/bin/activate</code>) ed eseguilo in SSH — da questo momento <code>npm</code> e <code>node</code> sono disponibili nella sessione
+<pre style="margin-top:6px"><span class="cmd">source</span> /home/<span class="val">utente</span>/nodevenv/cms/<span class="val">22</span>/bin/activate
+<span class="cmd">cd</span> ~/cms</pre></div></li>
+  <li><span class="check-box"></span><div>Installa Directus
+<pre style="margin-top:6px"><span class="cmd">npm init</span> -y
+<span class="cmd">npm install</span> directus</pre></div></li>
+  <li><span class="check-box"></span><div>Genera il valore per <code>SECRET</code> direttamente via SSH
+<pre style="margin-top:6px"><span class="cmd">node</span> -e <span class="str">"console.log(require('crypto').randomBytes(32).toString('hex'))"</span></pre>
+<span class="note">Copia l'output (stringa esadecimale da 64 caratteri) — ti serve nel passaggio successivo.</span></div></li>
+  <li><span class="check-box"></span><div>Crea il file <code>~/cms/.env</code>
+<pre style="margin-top:6px">DB_CLIENT=mysql
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=<span class="val">nome_db</span>
+DB_USER=<span class="val">utente_db</span>
+DB_PASSWORD=<span class="val">password_db</span>
+SECRET=<span class="val">stringa_hex_generata_sopra</span>
+ADMIN_EMAIL=<span class="val">admin@tuodominio.it</span>
+ADMIN_PASSWORD=<span class="val">password_sicura</span>
+PUBLIC_URL=<span class="url">https://cms.tuodominio.it</span></pre></div></li>
+  <li><span class="check-box"></span><div>Esegui il bootstrap (crea le tabelle di sistema Directus)
+<pre style="margin-top:6px"><span class="cmd">npx directus</span> bootstrap</pre></div></li>
+  <li><span class="check-box"></span><div>Crea il file <code>~/cms/server.js</code> — wrapper richiesto da cPanel (non supporta <code>npm start</code> direttamente)
+<pre style="margin-top:6px"><span class="comment">// server.js</span>
+<span class="val">const</span> { spawn } = require(<span class="str">'child_process'</span>)
+<span class="val">const</span> proc = spawn(
+  <span class="str">'node_modules/.bin/directus'</span>,
+  [<span class="str">'start'</span>],
+  { stdio: <span class="str">'inherit'</span>, env: process.env }
+)
+proc.on(<span class="str">'close'</span>, code =&gt; process.exit(code))</pre></div></li>
+  <li><span class="check-box"></span><div>Torna in cPanel → Node.js App → clicca <strong>Restart</strong></div></li>
+</ul>
+<div class="callout info"><strong>Porta:</strong> cPanel inietta automaticamente la variabile <code>PORT</code> nell'ambiente. Directus la legge nativamente — non serve configurarla nel <code>.env</code>.</div>
+</div></details>
+
+<details class="option">
+<summary>▸ Opzione B — Railway con Docker</summary>
+<div class="option-body">
+<p>Deploy completamente gestito. Railway esegue l'immagine ufficiale <code>directus/directus</code> e fornisce un database PostgreSQL come servizio collegato.</p>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Crea un progetto su <strong>railway.app</strong> → <strong>New Project → Deploy from Docker Image</strong></div></li>
+  <li><span class="check-box"></span><div>Immagine: <code>directus/directus:latest</code></div></li>
+  <li><span class="check-box"></span><div>Aggiungi un servizio <strong>PostgreSQL</strong> al progetto (tasto + → Database → PostgreSQL)</div></li>
+  <li><span class="check-box"></span><div>Nel servizio Directus → <strong>Variables</strong> → aggiungi:
+<pre style="margin-top:6px">DB_CLIENT=<span class="val">pg</span>
+DATABASE_URL=<span class="val">${{Postgres.DATABASE_URL}}</span>
+SECRET=<span class="val">stringa_casuale_32_chars</span>
+ADMIN_EMAIL=<span class="val">admin@tuodominio.it</span>
+ADMIN_PASSWORD=<span class="val">password_sicura</span>
+PUBLIC_URL=<span class="url">https://cms.tuodominio.up.railway.app</span></pre>
+<span class="note">La sintassi <code>${{Postgres.DATABASE_URL}}</code> è il riferimento Railway al servizio PostgreSQL; viene risolta automaticamente.</span></div></li>
+  <li><span class="check-box"></span><div>Nel servizio Directus → <strong>Settings → Volumes</strong>: aggiungi un volume montato su <code>/directus/uploads</code> per rendere i file persistenti tra i redeploy</div></li>
+  <li><span class="check-box"></span><div>Vai su <strong>Settings → Networking → Generate Domain</strong> per ottenere l'URL pubblico del CMS</div></li>
+</ul>
+<div class="callout warn"><strong>Bootstrap automatico:</strong> <code>directus/directus</code> esegue <code>directus bootstrap</code> all'avvio se il database è vuoto — non serve eseguirlo manualmente su Railway.</div>
+</div></details>
+
+<details class="option">
+<summary>▸ Opzione C — Render con Docker</summary>
+<div class="option-body">
+<p>Simile a Railway. Render offre un piano gratuito con limitazioni (il servizio va in sleep dopo 15 min di inattività — non adatto a produzione). Usa il piano Starter ($7/mese) per un servizio always-on.</p>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Crea un <strong>Web Service</strong> su <strong>render.com</strong> → scegli <strong>Deploy an existing image</strong></div></li>
+  <li><span class="check-box"></span><div>Image URL: <code>docker.io/directus/directus:latest</code></div></li>
+  <li><span class="check-box"></span><div>Crea un database <strong>PostgreSQL</strong> separato su Render → copia le credenziali</div></li>
+  <li><span class="check-box"></span><div>Nel Web Service → <strong>Environment</strong> → aggiungi:
+<pre style="margin-top:6px">DB_CLIENT=<span class="val">pg</span>
+DB_HOST=<span class="val">hostname-db.render.com</span>
+DB_PORT=5432
+DB_DATABASE=<span class="val">nome_db</span>
+DB_USER=<span class="val">utente_db</span>
+DB_PASSWORD=<span class="val">password_db</span>
+SECRET=<span class="val">stringa_casuale_32_chars</span>
+ADMIN_EMAIL=<span class="val">admin@tuodominio.it</span>
+ADMIN_PASSWORD=<span class="val">password_sicura</span>
+PUBLIC_URL=<span class="url">https://cms-tuoprogetto.onrender.com</span></pre></div></li>
+  <li><span class="check-box"></span><div>Nel Web Service → <strong>Disks</strong>: aggiungi un persistent disk montato su <code>/directus/uploads</code> (es. 1 GB)</div></li>
+</ul>
+<div class="callout warn"><strong>Piano gratuito:</strong> Render mette in sleep i servizi gratuiti dopo 15 minuti di inattività. La prima richiesta dopo lo sleep impiega ~30 secondi. Usa il piano Starter per produzione.</div>
+</div></details>
+
+<details class="option" open>
+<summary>▸ Opzione D — VPS nativo (Ubuntu + PM2) <span class="option-badge">consigliato</span></summary>
+<div class="option-body">
+<p>Adatta a chi ha già un VPS Ubuntu con Nginx e PM2. Directus gira come processo Node nativo — nessun Docker, nessun cPanel.</p>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Crea la directory del progetto come root e assegnala all'utente applicativo
+<pre style="margin-top:6px"><span class="cmd">mkdir</span> -p /var/www/<span class="val">cliente</span>/cms
+<span class="cmd">chown</span> -R deploy:deploy /var/www/<span class="val">cliente</span></pre></div></li>
+  <li><span class="check-box"></span><div>Aggiungi subito il record DNS per il sottodominio CMS nel pannello del tuo provider
+<table style="margin-top:8px; border-collapse:collapse; font-size:12px; width:100%">
+  <tr style="background:var(--gray-100)"><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">Tipo</th><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">Nome</th><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">Valore</th><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">TTL</th></tr>
+  <tr><td style="padding:5px 8px; border:1px solid var(--gray-200)">A</td><td style="padding:5px 8px; border:1px solid var(--gray-200)"><code>cms</code></td><td style="padding:5px 8px; border:1px solid var(--gray-200)">IP VPS</td><td style="padding:5px 8px; border:1px solid var(--gray-200)">300</td></tr>
+</table>
+<span class="note">Fallo subito — il DNS impiega qualche minuto a propagarsi, e puoi proseguire con i passi seguenti nel frattempo.</span></div></li>
+  <li><span class="check-box"></span><div>Crea il vhost Nginx per il CMS (<strong>come root</strong>)
+<pre style="margin-top:6px"><span class="cmd">nano</span> /etc/nginx/sites-available/cms.<span class="val">tuodominio.it</span></pre>
+Incolla il seguente contenuto:
+<pre style="margin-top:6px">server {
+    server_name cms.<span class="val">tuodominio.it</span>;
+
+    <span class="comment"># Obbligatorio prima del proxy — altrimenti certbot</span>
+    <span class="comment"># riceve la risposta di Directus invece del file di verifica.</span>
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8055;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    listen 80;
+}</pre>
+Abilita il sito e ricarica Nginx:
+<pre style="margin-top:6px"><span class="cmd">ln</span> -s /etc/nginx/sites-available/cms.<span class="val">tuodominio.it</span> /etc/nginx/sites-enabled/
+<span class="cmd">nginx</span> -t &amp;&amp; <span class="cmd">systemctl</span> reload nginx</pre></div></li>
+  <li><span class="check-box"></span><div>Verifica la propagazione DNS e ottieni il certificato SSL per il CMS
+<pre style="margin-top:6px"><span class="cmd">dig</span> +short cms.<span class="val">tuodominio.it</span>    <span class="comment"># deve restituire l'IP del VPS</span></pre>
+Quando il <code>dig</code> restituisce l'IP corretto, installa certbot se necessario e rilascia il certificato:
+<pre style="margin-top:6px"><span class="cmd">certbot</span> --version 2&gt;/dev/null || <span class="cmd">apt</span> install -y certbot python3-certbot-nginx
+<span class="cmd">certbot</span> --nginx -d cms.<span class="val">tuodominio.it</span></pre>
+<span class="note">Certbot aggiorna automaticamente il vhost con le direttive SSL e il redirect HTTP→HTTPS.</span></div></li>
+</ul>
+<div class="callout info">Per creare il vhost di <strong>staging</strong> (<code>staging.tuodominio.it</code>) e quello di <strong>produzione</strong> (<code>tuodominio.it</code>) fai riferimento alla <a href="#sec-4-7" style="color:inherit; font-weight:600">sezione 4.7 — Nginx vhost (frontend)</a>.</div>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Passa all'utente applicativo e verifica che nvm sia disponibile
+<pre style="margin-top:6px"><span class="cmd">su</span> - deploy
+<span class="cmd">nvm</span> --version</pre>
+<span class="note">Se nvm non è installato: <code>curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash</code> poi riapri la sessione.</span></div></li>
+  <li><span class="check-box"></span><div>Installa Node 22 e impostalo come versione attiva
+<pre style="margin-top:6px"><span class="cmd">nvm</span> install 22
+<span class="cmd">nvm</span> use 22
+<span class="cmd">node</span> --version   <span class="comment"># deve mostrare v22.x</span></pre>
+<span class="note">Node 22 è richiesto sia da Directus che dal build di Astro. Alcune dipendenze native (es. <code>isolated-vm</code>) hanno prebuilt per arm64 solo da Node 22 in su — su Node 20 l'installazione fallisce se mancano i build tools.</span></div></li>
+  <li><span class="check-box"></span><div>Installa Directus
+<pre style="margin-top:6px"><span class="cmd">cd</span> /var/www/<span class="val">cliente</span>/cms
+<span class="cmd">npm</span> init -y
+<span class="cmd">npm</span> install directus</pre></div></li>
+  <li><span class="check-box"></span><div>Genera il <code>SECRET</code>
+<pre style="margin-top:6px"><span class="cmd">node</span> -e <span class="str">"console.log(require('crypto').randomBytes(32).toString('hex'))"</span></pre>
+<span class="note">Copia l'output — ti serve nel passaggio successivo.</span></div></li>
+  <li><span class="check-box"></span><div>Crea il database MySQL e l'utente dedicato (da root o utente con privilegi)
+<pre style="margin-top:6px"><span class="cmd">mysql</span> -u root -p</pre>
+All'interno del prompt MySQL esegui:
+<pre style="margin-top:6px"><span class="comment">-- sostituisci i valori evidenziati</span>
+CREATE DATABASE <span class="val">nome_db</span>
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE USER <span class="str">'<span class="val">utente_db</span>'</span>@<span class="str">'localhost'</span>
+  IDENTIFIED BY <span class="str">'<span class="val">password_sicura</span>'</span>;
+
+GRANT ALL PRIVILEGES ON <span class="val">nome_db</span>.*
+  TO <span class="str">'<span class="val">utente_db</span>'</span>@<span class="str">'localhost'</span>;
+
+FLUSH PRIVILEGES;
+EXIT;</pre>
+<span class="note">Usa credenziali dedicate per ogni progetto — mai usare root nel <code>.env</code> di Directus.</span></div></li>
+  <li><span class="check-box"></span><div>Crea il file <code>.env</code>
+<pre style="margin-top:6px">DB_CLIENT=mysql
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=<span class="val">nome_db</span>
+DB_USER=<span class="val">utente_db</span>
+DB_PASSWORD=<span class="val">password_db</span>
+SECRET=<span class="val">stringa_hex_generata_sopra</span>
+ADMIN_EMAIL=<span class="val">admin@tuodominio.it</span>
+ADMIN_PASSWORD=<span class="val">password_sicura</span>
+PUBLIC_URL=<span class="url">https://cms.tuodominio.it</span>
+PORT=8055</pre>
+<span class="note">Se sul server gira già un altro Directus sulla porta 8055, usa una porta diversa (es. <code>PORT=8056</code>). Ricorda di aggiornare anche il vhost Nginx. Non confondere <code>PORT</code> (porta HTTP di Directus) con <code>DB_PORT</code> (porta MySQL — sempre 3306).</span></div></li>
+  <li><span class="check-box"></span><div>Bootstrap del database
+<pre style="margin-top:6px"><span class="cmd">npx directus</span> bootstrap</pre></div></li>
+  <li><span class="check-box"></span><div>Crea le directory necessarie e assegna i permessi corretti (<strong>come root</strong>)
+<pre style="margin-top:6px"><span class="cmd">mkdir</span> -p /var/www/<span class="val">cliente</span>/cms/uploads
+<span class="cmd">mkdir</span> -p /var/www/<span class="val">cliente</span>/cms/extensions
+<span class="cmd">chown</span> -R deploy:deploy /var/www/<span class="val">cliente</span>/cms/uploads /var/www/<span class="val">cliente</span>/cms/extensions</pre>
+<span class="note">Directus non parte se queste directory non sono leggibili/scrivibili dall'utente applicativo.</span></div></li>
+  <li><span class="check-box"></span><div>Installa PM2 globalmente per la versione Node attiva
+<pre style="margin-top:6px"><span class="cmd">npm</span> install -g pm2</pre>
+<span class="note">PM2 va installato per ogni versione Node gestita da nvm — se cambi versione Node dovrai reinstallarlo.</span></div></li>
+  <li><span class="check-box"></span><div>Avvia Directus con PM2
+<pre style="margin-top:6px"><span class="cmd">pm2</span> start node_modules/.bin/directus --name <span class="str">"cms-<span class="val">cliente</span>"</span> -- start
+<span class="cmd">pm2</span> save</pre></div></li>
+  <li><span class="check-box"></span><div>Verifica che Directus sia partito correttamente
+<pre style="margin-top:6px"><span class="cmd">pm2</span> logs cms-<span class="val">cliente</span> --lines 20</pre>
+Deve comparire <code>Server started</code>. Se vedi ancora errori di porta, controlla che il <code>PORT</code> nel <code>.env</code> sia libero con:
+<pre style="margin-top:6px"><span class="cmd">ss</span> -tlnp | grep <span class="val">8055</span></pre></div></li>
+</ul>
+<div class="callout warn"><strong>Porta già in uso (più istanze Directus sullo stesso server):</strong> se i log mostrano <code>Port 8055 is already in use</code>, modifica <code>PORT=8056</code> (o altra porta libera) nel <code>.env</code>, aggiorna il <code>proxy_pass</code> nel vhost Nginx e riavvia con <code>pm2 restart cms-cliente</code>. Non modificare <code>DB_PORT</code> — quella è la porta di MySQL e deve rimanere 3306.</div>
+<div class="callout info"><strong>MySQL già installato:</strong> Se MySQL è già presente sul server, salta l'installazione e usa direttamente il prompt <code>mysql -u root -p</code> per creare database e utente come indicato sopra.</div>
+</div></details>
 
 <h3>1.4 Generare il token statico (DIRECTUS_TOKEN)</h3>
 <p>Il token statico è la chiave che il frontend usa per autenticarsi alle API Directus.</p>
@@ -390,16 +666,45 @@
   <li><span class="check-box"></span><div>Accedi al pannello admin Directus <code>https://cms.tuodominio.it/admin</code></div></li>
   <li><span class="check-box"></span><div>Vai su <strong>Settings → Users → Admin</strong> (o crea un utente dedicato "API Bot" con ruolo Admin)</div></li>
   <li><span class="check-box"></span><div>Scorri fino a <strong>Token</strong> → clicca <strong>Regenerate Token</strong></div></li>
-  <li><span class="check-box"></span><div>Copia il token generato (visibile una sola volta) → incollalo in <code>DIRECTUS_TOKEN</code></div></li>
+  <li><span class="check-box"></span><div>Copia il token generato (visibile una sola volta) — salvalo in un posto sicuro. Va incollato nel file <code>.env</code> del <strong>progetto Astro</strong> (in locale) al passo 1.5:
+<pre style="margin-top:6px"><span class="key">DIRECTUS_TOKEN</span>=<span class="val">token_copiato_qui</span></pre></div></li>
 </ul>
 <div class="callout warn"><strong>Attenzione:</strong> Usa un utente dedicato "API Bot" separato dall'admin personale. Se cambi la password dell'admin, il token rimane valido; se si disabilita l'utente, il token smette di funzionare.</div>
 
-<h3>1.5 Creare le collezioni con lo script</h3>
-<pre><span class="comment"># Nella root del progetto, con .env configurato</span>
-<span class="cmd">node scripts/setup-collections.mjs</span></pre>
-<p>Crea automaticamente tutte le collezioni: <code>pages</code>, <code>posts</code>, <code>categories</code>, <code>portfolio</code>, <code>faq</code>, <code>site_settings</code>, <code>products</code>, <code>product_categories</code>, <code>product_variants</code>, <code>shipping_zones</code>, <code>orders</code>, <code>order_items</code>, <code>customers</code>, <code>coupons</code>, <code>gift_cards</code>, <code>contact_submissions</code>.</p>
+<h3>1.5 Creare il progetto in locale</h3>
+<p>La repo va creata in locale prima di eseguire gli script di configurazione e il deploy del frontend.</p>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Crea la repo del cliente dal template GitHub e clonala in locale
+<pre style="margin-top:6px"><span class="cmd">gh</span> repo create nome-cliente --template simone-bernazzi/astro-directus-ecommerce --private --clone
+<span class="cmd">cd</span> nome-cliente</pre>
+<span class="note">Richiede GitHub CLI (<code>gh</code>). In alternativa: crea la repo dal sito GitHub → "Use this template" → clona con <code>git clone</code>.</span></div></li>
+  <li><span class="check-box"></span><div>Attiva Node 22 e installa le dipendenze
+<pre style="margin-top:6px"><span class="cmd">nvm</span> use 22
+<span class="cmd">npm</span> install</pre></div></li>
+  <li><span class="check-box"></span><div>Crea il file <code>.env</code> locale dal template e compila le variabili Directus
+<pre style="margin-top:6px"><span class="cmd">cp</span> .env.example .env</pre>
+Apri <code>.env</code> e imposta almeno:
+<pre style="margin-top:6px">DIRECTUS_URL=<span class="url">https://cms.tuodominio.it</span>
+DIRECTUS_TOKEN=<span class="val">token_generato_al_passo_1.4</span>
+PUBLIC_SITE_URL=<span class="url">https://staging.tuodominio.it</span></pre>
+<span class="note"><code>PUBLIC_SITE_URL</code> deve corrispondere al dominio su cui il frontend è raggiungibile. In fase di staging usa <code>https://staging.tuodominio.it</code>; quando vai in produzione cambialo in <code>https://tuodominio.it</code> e rideploya (vedi sezione 7).</span></div></li>
+</ul>
 
-<h3>1.6 Configurare i permessi</h3>
+<h3>1.6 Creare le collezioni con lo script (da locale)</h3>
+<p>Lo script va eseguito <strong>in locale</strong> dalla root della repo Astro, puntando all'istanza Directus di produzione. Non va eseguito su Netlify né su cPanel.</p>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Verifica che nel file <code>.env</code> locale siano già impostate le variabili Directus (passo 1.5)
+<pre style="margin-top:6px">DIRECTUS_URL=<span class="url">https://cms.tuodominio.it</span>
+DIRECTUS_TOKEN=<span class="val">token_generato_al_passo_1.4</span></pre></div></li>
+  <li><span class="check-box"></span><div>Esegui lo script dalla root della repo
+<pre style="margin-top:6px"><span class="cmd">node</span> --env-file=.env scripts/setup-collections.mjs</pre>
+<span class="note">Il flag <code>--env-file</code> carica il <code>.env</code> automaticamente — Node.js non lo fa di default. Disponibile da Node 20.6+.</span></div></li>
+  <li><span class="check-box"></span><div>Verifica nel pannello Directus (<code>https://cms.tuodominio.it/admin</code>) che le collezioni siano state create correttamente</div></li>
+</ul>
+<div class="callout info"><strong>Cosa crea:</strong> tutte le 17 collezioni e-commerce con campi e relazioni — <code>pages</code>, <code>posts</code>, <code>categories</code>, <code>portfolio</code>, <code>faq</code>, <code>site_settings</code>, <code>products</code>, <code>product_categories</code>, <code>product_variants</code>, <code>shipping_zones</code>, <code>orders</code>, <code>order_items</code>, <code>customers</code>, <code>coupons</code>, <code>gift_cards</code>, <code>contact_submissions</code>, <code>stock_notifications</code>. Lo script è idempotente: se una collezione esiste già, la salta.</div>
+<div class="callout warn"><strong>Ripristino da backup:</strong> se stai migrando un progetto esistente con <code>restore.mjs</code>, non eseguire questo script — le collezioni vengono ricreate dal backup.</div>
+
+<h3>1.7 Configurare i permessi</h3>
 <ul class="checklist">
   <li><span class="check-box"></span><div>Settings → Roles → <strong>Public</strong>: permesso <em>read</em> su <code>pages</code>, <code>posts</code>, <code>categories</code>, <code>portfolio</code>, <code>faq</code>, <code>site_settings</code>, <code>products</code>, <code>product_categories</code></div></li>
   <li><span class="check-box"></span><div>Crea ruolo <strong>Customer</strong>: read su <code>orders</code> (filtro: <code>customer_email = $CURRENT_USER.email</code>)</div></li>
@@ -407,10 +712,25 @@
 </ul>
 
 
+<h3>1.8 Attivare l'integrazione AI (Claude Code + MCP)</h3>
+<p>Il file <code>.mcp.json</code> nella root della repo configura il server MCP ufficiale di Directus per Claude Code. Claude Code risolve <code>${DIRECTUS_URL}</code> e <code>${DIRECTUS_TOKEN}</code> dall'<strong>ambiente shell</strong> al momento del lancio — non legge il <code>.env</code> automaticamente.</p>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Assicurati che il <code>.env</code> locale contenga <code>DIRECTUS_URL</code> e <code>DIRECTUS_TOKEN</code> corretti (step 1.4 completato)</div></li>
+  <li><span class="check-box"></span><div>Lancia Claude Code tramite lo script incluso — fa il <code>source .env</code> e poi avvia <code>claude</code>:
+<pre style="margin-top:6px"><span class="cmd">npm run claude</span>         <span class="comment"># oppure: bash scripts/claude.sh</span></pre>
+<span class="note">Mai usare il comando <code>claude</code> direttamente dalla shell: le variabili non sarebbero esportate e il server MCP non si connetterebbe a Directus.</span></div></li>
+  <li><span class="check-box"></span><div>Nella sessione Claude Code, verifica la connessione con <code>/mcp</code> — dovrebbe comparire <code>directus</code> con status <strong>connected</strong></div></li>
+</ul>
+<div class="callout info"><strong>Alternativa rapida (sessione singola):</strong><br>
+<code>set -a &amp;&amp; source .env &amp;&amp; set +a &amp;&amp; claude</code><br>
+Da usare se non vuoi aggiornare il progetto client con lo script.</div>
+
+
 <!-- ═══════════════════════════════════════════════════════
      FASE 2 — STRIPE
 ════════════════════════════════════════════════════════ -->
-<h2><span class="num">2</span>Stripe — Pagamenti e webhook</h2>
+<details class="section">
+<summary><h2><span class="num">2</span>Stripe — Pagamenti e webhook</h2></summary>
 
 <h3>2.1 Creare account e ottenere le chiavi API</h3>
 <ul class="checklist">
@@ -435,10 +755,13 @@
 <div class="callout warn"><strong>In sviluppo locale:</strong> usa Stripe CLI per forwardare gli eventi. Installa da <em>stripe.com/docs/stripe-cli</em> poi esegui:<br><code style="display:block;margin-top:6px">stripe listen --forward-to localhost:4321/api/webhook/stripe</code>Il CLI stampa un webhook secret temporaneo (<code>whsec_...</code>) da usare in <code>.env</code> durante lo sviluppo.</div>
 
 
+</details>
+
 <!-- ═══════════════════════════════════════════════════════
      FASE 3 — reCAPTCHA
 ════════════════════════════════════════════════════════ -->
-<h2><span class="num">3</span>Google reCAPTCHA v3</h2>
+<details class="section">
+<summary><h2><span class="num">3</span>Google reCAPTCHA v3</h2></summary>
 
 <ul class="checklist">
   <li><span class="check-box"></span><div>Vai su <strong>google.com/recaptcha/admin</strong> → accedi con account Google</div></li>
@@ -452,10 +775,18 @@
 <div class="callout info"><strong>Score:</strong> reCAPTCHA v3 assegna uno score da 0.0 (bot) a 1.0 (umano). Il valore minimo accettato è configurabile con <code>RECAPTCHA_MIN_SCORE</code> (default: 0.5). Abbassa a 0.3 se ricevi falsi positivi da utenti legittimi.</div>
 
 
+</details>
+
 <!-- ═══════════════════════════════════════════════════════
-     FASE 4 — NETLIFY
+     FASE 4 — FRONTEND DEPLOY
 ════════════════════════════════════════════════════════ -->
-<h2><span class="num">4</span>Netlify — Deploy e configurazione</h2>
+<details class="section">
+<summary><h2><span class="num">4</span>Frontend Deploy — Netlify o VPS</h2></summary>
+<p>Scegli l'opzione in base al tuo hosting. Il progetto usa <code>@astrojs/netlify</code> di default; per VPS si sostituisce con <code>@astrojs/node</code>.</p>
+
+<details class="option">
+<summary>▸ Opzione A — Netlify (default)</summary>
+<div class="option-body">
 
 <h3>4.1 Creare il sito</h3>
 <ul class="checklist">
@@ -468,7 +799,6 @@
 
 <h3>4.2 Variabili d'ambiente su Netlify</h3>
 <p>Vai su <strong>Site settings → Environment variables</strong> e aggiungi tutte le variabili del <code>.env</code>:</p>
-
 <div class="callout warn"><strong>Attenzione ai prefissi:</strong> Le variabili con prefisso <code>PUBLIC_</code> sono esposte nel browser (bundle JS). Tutte le altre sono accessibili solo server-side. Non mettere mai segreti in variabili <code>PUBLIC_</code>.</div>
 
 <h3>4.3 Build hook per Directus</h3>
@@ -482,14 +812,138 @@
 <h3>4.4 ALLOWED_ORIGIN per le API</h3>
 <p>La variabile <code>ALLOWED_ORIGIN</code> protegge le API da richieste cross-origin non autorizzate. Deve corrispondere esattamente all'URL del sito (senza slash finale):</p>
 <pre><span class="key">ALLOWED_ORIGIN</span>=<span class="url">https://tuodominio.it</span>   <span class="comment"># NO slash finale</span></pre>
-
 <div class="callout danger"><strong>Non usare <code>*</code></strong> in produzione: esporrebbe il checkout e le API a chiamate da qualsiasi origine.</div>
+</div></details>
 
+<details class="option" open>
+<summary>▸ Opzione B — VPS con Node.js + PM2 + Nginx <span class="option-badge">consigliato</span></summary>
+<div class="option-body">
+<p>Adatta a chi ha già un VPS (es. Hetzner) con Nginx e PM2. Directus e frontend girano sullo stesso server, nessun servizio esterno necessario.</p>
+
+<h3>4.5 Sostituire l'adapter Netlify con Node.js</h3>
+<p>Esegui in locale nella root della repo:</p>
+<pre><span class="cmd">npm</span> remove @astrojs/netlify
+<span class="cmd">npm</span> install @astrojs/node</pre>
+<p style="margin-top:8px">In <code>astro.config.mjs</code> commenta l'adapter Netlify e attiva quello Node:</p>
+<pre><span class="comment">// import netlify from '@astrojs/netlify'</span>
+<span class="val">import</span> node <span class="val">from</span> <span class="str">'@astrojs/node'</span>
+
+<span class="comment">// adapter: netlify(),</span>
+adapter: node({ mode: <span class="str">'standalone'</span> }),</pre>
+
+<h3>4.6 Build e deploy sul server</h3>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Build in locale (con Node 22)
+<pre style="margin-top:6px"><span class="cmd">npm</span> run build</pre></div></li>
+  <li><span class="check-box"></span><div>Crea la cartella del progetto sul server e carica i file
+<pre style="margin-top:6px"><span class="cmd">rsync</span> -avz --delete dist/ deploy@<span class="val">ip-server</span>:/var/www/<span class="val">cliente</span>/frontend/dist/
+<span class="cmd">rsync</span> -avz ecosystem.config.cjs deploy@<span class="val">ip-server</span>:/var/www/<span class="val">cliente</span>/frontend/
+<span class="cmd">rsync</span> -avz .env.production deploy@<span class="val">ip-server</span>:/var/www/<span class="val">cliente</span>/frontend/.env</pre>
+<span class="note">In alternativa: git clone + npm run build direttamente sul server.</span></div></li>
+  <li><span class="check-box"></span><div>Sul server come utente applicativo — installa le dipendenze e avvia con PM2
+<pre style="margin-top:6px"><span class="cmd">cd</span> /var/www/<span class="val">cliente</span>/frontend
+<span class="cmd">nvm</span> use 22                         <span class="comment"># obbligatorio — npm altrimenti usa Node 20</span>
+<span class="cmd">npm</span> install --production
+<span class="cmd">pm2</span> start ecosystem.config.cjs
+<span class="cmd">pm2</span> save</pre>
+<span class="note">Con <code>@astrojs/node</code> standalone mode il <code>dist/</code> non include le dipendenze — è necessario <code>npm install</code> sul server. Porta sempre <code>package.json</code> e <code>package-lock.json</code> insieme al <code>dist/</code>.</span></div></li>
+</ul>
+
+<h3 id="sec-4-7">4.7 Nginx vhost (frontend)</h3>
+<p>Il vhost per <code>cms.<span class="val">tuodominio.it</span></code> è già stato creato al passo 1.3 Opzione D. Qui si creano i vhost per staging e produzione (<strong>come root</strong>). Crea prima lo staging — è quello che userai per i test; il vhost di produzione puoi aggiungerlo subito o al momento del go-live (sezione 7).</p>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Crea il file vhost per lo staging
+<pre style="margin-top:6px"><span class="cmd">nano</span> /etc/nginx/sites-available/staging.<span class="val">tuodominio.it</span></pre>
+Incolla il seguente contenuto:
+<pre style="margin-top:6px">server {
+    server_name staging.<span class="val">tuodominio.it</span>;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:4321;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    listen 80;
+}</pre></div></li>
+  <li><span class="check-box"></span><div>Crea il file vhost per il dominio di produzione (puoi farlo ora o al go-live)
+<pre style="margin-top:6px"><span class="cmd">nano</span> /etc/nginx/sites-available/<span class="val">tuodominio.it</span></pre>
+Incolla il seguente contenuto:
+<pre style="margin-top:6px">server {
+    server_name <span class="val">tuodominio.it</span> www.<span class="val">tuodominio.it</span>;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:4321;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    listen 80;
+}</pre></div></li>
+  <li><span class="check-box"></span><div>Abilita i siti, verifica la sintassi e ricarica Nginx
+<pre style="margin-top:6px"><span class="cmd">ln</span> -s /etc/nginx/sites-available/staging.<span class="val">tuodominio.it</span> /etc/nginx/sites-enabled/
+<span class="cmd">ln</span> -s /etc/nginx/sites-available/<span class="val">tuodominio.it</span> /etc/nginx/sites-enabled/
+<span class="cmd">nginx</span> -t &amp;&amp; <span class="cmd">systemctl</span> reload nginx</pre>
+<span class="note">Se vuoi abilitare solo lo staging per ora, ometti il secondo <code>ln</code> e aggiungilo al momento del go-live.</span></div></li>
+</ul>
+
+<h3>4.8 DNS e SSL (frontend)</h3>
+<div class="callout warn"><strong>Ordine obbligatorio:</strong> i record DNS devono puntare all'IP del VPS <em>prima</em> di eseguire certbot. Il record <code>cms</code> è già stato configurato al passo 1.3 Opzione D.</div>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Aggiungi i record DNS nel pannello del tuo provider (Hetzner DNS, cPanel Zone Editor, Cloudflare, ecc.)
+<table style="margin-top:8px; border-collapse:collapse; font-size:12px; width:100%">
+  <tr style="background:var(--gray-100)"><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">Tipo</th><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">Nome</th><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">Valore</th><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">TTL</th><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">Quando</th></tr>
+  <tr><td style="padding:5px 8px; border:1px solid var(--gray-200)">A</td><td style="padding:5px 8px; border:1px solid var(--gray-200)"><code>staging</code></td><td style="padding:5px 8px; border:1px solid var(--gray-200)">IP VPS</td><td style="padding:5px 8px; border:1px solid var(--gray-200)">300</td><td style="padding:5px 8px; border:1px solid var(--gray-200)">ora</td></tr>
+  <tr><td style="padding:5px 8px; border:1px solid var(--gray-200)">A</td><td style="padding:5px 8px; border:1px solid var(--gray-200)"><code>@</code></td><td style="padding:5px 8px; border:1px solid var(--gray-200)">IP VPS</td><td style="padding:5px 8px; border:1px solid var(--gray-200)">300</td><td style="padding:5px 8px; border:1px solid var(--gray-200)">al go-live</td></tr>
+  <tr><td style="padding:5px 8px; border:1px solid var(--gray-200)">A</td><td style="padding:5px 8px; border:1px solid var(--gray-200)"><code>www</code></td><td style="padding:5px 8px; border:1px solid var(--gray-200)">IP VPS</td><td style="padding:5px 8px; border:1px solid var(--gray-200)">300</td><td style="padding:5px 8px; border:1px solid var(--gray-200)">al go-live</td></tr>
+</table></div></li>
+  <li><span class="check-box"></span><div>Verifica la propagazione DNS per lo staging
+<pre style="margin-top:6px"><span class="cmd">dig</span> +short staging.<span class="val">tuodominio.it</span>   <span class="comment"># deve restituire l'IP del VPS</span></pre></div></li>
+  <li><span class="check-box"></span><div>Rilascia il certificato SSL per lo staging
+<pre style="margin-top:6px"><span class="cmd">certbot</span> --nginx -d staging.<span class="val">tuodominio.it</span></pre></div></li>
+  <li><span class="check-box"></span><div>Rilascia il certificato SSL per il dominio di produzione (al go-live, dopo aver verificato il DNS)
+<pre style="margin-top:6px"><span class="cmd">dig</span> +short <span class="val">tuodominio.it</span>       <span class="comment"># deve restituire l'IP del VPS</span>
+<span class="cmd">dig</span> +short www.<span class="val">tuodominio.it</span>   <span class="comment"># idem</span></pre>
+<pre style="margin-top:6px"><span class="cmd">certbot</span> --nginx -d <span class="val">tuodominio.it</span> -d www.<span class="val">tuodominio.it</span></pre>
+<span class="note">Certbot è già installato dal passo 1.3 Opzione D. Se stai facendo il deploy su un server diverso: <code>apt install -y certbot python3-certbot-nginx</code>.</span></div></li>
+  <li><span class="check-box"></span><div>Verifica il rinnovo automatico
+<pre style="margin-top:6px"><span class="cmd">certbot</span> renew --dry-run</pre>
+<span class="note">I certificati Let's Encrypt scadono dopo 90 giorni. Certbot installa un timer systemd che rinnova automaticamente — <code>--dry-run</code> simula il rinnovo senza emettere un certificato reale.</span></div></li>
+</ul>
+<div class="callout info"><strong>Verifica finale:</strong> apri <code>https://cms.<span class="val">tuodominio.it</span>/admin</code> e <code>https://<span class="val">tuodominio.it</span></code> nel browser — il lucchetto verde conferma che SSL è attivo su entrambi.</div>
+
+<h3>4.9 Backup cron (alternativa alle Netlify Scheduled Functions)</h3>
+<p>Su VPS le Netlify Scheduled Functions non sono disponibili. Il backup si configura come cron job di sistema:</p>
+<pre><span class="cmd">crontab</span> -e
+<span class="comment"># Aggiunge backup giornaliero alle 2:00</span>
+0 2 * * * cd /var/www/<span class="val">cliente</span>/frontend &amp;&amp; node scripts/backup.mjs &gt;&gt; /var/log/backup-<span class="val">cliente</span>.log 2&gt;&amp;1</pre>
+<div class="callout info">Vedi <strong>Fase 5</strong> per la configurazione completa del backup (chiave admin, S3, ecc.).</div>
+</div></details>
+
+
+</details>
 
 <!-- ═══════════════════════════════════════════════════════
      FASE 5 — BACKUP
 ════════════════════════════════════════════════════════ -->
-<h2><span class="num">5</span>Backup automatico</h2>
+<details class="section">
+<summary><h2><span class="num">5</span>Backup automatico</h2></summary>
 
 <h3>5.1 Generare BACKUP_ADMIN_KEY</h3>
 <p>La chiave protegge l'endpoint <code>/api/admin/backup</code> da accessi non autorizzati. Deve essere una stringa casuale sicura:</p>
@@ -516,10 +970,13 @@
 </ul>
 
 
+</details>
+
 <!-- ═══════════════════════════════════════════════════════
      FASE 6 — GO-LIVE
 ════════════════════════════════════════════════════════ -->
-<h2><span class="num">6</span>Go-Live — DNS e checklist finale</h2>
+<details class="section">
+<summary><h2><span class="num">6</span>Go-Live — DNS e checklist finale</h2></summary>
 
 <h3>6.1 Dominio su Netlify</h3>
 <ul class="checklist">
@@ -545,12 +1002,94 @@
 </ul>
 
 
+</details>
+
+<!-- ═══════════════════════════════════════════════════════
+     FASE 7 — DA STAGING A PRODUZIONE (FRONTEND)
+════════════════════════════════════════════════════════ -->
+<details class="section">
+<summary><h2><span class="num">7</span>Da staging a produzione — Spostare il frontend</h2></summary>
+
+<p>Usa questa procedura quando il frontend è attivo su <code>staging.tuodominio.it</code> e vuoi spostarlo sul dominio definitivo <code>tuodominio.it</code>. Il CMS su <code>cms.tuodominio.it</code> rimane invariato.</p>
+
+<h3>7.1 Aggiorna le variabili d'ambiente</h3>
+<p>In locale, aggiorna il file <code>.env</code>:</p>
+<pre><span class="key">PUBLIC_SITE_URL</span>=<span class="url">https://tuodominio.it</span>
+<span class="key">ALLOWED_ORIGIN</span>=<span class="url">https://tuodominio.it</span></pre>
+<div class="callout warn"><strong>Rebuild obbligatorio:</strong> <code>PUBLIC_SITE_URL</code> viene embedded nel bundle SSG durante la build (sitemap, canonical, OG tags). Senza rebuild il sito continuerà a indicare il vecchio dominio nei metadati.</div>
+
+<h3>7.2 Build e deploy sul nuovo dominio</h3>
+<p>Fai il deploy <em>prima</em> di cambiare il DNS — il server viene aggiornato mentre il vecchio dominio è ancora attivo:</p>
+<pre><span class="cmd">npm run deploy</span></pre>
+<span class="note" style="font-size:12px; color:var(--gray-600); display:block; margin-top:4px">Lo script rebuilda con i nuovi env vars, sincronizza il <code>dist/</code> sul server e riavvia PM2.</span>
+
+<h3>7.3 Crea il vhost Nginx per il dominio definitivo</h3>
+<p>Sul server come root, crea un nuovo vhost senza rimuovere quello di staging:</p>
+<pre><span class="cmd">nano</span> /etc/nginx/sites-available/<span class="val">tuodominio.it</span></pre>
+<pre>server {
+    server_name <span class="val">tuodominio.it</span> www.<span class="val">tuodominio.it</span>;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:4321;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    listen 80;
+}</pre>
+<pre><span class="cmd">ln</span> -s /etc/nginx/sites-available/<span class="val">tuodominio.it</span> /etc/nginx/sites-enabled/
+<span class="cmd">nginx</span> -t &amp;&amp; <span class="cmd">systemctl</span> reload nginx</pre>
+
+<h3>7.4 DNS — aggiungi i record per il dominio definitivo</h3>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Aggiungi i record A nel pannello del tuo provider
+<table style="margin-top:8px; border-collapse:collapse; font-size:12px; width:100%">
+  <tr style="background:var(--gray-100)"><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">Tipo</th><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">Nome</th><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">Valore</th><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">TTL</th></tr>
+  <tr><td style="padding:5px 8px; border:1px solid var(--gray-200)">A</td><td style="padding:5px 8px; border:1px solid var(--gray-200)"><code>@</code></td><td style="padding:5px 8px; border:1px solid var(--gray-200)">IP VPS</td><td style="padding:5px 8px; border:1px solid var(--gray-200)">300</td></tr>
+  <tr><td style="padding:5px 8px; border:1px solid var(--gray-200)">A</td><td style="padding:5px 8px; border:1px solid var(--gray-200)"><code>www</code></td><td style="padding:5px 8px; border:1px solid var(--gray-200)">IP VPS</td><td style="padding:5px 8px; border:1px solid var(--gray-200)">300</td></tr>
+</table></div></li>
+  <li><span class="check-box"></span><div>Verifica propagazione prima di procedere con certbot
+<pre style="margin-top:6px"><span class="cmd">dig</span> +short <span class="val">tuodominio.it</span>       <span class="comment"># deve restituire l'IP del VPS</span>
+<span class="cmd">dig</span> +short www.<span class="val">tuodominio.it</span>   <span class="comment"># idem</span></pre></div></li>
+  <li><span class="check-box"></span><div>Ottieni il certificato SSL per il dominio definitivo
+<pre style="margin-top:6px"><span class="cmd">certbot</span> --nginx -d <span class="val">tuodominio.it</span> -d www.<span class="val">tuodominio.it</span></pre></div></li>
+</ul>
+
+<h3>7.5 Aggiorna i servizi esterni</h3>
+<ul class="checklist">
+  <li><span class="check-box"></span><div><strong>Stripe webhook</strong> — Developers → Webhooks → aggiorna URL endpoint da <code>staging.tuodominio.it/api/webhook/stripe</code> a <code>tuodominio.it/api/webhook/stripe</code><span class="note">Il <code>STRIPE_WEBHOOK_SECRET</code> cambia — aggiorna il <code>.env</code> locale e rideploya (<code>npm run deploy</code>).</span></div></li>
+  <li><span class="check-box"></span><div><strong>reCAPTCHA</strong> — google.com/recaptcha/admin → aggiungi <code>tuodominio.it</code> ai domini autorizzati (puoi lasciare anche <code>staging.tuodominio.it</code>)</div></li>
+  <li><span class="check-box"></span><div><strong>Directus CORS</strong> — se hai configurato <code>CORS_ORIGIN</code> nel <code>.env</code> di Directus, aggiorna il valore con il nuovo dominio</div></li>
+</ul>
+
+<h3>7.6 Rimozione staging (opzionale)</h3>
+<p>Una volta verificato il funzionamento su <code>tuodominio.it</code>, puoi dismettere il dominio di staging:</p>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Rimuovi il vhost staging da Nginx
+<pre style="margin-top:6px"><span class="cmd">rm</span> /etc/nginx/sites-enabled/staging.<span class="val">tuodominio.it</span>
+<span class="cmd">nginx</span> -t &amp;&amp; <span class="cmd">systemctl</span> reload nginx</pre></div></li>
+  <li><span class="check-box"></span><div>Revoca o lascia scadere il certificato staging (opzionale — non causa problemi se rimane)</div></li>
+  <li><span class="check-box"></span><div>Rimuovi il record DNS <code>staging</code> dal pannello del provider</div></li>
+</ul>
+<div class="callout success"><strong>Verifica finale:</strong> apri <code>https://tuodominio.it</code>, effettua un ordine di test con la carta Stripe <code>4242 4242 4242 4242</code> e verifica che il webhook sia recapitato correttamente.</div>
+
+</details>
+
 <!-- ═══════════════════════════════════════════════════════
      VARIABILI D'AMBIENTE — RIFERIMENTO COMPLETO
 ════════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
 
-<h2><span class="num">7</span>Variabili d'ambiente — Riferimento completo</h2>
+<details class="section">
+<summary><h2><span class="num">8</span>Variabili d'ambiente — Riferimento completo</h2></summary>
 
 <p>Copia <code>.env.example</code> in <code>.env</code> e compila ogni variabile seguendo questa guida. Le variabili marcate <strong>RICHIESTA</strong> bloccano il funzionamento del sito se mancanti.</p>
 
@@ -831,7 +1370,13 @@
 <!-- .env completo -->
 <div class="page-break"></div>
 
-<h2><span class="num">8</span>File .env completo — Template di riferimento</h2>
+</details>
+
+<!-- ═══════════════════════════════════════════════════════
+     FILE .ENV — TEMPLATE DI RIFERIMENTO
+════════════════════════════════════════════════════════ -->
+<details class="section">
+<summary><h2><span class="num">9</span>File .env completo — Template di riferimento</h2></summary>
 <pre><span class="comment"># ── Directus ─────────────────────────────────────────────────────────────</span>
 <span class="key">DIRECTUS_URL</span>=<span class="url">https://cms.tuodominio.it</span>
 <span class="key">DIRECTUS_TOKEN</span>=<span class="val">il_token_generato_da_directus</span>
@@ -876,6 +1421,8 @@
   <strong>Checklist variabili minime per il primo deploy:</strong><br>
   DIRECTUS_URL · DIRECTUS_TOKEN · STRIPE_SECRET_KEY · STRIPE_PUBLISHABLE_KEY · STRIPE_WEBHOOK_SECRET · PUBLIC_SITE_URL · ALLOWED_ORIGIN · BACKUP_ADMIN_KEY
 </div>
+
+</details>
 
 </body>
 </html>
