@@ -783,6 +783,13 @@ Da usare se non vuoi aggiornare il progetto client con lo script.</div>
 <details class="section">
 <summary><h2><span class="num">4</span>Frontend Deploy — VPS con Node.js + PM2 + Nginx</h2></summary>
 <p>Il progetto usa <code>@astrojs/node</code> in standalone mode. Directus e frontend girano sullo stesso VPS (es. Hetzner), nessun servizio esterno necessario.</p>
+<div class="callout info"><strong>Progetto clonato da una versione precedente del template?</strong> Se il <code>package.json</code> contiene ancora <code>@astrojs/netlify</code>, sostituiscilo con Node.js:
+<pre style="margin-top:6px"><span class="cmd">npm</span> remove @astrojs/netlify
+<span class="cmd">npm</span> install @astrojs/node</pre>
+Poi aggiungi in <code>scripts</code> del <code>package.json</code>:
+<pre style="margin-top:6px"><span class="str">"claude"</span>: <span class="str">"bash scripts/claude.sh"</span>,
+<span class="str">"deploy"</span>: <span class="str">"bash scripts/deploy.sh"</span></pre>
+E copia i file <code>scripts/claude.sh</code>, <code>scripts/deploy.sh</code>, <code>ecosystem.config.cjs</code> dalla repo template.</div>
 <div class="callout warn"><strong>ALLOWED_ORIGIN</strong> deve corrispondere esattamente all'URL del sito (senza slash finale):
 <pre style="margin-top:6px"><span class="key">ALLOWED_ORIGIN</span>=<span class="url">https://tuodominio.it</span>   <span class="comment"># NO slash finale</span></pre>
 Non usare <code>*</code> in produzione: esporrebbe il checkout e le API a chiamate da qualsiasi origine.</div>
