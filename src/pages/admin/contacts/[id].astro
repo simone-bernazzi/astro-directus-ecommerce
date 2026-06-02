@@ -1,0 +1,212 @@
+---
+// src/pages/admin/contacts/[id].astro
+export const prerender = false
+
+import AdminLayout from '@/layouts/AdminLayout.astro'
+import SectionCard from '@/components/admin/SectionCard.astro'
+import type { Contact, Order, CrmInteraction, CrmTask, CustomerKpi } from '@/lib/types'
+
+const { id } = Astro.params
+if (!id) return Astro.redirect('/admin/contacts')
+
+const directusUrl = process.env.DIRECTUS_URL ?? ''
+const token = Astro.cookies.get('admin_token')?.value ?? ''
+
+async function dFetch(path: string) {
+  try {
+    const res = await fetch(`${directusUrl}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch {
+    return null
+  }
+}
+
+const [contactRes, ordersRes, interactionsRes, tasksRes, kpiRes] = await Promise.all([
+  dFetch(`/items/contacts/${id}?fields[]=*`),
+  dFetch(`/items/orders?filter[contact_id][_eq]=${id}&fields[]=id,status,total,date_created,channel&sort[]=-date_created&limit=20`),
+  dFetch(`/items/crm_interactions?filter[contact_id][_eq]=${id}&fields[]=id,type,date,subject,body&sort[]=-date&limit=20`),
+  dFetch(`/items/crm_tasks?filter[contact_id][_eq]=${id}&fields[]=id,title,due_date,status,priority&sort[]=due_date&limit=20`),
+  dFetch(`/items/customer_kpis?filter[contact_id][_eq]=${id}&limit=1`),
+])
+
+if (!contactRes?.data) return Astro.redirect('/admin/contacts')
+
+const contact = contactRes.data as Contact
+const orders = (ordersRes?.data ?? []) as Partial<Order>[]
+const interactions = (interactionsRes?.data ?? []) as Partial<CrmInteraction>[]
+const tasks = (tasksRes?.data ?? []) as Partial<CrmTask>[]
+const kpi = (kpiRes?.data?.[0] ?? null) as Partial<CustomerKpi> | null
+
+const fullName = `${contact.first_name} ${contact.last_name}`
+
+const PIPELINE_LABELS: Record<string, string> = {
+  lead: 'Lead', prospect: 'Prospect', cliente_attivo: 'Attivo',
+  cliente_fidelizzato: 'Fidelizzato', inattivo: 'Inattivo',
+}
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  pending: 'In attesa', paid: 'Pagato', shipped: 'Spedito',
+  delivered: 'Consegnato', refunded: 'Rimborsato',
+}
+const ORDER_STATUS_COLORS: Record<string, string> = {
+  pending: 'background:#fef9c3;color:#ca8a04',
+  paid: 'background:#eff6ff;color:#3b82f6',
+  shipped: 'background:#fdf4ff;color:#a855f7',
+  delivered: 'background:#f0fdf4;color:#22c55e',
+  refunded: 'background:#f3f4f6;color:#6b7280',
+}
+const TASK_PRIORITY_COLORS: Record<string, string> = {
+  high: 'color:#dc2626', medium: 'color:#f97316', low: 'color:#6b7280',
+}
+
+function fmtDate(iso: string | null | undefined) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' })
+}
+---
+
+<AdminLayout title={fullName} active="contacts">
+  <!-- Header -->
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+    <a href="/admin/contacts" style="color:#6b7280;text-decoration:none;font-size:13px">← Contatti</a>
+    <span style="color:#d1d5db">/</span>
+    <h1 style="font-size:18px;font-weight:700;color:#111827">{fullName}</h1>
+    <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${
+      contact.pipeline_stage === 'cliente_attivo' ? 'background:#f0fdf4;color:#22c55e' :
+      contact.pipeline_stage === 'lead' ? 'background:#fff7ed;color:#f97316' :
+      'background:#f3f4f6;color:#6b7280'
+    }`}>{PIPELINE_LABELS[contact.pipeline_stage] ?? contact.pipeline_stage}</span>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:16px">
+
+    <!-- KPI bar -->
+    {kpi && (
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+        <SectionCard>
+          <div style="text-align:center">
+            <div style="font-size:22px;font-weight:700;color:#111827">€{(kpi.clv ?? 0).toFixed(0)}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px">Valore cliente</div>
+          </div>
+        </SectionCard>
+        <SectionCard>
+          <div style="text-align:center">
+            <div style="font-size:22px;font-weight:700;color:#111827">{(kpi.total_orders_online ?? 0) + (kpi.total_orders_offline ?? 0)}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px">Ordini totali</div>
+          </div>
+        </SectionCard>
+        <SectionCard>
+          <div style="text-align:center">
+            <div style="font-size:22px;font-weight:700;color:#111827">€{((kpi.total_spent_online ?? 0) + (kpi.total_spent_offline ?? 0)).toFixed(0)}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px">Totale speso</div>
+          </div>
+        </SectionCard>
+        <SectionCard>
+          <div style="text-align:center">
+            <div style="font-size:22px;font-weight:700;color:#111827">{fmtDate(kpi.last_purchase_at)}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px">Ultimo acquisto</div>
+          </div>
+        </SectionCard>
+      </div>
+    )}
+
+    <!-- Anagrafica -->
+    <SectionCard title="Anagrafica">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px">
+        <div><span style="color:#6b7280">Email:</span> {contact.email ?? '—'}</div>
+        <div><span style="color:#6b7280">Telefono:</span> {contact.phone ?? '—'}</div>
+        <div><span style="color:#6b7280">Data nascita:</span> {fmtDate(contact.date_of_birth)}</div>
+        <div><span style="color:#6b7280">Canale:</span> {contact.canale_prevalente}</div>
+        <div><span style="color:#6b7280">Stripe ID:</span> <code style="font-size:12px;color:#6b7280">{contact.stripe_customer_id ?? '—'}</code></div>
+        <div><span style="color:#6b7280">Attivo:</span> {contact.is_active ? 'Sì' : 'No'}</div>
+        <div><span style="color:#6b7280">Iscritto:</span> {fmtDate(contact.date_created)}</div>
+      </div>
+    </SectionCard>
+
+    <!-- Ordini -->
+    <SectionCard title={`Ordini (${orders.length})`}>
+      {orders.length === 0
+        ? <p style="color:#9ca3af;font-size:14px">Nessun ordine.</p>
+        : (
+          <table style="width:100%;border-collapse:collapse;font-size:14px">
+            <thead>
+              <tr style="border-bottom:1px solid #e5e7eb">
+                <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">ID</th>
+                <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Stato</th>
+                <th style="text-align:right;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Totale</th>
+                <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Data</th>
+                <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Canale</th>
+                <th style="padding:6px 8px"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map(o => (
+                <tr style="border-bottom:1px solid #f3f4f6">
+                  <td style="padding:8px;font-family:monospace;font-size:12px;color:#6b7280">{String(o.id ?? '').slice(0, 8)}…</td>
+                  <td style="padding:8px">
+                    <span style={`${ORDER_STATUS_COLORS[o.status ?? ''] ?? 'background:#f3f4f6;color:#6b7280'};padding:2px 8px;border-radius:10px;font-size:12px`}>
+                      {ORDER_STATUS_LABELS[o.status ?? ''] ?? o.status}
+                    </span>
+                  </td>
+                  <td style="padding:8px;text-align:right;font-weight:500">€{(o.total ?? 0).toFixed(2)}</td>
+                  <td style="padding:8px;color:#6b7280">{fmtDate(o.date_created)}</td>
+                  <td style="padding:8px;color:#6b7280">{o.channel ?? '—'}</td>
+                  <td style="padding:8px"><a href={`/admin/orders/${o.id}`} style="color:#9ca3af;text-decoration:none">→</a></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )
+      }
+    </SectionCard>
+
+    <!-- Note CRM (Interazioni) -->
+    <SectionCard title={`Note CRM (${interactions.length})`}>
+      {interactions.length === 0
+        ? <p style="color:#9ca3af;font-size:14px">Nessuna interazione.</p>
+        : (
+          <div style="display:flex;flex-direction:column;gap:8px">
+            {interactions.map(i => (
+              <div style="border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px">
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+                  <span style="font-size:12px;font-weight:600;color:#374151;text-transform:uppercase">{i.type}</span>
+                  <span style="color:#9ca3af;font-size:12px">{fmtDate(i.date)}</span>
+                  {i.subject && <span style="font-size:13px;color:#111827;font-weight:500">{i.subject}</span>}
+                </div>
+                <p style="font-size:13px;color:#6b7280;margin:0">{i.body}</p>
+              </div>
+            ))}
+          </div>
+        )
+      }
+    </SectionCard>
+
+    <!-- Task -->
+    <SectionCard title={`Task (${tasks.length})`}>
+      {tasks.length === 0
+        ? <p style="color:#9ca3af;font-size:14px">Nessun task.</p>
+        : (
+          <div style="display:flex;flex-direction:column;gap:6px">
+            {tasks.map(t => (
+              <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6">
+                <span style={`font-size:11px;font-weight:700;${TASK_PRIORITY_COLORS[t.priority ?? ''] ?? 'color:#6b7280'}`}>
+                  {(t.priority ?? '').toUpperCase()}
+                </span>
+                <span style="flex:1;font-size:14px;color:#111827">{t.title}</span>
+                <span style="font-size:12px;color:#6b7280">{fmtDate(t.due_date)}</span>
+                <span style={`font-size:12px;padding:1px 6px;border-radius:8px;${
+                  t.status === 'done' ? 'background:#f0fdf4;color:#22c55e' :
+                  t.status === 'in_progress' ? 'background:#eff6ff;color:#3b82f6' :
+                  'background:#f3f4f6;color:#6b7280'
+                }`}>{t.status}</span>
+              </div>
+            ))}
+          </div>
+        )
+      }
+    </SectionCard>
+
+  </div>
+</AdminLayout>
