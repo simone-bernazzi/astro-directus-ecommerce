@@ -21,6 +21,8 @@
     "setup": "node scripts/setup-collections.mjs",
     "setup:crm": "node scripts/setup-crm-collections.mjs",
     "setup:all": "node scripts/setup-collections.mjs && node scripts/setup-crm-collections.mjs",
+    "kpis": "npx tsx scripts/calculate-kpis.mjs",
+    "kpis:contact": "npx tsx scripts/calculate-kpis.mjs --contact-id=",
     "claude": "bash scripts/claude.sh",
     "deploy": "bash scripts/deploy.sh"
   },
@@ -41,6 +43,7 @@
     "@tailwindcss/vite": "^4.2.4",
     "@types/node": "^22.0.0",
     "tailwindcss": "^4.2.4",
+    "tsx": "^4.22.4",
     "typescript": "^5.9.3",
     "vitest": "^4.1.5"
   }
