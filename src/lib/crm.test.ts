@@ -3,6 +3,7 @@ import type {
   Contact, CrmInteraction, CrmTask, CustomerKpi,
   ChannelType, PipelineStage,
 } from './types';
+import { fullName } from './crm';
 
 describe('CRM types', () => {
   it('Contact has required fields', () => {
@@ -59,5 +60,15 @@ describe('CRM types', () => {
     };
     expect(kpi.clv).toBe(500);
     expect(kpi.churn_score).toBe(25);
+  });
+});
+
+describe('fullName', () => {
+  it('concatena first_name e last_name', () => {
+    expect(fullName({ first_name: 'Mario', last_name: 'Rossi' })).toBe('Mario Rossi');
+  });
+
+  it('trimma spazi extra', () => {
+    expect(fullName({ first_name: 'Anna', last_name: 'Bianchi' })).toBe('Anna Bianchi');
   });
 });
