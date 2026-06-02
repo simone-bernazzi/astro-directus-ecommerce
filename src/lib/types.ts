@@ -251,6 +251,9 @@ export interface Order {
   items: OrderItemSnapshot[]
   order_items: OrderItem[]
   date_created: string
+  channel: 'online' | 'offline'
+  contact_id: string | null
+  staff_id: string | null
 }
 
 export interface Customer {
@@ -263,6 +266,7 @@ export interface Customer {
   stripe_customer_id: string | null
   total_orders: number
   total_spent: number
+  contact_id: string | null
 }
 
 // ─── Cart (client-side) ──────────────────────────────────────────────────────
@@ -280,4 +284,100 @@ export interface CartItem {
   image: string | null
   type: ProductType
   weightG: number
+}
+
+// ─── CRM ─────────────────────────────────────────────────────────────────────
+
+export type ChannelType = 'offline' | 'online' | 'both';
+export type PipelineStage =
+  | 'lead'
+  | 'prospect'
+  | 'cliente_attivo'
+  | 'cliente_fidelizzato'
+  | 'inattivo';
+export type InteractionType = 'call' | 'visit' | 'email' | 'whatsapp' | 'note' | 'other';
+export type TaskStatus = 'pending' | 'in_progress' | 'done' | 'cancelled';
+export type TaskPriority = 'low' | 'medium' | 'high';
+export type CrmDocumentType = 'preventivo' | 'contratto' | 'foto' | 'prescrizione' | 'altro';
+export type RfmSegment = 'champions' | 'loyal' | 'at_risk' | 'dormant' | 'new' | 'other';
+
+export interface CrmTag {
+  id: string;
+  name: string;
+  color: string;
+  description: string | null;
+}
+
+export interface Contact {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  phone: string | null;
+  date_of_birth: string | null;
+  channel_type: ChannelType;
+  canale_prevalente: 'offline' | 'online';
+  pipeline_stage: PipelineStage;
+  customer_id: string | null;
+  default_shipping_address: ShippingAddress | null;
+  is_active: boolean;
+  tags: CrmTag[];
+  date_created: string;
+}
+
+export interface CrmInteraction {
+  id: string;
+  contact_id: string;
+  type: InteractionType;
+  date: string;
+  subject: string | null;
+  body: string;
+  outcome: string | null;
+  staff_id: string;
+}
+
+export interface CrmTask {
+  id: string;
+  contact_id: string;
+  title: string;
+  due_date: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  assigned_to: string;
+  notes: string | null;
+}
+
+export interface CrmDocument {
+  id: string;
+  contact_id: string;
+  file_id: string;
+  label: string;
+  type: CrmDocumentType;
+}
+
+export interface CrmPipelineHistory {
+  id: string;
+  contact_id: string;
+  from_stage: PipelineStage;
+  to_stage: PipelineStage;
+  date: string;
+  changed_by: string;
+  notes: string | null;
+}
+
+export interface CustomerKpi {
+  id: string;
+  contact_id: string;
+  clv: number;
+  churn_score: number;
+  lead_score: number;
+  total_spent_online: number;
+  total_spent_offline: number;
+  total_orders_online: number;
+  total_orders_offline: number;
+  last_purchase_at: string | null;
+  avg_order_value: number;
+  preferred_channel: 'offline' | 'online';
+  rfm_segment: RfmSegment;
+  calculated_at: string;
 }
