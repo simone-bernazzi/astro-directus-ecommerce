@@ -888,13 +888,16 @@ Conferma ogni operazione completata prima di passare alla successiva.</pre>
 <details class="section">
 <summary><h2><span class="num">3</span>Claude Code + MCP — Integrazione AI con Directus</h2></summary>
 
-<p>Il file <code>.mcp.json</code> nella root della repo configura il server MCP ufficiale di Directus per Claude Code. Claude Code risolve <code>${DIRECTUS_URL}</code> e <code>${DIRECTUS_TOKEN}</code> dall'<strong>ambiente shell</strong> al momento del lancio — non legge il <code>.env</code> automaticamente.</p>
+<p>Il file <code>.mcp.json</code> nella root della repo configura il server MCP ufficiale di Directus per Claude Code. Tutto si esegue <strong>in locale dalla cartella del progetto</strong> — il server MCP si connette all'istanza Directus remota tramite le variabili d'ambiente. Non serve aprire il pannello admin Directus.</p>
 <ul class="checklist">
   <li><span class="check-box"></span><div>Assicurati che il <code>.env</code> locale contenga <code>DIRECTUS_URL</code> e <code>DIRECTUS_TOKEN</code> corretti (step 1.4 completato)</div></li>
-  <li><span class="check-box"></span><div>Lancia Claude Code tramite lo script incluso — fa il <code>source .env</code> e poi avvia <code>claude</code>:
+  <li><span class="check-box"></span><div>Apri il terminale nella cartella del progetto e lancia Claude Code tramite lo script incluso
 <pre style="margin-top:6px"><span class="cmd">npm run claude</span>         <span class="comment"># oppure: bash scripts/claude.sh</span></pre>
-<span class="note">Mai usare il comando <code>claude</code> direttamente dalla shell: le variabili non sarebbero esportate e il server MCP non si connetterebbe a Directus.</span></div></li>
-  <li><span class="check-box"></span><div>Nella sessione Claude Code, verifica la connessione con <code>/mcp</code> — dovrebbe comparire <code>directus</code> con status <strong>connected</strong></div></li>
+Lo script fa <code>source .env</code> ed esporta <code>DIRECTUS_URL</code> e <code>DIRECTUS_TOKEN</code> nell'ambiente shell, poi avvia <code>claude</code>. Il server MCP legge quelle variabili e apre la connessione verso l'istanza Directus remota.<br>
+<span class="note">Mai usare il comando <code>claude</code> direttamente dalla shell senza lo script: le variabili non sarebbero esportate e il server MCP non si connetterebbe a Directus.</span></div></li>
+  <li><span class="check-box"></span><div>Nella sessione Claude Code, digita <code>/mcp</code> per verificare la connessione — deve comparire <code>directus</code> con status <strong>connected</strong></div></li>
+  <li><span class="check-box"></span><div>Incolla il prompt dalla sezione §2 (CRM o Form) direttamente nella chat — Claude Code esegue le operazioni in sequenza su Directus via MCP: crea relazioni, imposta permessi, nasconde le collezioni dal menu
+<span class="note">Il flusso è interamente locale → MCP → API Directus → istanza remota. Non occorre toccare nulla sul server.</span></div></li>
 </ul>
 <div class="callout info"><strong>Alternativa rapida (sessione singola):</strong><br>
 <code>set -a &amp;&amp; source .env &amp;&amp; set +a &amp;&amp; claude</code><br>
