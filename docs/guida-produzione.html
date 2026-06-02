@@ -681,8 +681,8 @@ Deve comparire <code>Server started</code>. Se vedi ancora errori di porta, cont
 </ul>
 <div class="callout warn"><strong>Attenzione:</strong> Usa un utente dedicato "API Bot" separato dall'admin personale. Se cambi la password dell'admin, il token rimane valido; se si disabilita l'utente, il token smette di funzionare.</div>
 
-<h3>1.5 Creare il progetto in locale</h3>
-<p>La repo va creata in locale prima di eseguire gli script di configurazione e il deploy del frontend.</p>
+<h3>1.5 Creare il progetto in locale e primo deploy sul server</h3>
+<p>La repo va creata in locale, configurata con le variabili d'ambiente, e poi deployata sul server tramite lo script automatico. Gli script di setup Directus si eseguono sempre da locale — mai sul server.</p>
 <ul class="checklist">
   <li><span class="check-box"></span><div>Crea la repo del cliente dal template GitHub e clonala in locale
 <pre style="margin-top:6px"><span class="cmd">gh</span> repo create nome-cliente --template simone-bernazzi/astro-directus-ecommerce --private --clone
@@ -691,36 +691,35 @@ Deve comparire <code>Server started</code>. Se vedi ancora errori di porta, cont
   <li><span class="check-box"></span><div>Attiva Node 22 e installa le dipendenze
 <pre style="margin-top:6px"><span class="cmd">nvm</span> use 22
 <span class="cmd">npm</span> install</pre></div></li>
-  <li><span class="check-box"></span><div>Crea il file <code>.env</code> locale dal template e compila le variabili Directus
+  <li><span class="check-box"></span><div>Crea il file <code>.env</code> locale dal template e compila tutte le variabili necessarie
 <pre style="margin-top:6px"><span class="cmd">cp</span> .env.example .env</pre>
 Apri <code>.env</code> e imposta almeno:
-<pre style="margin-top:6px">DIRECTUS_URL=<span class="url">https://cms.tuodominio.it</span>
-DIRECTUS_TOKEN=<span class="val">token_generato_al_passo_1.4</span>
-PUBLIC_SITE_URL=<span class="url">https://staging.tuodominio.it</span></pre>
-<span class="note"><code>PUBLIC_SITE_URL</code> deve corrispondere al dominio su cui il frontend è raggiungibile. In fase di staging usa <code>https://staging.tuodominio.it</code>; quando vai in produzione cambialo in <code>https://tuodominio.it</code> e rideploya (vedi sezione 7).</span></div></li>
-</ul>
+<pre style="margin-top:6px"><span class="comment"># Directus (passo 1.4)</span>
+<span class="key">DIRECTUS_URL</span>=<span class="url">https://cms.tuodominio.it</span>
+<span class="key">DIRECTUS_TOKEN</span>=<span class="val">token_generato_al_passo_1.4</span>
 
-<h3>1.6 Creare le collezioni con lo script (da locale)</h3>
-<p>Lo script va eseguito <strong>in locale</strong> dalla root della repo Astro, puntando all'istanza Directus di produzione. Non va eseguito sul server né su cPanel.</p>
-<ul class="checklist">
-  <li><span class="check-box"></span><div>Verifica che nel file <code>.env</code> locale siano già impostate le variabili Directus (passo 1.5)
-<pre style="margin-top:6px">DIRECTUS_URL=<span class="url">https://cms.tuodominio.it</span>
-DIRECTUS_TOKEN=<span class="val">token_generato_al_passo_1.4</span></pre></div></li>
-  <li><span class="check-box"></span><div>Esegui lo script dalla root della repo
-<pre style="margin-top:6px"><span class="cmd">node</span> --env-file=.env scripts/setup-collections.mjs</pre>
-<span class="note">Il flag <code>--env-file</code> carica il <code>.env</code> automaticamente — Node.js non lo fa di default. Disponibile da Node 20.6+.</span></div></li>
-  <li><span class="check-box"></span><div>Verifica nel pannello Directus (<code>https://cms.tuodominio.it/admin</code>) che le collezioni siano state create correttamente</div></li>
-</ul>
-<div class="callout info"><strong>Cosa crea:</strong> le collezioni e-commerce e CMS (e-commerce, blog, portfolio, FAQ, impostazioni sito) — <code>pages</code>, <code>posts</code>, <code>categories</code>, <code>portfolio</code>, <code>faq</code>, <code>site_settings</code>, <code>products</code>, <code>product_categories</code>, <code>product_variants</code>, <code>shipping_zones</code>, <code>orders</code>, <code>order_items</code>, <code>coupons</code>, <code>gift_cards</code>, <code>contact_submissions</code>, <code>stock_notifications</code>. Lo script è idempotente: se una collezione esiste già, la salta.<br><strong>Nota:</strong> la collezione <code>contacts</code> (unica anagrafica clienti — online e offline) è creata dallo script CRM.<br><strong>CRM e Form dinamici:</strong> sono gestiti da script separati — esegui <code>npm run setup:crm</code> e <code>npm run setup:forms</code> oppure usa <code>npm run setup:all</code> per tutti e tre in sequenza (vedi sezione 2).</div>
-<div class="callout warn"><strong>Ripristino da backup:</strong> se stai migrando un progetto esistente con <code>restore.mjs</code>, non eseguire questo script — le collezioni vengono ricreate dal backup.</div>
+<span class="comment"># Frontend</span>
+<span class="key">PUBLIC_SITE_URL</span>=<span class="url">https://staging.tuodominio.it</span>
+<span class="key">ALLOWED_ORIGIN</span>=<span class="url">https://staging.tuodominio.it</span>
 
-<h3>1.7 Configurare i permessi</h3>
-<ul class="checklist">
-  <li><span class="check-box"></span><div>Settings → Roles → <strong>Public</strong>: permesso <em>read</em> su <code>pages</code>, <code>posts</code>, <code>categories</code>, <code>portfolio</code>, <code>faq</code>, <code>site_settings</code>, <code>products</code>, <code>product_categories</code></div></li>
-  <li><span class="check-box"></span><div>Crea ruolo <strong>Customer</strong>: read su <code>orders</code> (filtro: <code>customer_email = $CURRENT_USER.email</code>)
-<span class="note">Gli utenti online sono collegati tramite <code>contacts.directus_user_id</code>. Le loro spedizioni e KPI sono sulla stessa scheda contatto — filtrabili per <code>channel_type</code> (offline / online / both).</span></div></li>
-  <li><span class="check-box"></span><div>Il ruolo <strong>Admin</strong> ha accesso completo (non modificare)</div></li>
+<span class="comment"># Deploy VPS — una porta diversa per ogni progetto sullo stesso server</span>
+<span class="key">DEPLOY_HOST</span>=<span class="val">ip-server</span>
+<span class="key">DEPLOY_USER</span>=<span class="val">deploy</span>
+<span class="key">DEPLOY_PATH</span>=<span class="val">/var/www/nomeprogetto/frontend</span>
+<span class="key">DEPLOY_PM2_APP</span>=<span class="val">nomeprogetto</span>
+<span class="key">DEPLOY_PORT</span>=<span class="val">4321</span></pre>
+<span class="note"><code>PUBLIC_SITE_URL</code> e <code>ALLOWED_ORIGIN</code> devono corrispondere al dominio attivo. In staging usa <code>https://staging.tuodominio.it</code>; al go-live aggiornali a <code>https://tuodominio.it</code> e rideploya (vedi §9).</span></div></li>
+  <li><span class="check-box"></span><div>Prima del primo deploy, crea la directory sul server
+<pre style="margin-top:6px"><span class="cmd">ssh</span> deploy@<span class="val">ip-server</span> <span class="str">"mkdir -p /var/www/<span class="val">nomeprogetto</span>/frontend"</span></pre>
+<span class="note">Solo al primo deploy — devi anche aver configurato il vhost Nginx e il certificato SSL (vedi §6). Lo script di deploy non crea la directory da solo.</span></div></li>
+  <li><span class="check-box"></span><div>Esegui il deploy — lo script fa build, sincronizza i file sul server e avvia PM2
+<pre style="margin-top:6px"><span class="cmd">npm run deploy</span></pre>
+<span class="note">Lo script: esegue <code>npm run build</code> in locale → <code>rsync</code> di <code>dist/</code>, <code>package.json</code>, <code>ecosystem.config.cjs</code> sul server → <code>npm install --production</code> → <code>pm2 startOrRestart</code>. Richiede accesso SSH configurato (chiave pubblica sul server).</span></div></li>
+  <li><span class="check-box"></span><div>Esegui gli script di setup per creare le collezioni Directus (vedi §2)
+<pre style="margin-top:6px"><span class="cmd">npm run setup:all</span></pre>
+<span class="note">Crea le collezioni e-commerce, CRM e form dinamici su Directus. Richiede <code>DIRECTUS_URL</code> e <code>DIRECTUS_TOKEN</code> nel <code>.env</code>. Può essere eseguito in qualsiasi momento — è idempotente.</span></div></li>
 </ul>
+<div class="callout warn"><strong>Ripristino da backup:</strong> se stai migrando un progetto esistente con <code>restore.mjs</code>, non eseguire <code>npm run setup:all</code> — le collezioni vengono ricreate dal backup.</div>
 
 
 
@@ -730,21 +729,39 @@ DIRECTUS_TOKEN=<span class="val">token_generato_al_passo_1.4</span></pre></div><
 <details class="section">
 <summary><h2><span class="num">2</span>CRM e Form dinamici — Setup collezioni e KPI</h2></summary>
 
-<h3>Setup collezioni Directus</h3>
-<p>Dopo aver eseguito lo script base (sezione 1.6), esegui gli script aggiuntivi per attivare il CRM e i form dinamici.</p>
+<h3>Script di setup collezioni — 3 script distinti</h3>
+<p>Tutti gli script vanno eseguiti <strong>in locale</strong> dalla root della repo, puntando all'istanza Directus di produzione. Richiedono <code>DIRECTUS_URL</code> e <code>DIRECTUS_TOKEN</code> nel <code>.env</code>. Sono idempotenti: se una collezione esiste già, la saltano.</p>
+
+<h3>Script 1 — E-commerce base</h3>
 <ul class="checklist">
-  <li><span class="check-box"></span><div>Esegui il setup delle collezioni CRM
+  <li><span class="check-box"></span><div>Crea le collezioni e-commerce e CMS
+<pre style="margin-top:6px"><span class="cmd">node</span> --env-file=.env scripts/setup-collections.mjs</pre>
+<span class="note">Crea: <code>products</code>, <code>product_variants</code>, <code>product_categories</code>, <code>orders</code>, <code>order_items</code>, <code>coupons</code>, <code>gift_cards</code>, <code>shipping_zones</code>, <code>contact_submissions</code>, <code>stock_notifications</code>, <code>pages</code>, <code>posts</code>, <code>categories</code>, <code>portfolio</code>, <code>faq</code>, <code>site_settings</code>.</span></div></li>
+</ul>
+
+<h3>Script 2 — CRM (anagrafica clienti)</h3>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Crea la collezione contatti e tutte le collezioni CRM collegate
 <pre style="margin-top:6px"><span class="cmd">node</span> --env-file=.env scripts/setup-crm-collections.mjs</pre>
-<span class="note">Crea 7 collezioni: <code>crm_tags</code>, <code>contacts</code>, <code>crm_interactions</code>, <code>crm_tasks</code>, <code>crm_documents</code>, <code>crm_pipeline_history</code>, <code>customer_kpis</code>. <code>contacts</code> è la collezione unica per tutti gli utenti (online e offline) — include i campi <code>directus_user_id</code>, <code>stripe_customer_id</code>, <code>shipping_addresses</code> e <code>channel_type</code> per distinguere la tipologia.</span></div></li>
-  <li><span class="check-box"></span><div>Esegui il setup delle collezioni Form dinamici
+<span class="note">Crea: <code>contacts</code> (anagrafica unica per clienti online e offline — include <code>directus_user_id</code>, <code>stripe_customer_id</code>, <code>shipping_addresses</code>, <code>channel_type</code>), <code>crm_tags</code>, <code>crm_interactions</code>, <code>crm_tasks</code>, <code>crm_documents</code>, <code>crm_pipeline_history</code>, <code>customer_kpis</code>.</span></div></li>
+</ul>
+
+<h3>Script 3 — Form dinamici</h3>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Crea le collezioni per i form configurabili da Directus
 <pre style="margin-top:6px"><span class="cmd">node</span> --env-file=.env scripts/setup-forms-collections.mjs</pre>
-<span class="note">Crea 2 collezioni: <code>forms</code> (configurazione form con anti-spam) e <code>form_submissions</code> (risposte).</span></div></li>
-  <li><span class="check-box"></span><div><em>In alternativa</em> — esegui tutti e tre gli script in sequenza con un unico comando
-<pre style="margin-top:6px"><span class="cmd">node</span> --env-file=.env scripts/setup-collections.mjs &amp;&amp; \
-<span class="cmd">node</span> --env-file=.env scripts/setup-crm-collections.mjs &amp;&amp; \
-<span class="cmd">node</span> --env-file=.env scripts/setup-forms-collections.mjs</pre>
-<span class="note">Oppure usa <code>npm run setup:all</code> (richiede che le variabili Directus siano già nell'ambiente shell).</span></div></li>
-  <li><span class="check-box"></span><div>Verifica nel pannello Directus che le nuove collezioni siano visibili nella sidebar</div></li>
+<span class="note">Crea: <code>forms</code> (configurazione form con campi, anti-spam, redirect) e <code>form_submissions</code> (risposte raccolte).</span></div></li>
+</ul>
+
+<div class="callout info"><strong>Tutti e tre in una volta:</strong> <code>npm run setup:all</code> esegue i 3 script in sequenza. Usa questo comando per i nuovi progetti.</div>
+
+<h3>Permessi da configurare in Directus Admin</h3>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Settings → Roles → <strong>Public</strong>: permesso <em>Read</em> su <code>pages</code>, <code>posts</code>, <code>categories</code>, <code>portfolio</code>, <code>faq</code>, <code>site_settings</code>, <code>products</code>, <code>product_categories</code>, <code>product_variants</code></div></li>
+  <li><span class="check-box"></span><div>Crea ruolo <strong>Customer</strong>: Read su <code>orders</code> con filtro <code>customer_email = $CURRENT_USER.email</code>
+<span class="note">Gli utenti online sono collegati alla scheda contatto tramite <code>contacts.directus_user_id</code>. Indirizzi di spedizione e KPI vivono sulla stessa scheda — filtrabili per <code>channel_type</code> (offline / online / both).</span></div></li>
+  <li><span class="check-box"></span><div>Crea ruolo <strong>Staff</strong>: CRUD su <code>contacts</code>, <code>crm_interactions</code>, <code>crm_tasks</code>, <code>crm_documents</code>, <code>crm_pipeline_history</code>. Read su <code>customer_kpis</code>, <code>orders</code></div></li>
+  <li><span class="check-box"></span><div>Il ruolo <strong>Admin</strong> ha accesso completo a tutte le collezioni (verificare dopo ogni setup)</div></li>
 </ul>
 
 <details class="option">
