@@ -1,0 +1,96 @@
+---
+// src/pages/admin/contact-submissions/index.astro
+export const prerender = false
+
+import AdminLayout from '@/layouts/AdminLayout.astro'
+import DataTable from '@/components/admin/DataTable.astro'
+import type { Column } from '@/components/admin/DataTable.astro'
+
+const directusUrl = process.env.DIRECTUS_URL ?? ''
+const token = Astro.cookies.get('admin_token')?.value ?? ''
+
+async function dFetch(path: string) {
+  try {
+    const res = await fetch(`${directusUrl}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch { return null }
+}
+
+const PAGE_SIZE = 25
+const page = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1'))
+const offset = (page - 1) * PAGE_SIZE
+
+// Filtra per form.slug = 'contact' usando deep filter Directus
+const [listRes, countRes] = await Promise.all([
+  dFetch(`/items/form_submissions?filter[form_id][slug][_eq]=contact&fields[]=id,data,date_created,is_read&sort[]=-date_created&limit=${PAGE_SIZE}&offset=${offset}`),
+  dFetch('/items/form_submissions?filter[form_id][slug][_eq]=contact&aggregate[count]=id'),
+])
+
+type SubmissionRow = {
+  id: string
+  data: Record<string, unknown>
+  date_created: string
+  is_read: boolean
+}
+
+const submissions = (listRes?.data ?? []) as SubmissionRow[]
+const total = parseInt(countRes?.data?.[0]?.count?.id ?? '0')
+
+// Estrae nome/email dai campi comuni usati nei form
+function extractName(data: Record<string, unknown>): string {
+  return String(data.name ?? data.nome ?? data.first_name ?? '—')
+}
+function extractEmail(data: Record<string, unknown>): string {
+  return String(data.email ?? '—')
+}
+function extractMessage(data: Record<string, unknown>): string {
+  const msg = String(data.message ?? data.messaggio ?? data.body ?? data.testo ?? '')
+  return msg.length > 80 ? msg.slice(0, 80) + '…' : msg || '—'
+}
+
+const columns: Column[] = [
+  {
+    key: 'data',
+    label: 'Nome',
+    format: (v) => `<span style="font-weight:500">${extractName(v as Record<string, unknown>)}</span>`,
+  },
+  {
+    key: 'data',
+    label: 'Email',
+    format: (v) => extractEmail(v as Record<string, unknown>),
+  },
+  {
+    key: 'data',
+    label: 'Messaggio',
+    format: (v) => `<span style="color:#6b7280;font-size:13px">${extractMessage(v as Record<string, unknown>)}</span>`,
+  },
+  {
+    key: 'date_created',
+    label: 'Data',
+    format: (v) => v ? new Date(String(v)).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—',
+  },
+  {
+    key: 'is_read',
+    label: 'Stato',
+    format: (v) => v
+      ? `<span style="background:#f0fdf4;color:#22c55e;padding:2px 8px;border-radius:10px;font-size:12px">Letto</span>`
+      : `<span style="background:#fef9c3;color:#ca8a04;padding:2px 8px;border-radius:10px;font-size:12px">Nuovo</span>`,
+  },
+]
+---
+
+<AdminLayout title="Submissions contatto" active="forms">
+  <DataTable
+    columns={columns}
+    rows={submissions as unknown as Record<string, unknown>[]}
+    idField="id"
+    detailBase="/admin/contact-submissions/"
+    page={page}
+    total={total}
+    pageSize={PAGE_SIZE}
+    emptyMessage="Nessuna submission trovata."
+  />
+</AdminLayout>
