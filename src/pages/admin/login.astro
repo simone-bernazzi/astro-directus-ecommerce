@@ -1,77 +1,217 @@
 ---
-// src/pages/admin/login.astro — admin password gate
-export const prerender = true
+// src/pages/admin/login.astro — standalone email+password login
+export const prerender = false
 
-import Base from '@/layouts/Base.astro'
-import Header from '@/components/layout/Header.astro'
-import Footer from '@/components/layout/Footer.astro'
+import type { AstroGlobal } from 'astro'
+
+const { cookies, redirect, url } = Astro as AstroGlobal
+
+// Server-side: if already authenticated, redirect immediately
+if (cookies.get('admin_token')?.value) {
+  const dest = url.searchParams.get('redirect') || '/admin'
+  return redirect(dest)
+}
 ---
 
-<Base title="Admin — Accesso">
-  <Header />
-  <main class="container py-16 max-w-sm mx-auto">
-    <div class="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-8">
-      <h1 class="text-xl font-bold mb-6">Accesso admin</h1>
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin — Accesso</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-      <form id="admin-login-form" class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium mb-1.5" for="admin-password">Password</label>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #f3f4f6;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        color: #111827;
+      }
+
+      .card {
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 4px 16px rgba(0,0,0,0.06);
+        padding: 2.5rem 2rem;
+        width: 100%;
+        max-width: 380px;
+      }
+
+      h1 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 1.75rem;
+        color: #111827;
+      }
+
+      .field {
+        margin-bottom: 1rem;
+      }
+
+      label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0.375rem;
+        color: #374151;
+      }
+
+      input[type="email"],
+      input[type="password"] {
+        width: 100%;
+        padding: 0.625rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 0.9375rem;
+        color: #111827;
+        background: #fff;
+        outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
+        appearance: none;
+      }
+
+      input[type="email"]:focus,
+      input[type="password"]:focus {
+        border-color: #111827;
+        box-shadow: 0 0 0 3px rgba(17,24,39,0.1);
+      }
+
+      .error {
+        display: none;
+        font-size: 0.8125rem;
+        color: #dc2626;
+        margin-bottom: 0.75rem;
+        padding: 0.5rem 0.75rem;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 6px;
+      }
+
+      .error.visible {
+        display: block;
+      }
+
+      button[type="submit"] {
+        width: 100%;
+        padding: 0.6875rem 1rem;
+        background: #111827;
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.15s;
+        margin-top: 0.5rem;
+      }
+
+      button[type="submit"]:hover:not(:disabled) {
+        opacity: 0.85;
+      }
+
+      button[type="submit"]:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Accesso admin</h1>
+
+      <form id="login-form" novalidate>
+        <input type="hidden" id="redirect-field" name="redirect" value="" />
+
+        <div class="field">
+          <label for="email">Email</label>
           <input
-            id="admin-password"
-            type="password"
+            id="email"
+            type="email"
+            name="email"
             required
-            autocomplete="current-password"
-            class="w-full px-3 py-2.5 border border-[var(--color-border)] rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent"
+            autocomplete="username"
+            placeholder="admin@example.com"
           />
         </div>
-        <p id="admin-error" class="hidden text-sm text-red-600"></p>
-        <button
-          type="submit"
-          id="admin-login-btn"
-          class="w-full py-2.5 bg-[var(--color-brand)] text-white font-medium rounded-lg hover:opacity-90 transition-opacity"
-        >
-          Accedi
-        </button>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            name="password"
+            required
+            autocomplete="current-password"
+          />
+        </div>
+
+        <p id="error-msg" class="error" role="alert" aria-live="polite"></p>
+
+        <button type="submit" id="submit-btn">Accedi</button>
       </form>
     </div>
-  </main>
-  <Footer />
-</Base>
 
-<script>
-  const form = document.getElementById('admin-login-form') as HTMLFormElement
-  const errorEl = document.getElementById('admin-error')!
-  const btn = document.getElementById('admin-login-btn') as HTMLButtonElement
+    <script>
+      // Read the redirect param from the URL without causing a flash
+      const params = new URLSearchParams(window.location.search)
+      const redirectTo = params.get('redirect') || '/admin'
+      ;(document.getElementById('redirect-field') as HTMLInputElement).value = redirectTo
 
-  form.addEventListener('submit', async e => {
-    e.preventDefault()
-    errorEl.classList.add('hidden')
-    btn.disabled = true
-    btn.textContent = 'Verifica…'
+      const form = document.getElementById('login-form') as HTMLFormElement
+      const errorEl = document.getElementById('error-msg') as HTMLParagraphElement
+      const btn = document.getElementById('submit-btn') as HTMLButtonElement
 
-    const password = (document.getElementById('admin-password') as HTMLInputElement).value
-
-    try {
-      const res = await fetch('/api/admin/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
-      })
-
-      if (res.ok) {
-        window.location.href = '/admin'
-      } else {
-        const data = await res.json()
-        errorEl.textContent = data.error ?? 'Password non valida.'
-        errorEl.classList.remove('hidden')
-        btn.disabled = false
-        btn.textContent = 'Accedi'
+      function showError(msg: string) {
+        errorEl.textContent = msg
+        errorEl.classList.add('visible')
       }
-    } catch {
-      errorEl.textContent = 'Errore di rete. Riprova.'
-      errorEl.classList.remove('hidden')
-      btn.disabled = false
-      btn.textContent = 'Accedi'
-    }
-  })
-</script>
+
+      function clearError() {
+        errorEl.classList.remove('visible')
+        errorEl.textContent = ''
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault()
+        clearError()
+
+        const email = (document.getElementById('email') as HTMLInputElement).value.trim()
+        const password = (document.getElementById('password') as HTMLInputElement).value
+
+        if (!email || !password) {
+          showError('Compila email e password.')
+          return
+        }
+
+        btn.disabled = true
+        btn.textContent = 'Accesso in corso…'
+
+        try {
+          const res = await fetch('/api/admin/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          })
+
+          if (res.ok) {
+            window.location.href = redirectTo
+          } else {
+            const data = await res.json().catch(() => ({}))
+            showError((data as { error?: string }).error ?? 'Credenziali non valide.')
+            btn.disabled = false
+            btn.textContent = 'Accedi'
+          }
+        } catch {
+          showError('Errore di rete. Riprova.')
+          btn.disabled = false
+          btn.textContent = 'Accedi'
+        }
+      })
+    </script>
+  </body>
+</html>
