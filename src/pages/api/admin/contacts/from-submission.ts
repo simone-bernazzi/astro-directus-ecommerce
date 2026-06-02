@@ -37,7 +37,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const first_name = nameParts[0] ?? 'Contatto'
   const last_name = nameParts.slice(1).join(' ') || 'Submission'
   const email = fields.email ? String(fields.email) : null
-  const phone = fields.phone ?? fields.telefono ?? fields.tel ? String(fields.phone ?? fields.telefono ?? fields.tel) : null
+  const phone = (fields.phone ?? fields.telefono ?? fields.tel) ? String(fields.phone ?? fields.telefono ?? fields.tel) : null
 
   // 3. Crea il contatto
   let contactRes: Response
