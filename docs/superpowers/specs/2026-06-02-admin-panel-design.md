@@ -35,10 +35,10 @@ An Astro middleware guards all `/admin/*` routes, redirecting unauthenticated re
 | Route | Layout | Note |
 |---|---|---|
 | `/admin/login` | Form standalone | POST `/auth/login` Directus |
-| `/admin` | Dashboard KPI | Fatturato, ordini aperti, nuovi lead, submissions recenti |
-| `/admin/contacts` | Tabella | Colonne: nome, email, tipo, pipeline, ultimo ordine |
+| `/admin` | Dashboard KPI + Grafici | Fatturato, ordini aperti, nuovi lead, submissions recenti. Grafici: fatturato mensile (line chart), ordini per stato (donut), prodotti più venduti (bar). Pulsante export statistiche (JSON). |
+| `/admin/contacts` | Tabella | Colonne: nome, email, tipo, pipeline, ultimo ordine. Pulsante export CSV/JSON. |
 | `/admin/contacts/[id]` | Sezioni impilate | KPI → anagrafica → ordini → note CRM → task → docs |
-| `/admin/orders` | Tabella | Colonne: #, contatto, totale, stato, data, canale |
+| `/admin/orders` | Tabella | Colonne: #, contatto, totale, stato, data, canale. Pulsante export CSV/JSON. |
 | `/admin/orders/[id]` | Sezioni impilate | Info ordine → items → spedizione → pagamento |
 | `/admin/products` | Tabella | Colonne: nome, SKU, prezzo, stock, categoria, stato |
 | `/admin/products/categories` | Tabella | Colonne: nome, slug, categoria padre, n. prodotti |
@@ -117,6 +117,26 @@ Da `/admin/contact-submissions/[id]`, il pulsante "Converti in contatto CRM" ese
 1. `POST /items/contacts` con nome, email, telefono pre-compilati dalla submission
 2. `PATCH /items/form_submissions/{id}` → imposta stato `converted`
 3. Redirect a `/admin/contacts/{new_id}`
+
+## Grafici (Dashboard)
+
+Libreria: Chart.js caricata via CDN (nessuna dipendenza npm aggiuntiva). Tre grafici Preact island:
+
+- **Line chart** — fatturato mensile ultimi 12 mesi (aggregato da `/items/orders?aggregate[sum]=total&groupBy[]=month(date_created)`)
+- **Donut chart** — distribuzione ordini per stato (aggregato count per status)
+- **Bar chart** — top 5 prodotti per quantità venduta (join orders → order_items → products)
+
+I dati sono fetchati server-side e passati come props al componente Preact. Chart.js renderizza client-side.
+
+## Export CSV / JSON
+
+Route API: `GET /api/admin/export?collection={contacts|orders}&format={csv|json}&page=all`
+
+- Fetch tutti i record dalla collection (senza paginazione, con `limit=-1` Directus)
+- `format=csv`: converte con header da nome colonne, risponde con `Content-Disposition: attachment`
+- `format=json`: risponde JSON array
+- Bottone export visibile nella topbar delle pagine lista (contacts, orders)
+- Export statistiche dashboard: `GET /api/admin/export?collection=stats&format=json` — ritorna i dati aggregati usati nei grafici
 
 ## Error Handling
 
