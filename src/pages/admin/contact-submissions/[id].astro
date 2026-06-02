@@ -1,0 +1,129 @@
+---
+// src/pages/admin/contact-submissions/[id].astro
+export const prerender = false
+
+import AdminLayout from '@/layouts/AdminLayout.astro'
+import SectionCard from '@/components/admin/SectionCard.astro'
+
+const { id } = Astro.params
+if (!id) return Astro.redirect('/admin/contact-submissions')
+
+const directusUrl = process.env.DIRECTUS_URL ?? ''
+const token = Astro.cookies.get('admin_token')?.value ?? ''
+
+let submissionRes: Response | null = null
+try {
+  submissionRes = await fetch(`${directusUrl}/items/form_submissions/${id}?fields[]=*`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+} catch {}
+
+if (!submissionRes?.ok) return Astro.redirect('/admin/contact-submissions')
+
+const { data: submission } = await submissionRes.json() as {
+  data: {
+    id: string
+    data: Record<string, unknown>
+    date_created: string
+    is_read: boolean
+    ip_address: string | null
+    page_url: string | null
+  }
+}
+
+// Marca come letta se non lo era
+if (!submission.is_read) {
+  try {
+    await fetch(`${directusUrl}/items/form_submissions/${id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_read: true }),
+    })
+  } catch {}
+}
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+---
+
+<AdminLayout title="Submission contatto" active="forms">
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+    <a href="/admin/contact-submissions" style="color:#6b7280;text-decoration:none;font-size:13px">← Submissions</a>
+    <span style="color:#d1d5db">/</span>
+    <h1 style="font-size:18px;font-weight:700;color:#111827">Submission <code style="font-size:14px;color:#6b7280">#{submission.id.slice(0, 8)}</code></h1>
+    <span style="margin-left:auto">
+      <button
+        id="convert-btn"
+        type="button"
+        style="background:#111827;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer"
+      >
+        + Converti in contatto
+      </button>
+    </span>
+  </div>
+
+  <p id="convert-msg" style="display:none;margin-bottom:12px;font-size:13px"></p>
+
+  <div style="display:flex;flex-direction:column;gap:16px">
+
+    <SectionCard title="Dati ricevuti">
+      <dl style="display:grid;grid-template-columns:max-content 1fr;gap:8px 16px;font-size:14px">
+        {Object.entries(submission.data).map(([key, value]) => (
+          <>
+            <dt style="color:#6b7280;font-weight:500">{key}</dt>
+            <dd style="color:#111827;word-break:break-word">{String(value ?? '')}</dd>
+          </>
+        ))}
+      </dl>
+    </SectionCard>
+
+    <SectionCard title="Metadati">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:14px">
+        <div><span style="color:#6b7280">Data:</span> {fmtDate(submission.date_created)}</div>
+        <div><span style="color:#6b7280">IP:</span> {submission.ip_address ?? '—'}</div>
+        <div style="grid-column:span 2"><span style="color:#6b7280">Pagina:</span> {submission.page_url ?? '—'}</div>
+      </div>
+    </SectionCard>
+
+  </div>
+</AdminLayout>
+
+<script define:vars={{ submissionId: id }}>
+  const btn = document.getElementById('convert-btn')
+  const msg = document.getElementById('convert-msg')
+
+  btn?.addEventListener('click', async () => {
+    btn.disabled = true
+    btn.textContent = 'Conversione in corso…'
+
+    try {
+      const res = await fetch('/api/admin/contacts/from-submission', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ submission_id: submissionId }),
+      })
+      const data = await res.json()
+
+      if (res.ok && data.contact_id) {
+        msg.textContent = '✓ Contatto creato. Reindirizzamento…'
+        msg.style.color = '#22c55e'
+        msg.style.display = 'block'
+        setTimeout(() => { window.location.href = `/admin/contacts/${data.contact_id}` }, 1200)
+      } else {
+        msg.textContent = data.error ?? 'Errore durante la conversione.'
+        msg.style.color = '#dc2626'
+        msg.style.display = 'block'
+        btn.disabled = false
+        btn.textContent = '+ Converti in contatto'
+      }
+    } catch {
+      msg.textContent = 'Errore di rete.'
+      msg.style.color = '#dc2626'
+      msg.style.display = 'block'
+      btn.disabled = false
+      btn.textContent = '+ Converti in contatto'
+    }
+  })
+</script>
