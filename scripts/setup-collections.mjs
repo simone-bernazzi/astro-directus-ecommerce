@@ -132,6 +132,7 @@ async function main() {
   })
   await field('orders', 'contact_id', 'integer', { is_nullable: true }, { interface: 'input', hidden: true, note: 'FK → contacts (CRM)' })
   await field('orders', 'staff_id', 'uuid', { is_nullable: true }, { interface: 'input', hidden: true, note: 'Operatore che ha processato ordine offline' })
+  await field('orders', 'date_created', 'timestamp', { is_nullable: true }, { interface: 'datetime', readonly: true, hidden: true, special: ['date-created'] })
 
   // ── order_items ───────────────────────────────────────────────────────────
   await collection('order_items', 'list', '{{product_name}}')
