@@ -33,16 +33,19 @@ export const POST: APIRoute = async ({ params, request, clientAddress }) => {
   }
 
   // Step 3 — Honeypot check (silent reject)
-  const hp = body['_hp']
-  if (typeof hp === 'string' && hp.length > 0) {
-    return json(200, { success: true })
+  if (form.honeypot_enabled) {
+    const hp = body['_hp']
+    if (typeof hp === 'string' && hp.length > 0) {
+      return json(200, { success: true })
+    }
   }
 
-  // Step 4 — Country filter
+  // Step 4 — Country filter (also caches IP/country for later use)
+  const clientIp = extractClientIp(request) || clientAddress || ''
+  let cachedCountry: string | null = null
   if (form.country_filter_enabled && form.allowed_countries?.length) {
-    const ip = extractClientIp(request) || clientAddress || ''
-    const country = await detectCountry(request, ip)
-    if (country && !form.allowed_countries.includes(country)) {
+    cachedCountry = await detectCountry(request, clientIp)
+    if (cachedCountry && !form.allowed_countries.includes(cachedCountry)) {
       return json(200, { success: true }) // silent reject
     }
   }
@@ -58,15 +61,15 @@ export const POST: APIRoute = async ({ params, request, clientAddress }) => {
       return json(400, { error: 'Verifica reCAPTCHA mancante' })
     } else {
       try {
-        const params = new URLSearchParams({ secret, response: token })
+        const searchParams = new URLSearchParams({ secret, response: token })
         const res = await fetch('https://www.google.com/recaptcha/api/siteverify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: params.toString(),
+          body: searchParams.toString(),
         })
-        const data = await res.json() as { success: boolean; score: number }
+        const data = await res.json() as { success: boolean; score?: number }
         const minScore = parseFloat(process.env.RECAPTCHA_MIN_SCORE ?? '0.5')
-        if (!data.success || data.score < minScore) {
+        if (!data.success || (data.score !== undefined && data.score < minScore)) {
           return json(400, { error: 'Verifica reCAPTCHA fallita' })
         }
       } catch {
@@ -80,7 +83,7 @@ export const POST: APIRoute = async ({ params, request, clientAddress }) => {
   for (const field of form.fields) {
     let schema: z.ZodTypeAny = z.string()
     if (field.type === 'email') schema = z.string().email()
-    if (field.type === 'checkbox') schema = z.union([z.literal('on'), z.literal('off'), z.string()])
+    if (field.type === 'checkbox') schema = z.enum(['on', 'off'])
     if (!field.required) schema = schema.optional().default('')
     fieldSchema[field.name] = schema
   }
@@ -101,12 +104,19 @@ export const POST: APIRoute = async ({ params, request, clientAddress }) => {
   }
 
   // Step 8 — Save submission
-  const pageUrl = typeof body['_page_url'] === 'string' ? body['_page_url'] : null
-  const ip = form.capture_ip ? (extractClientIp(request) || clientAddress || null) : null
+  const rawPageUrl = typeof body['_page_url'] === 'string' ? body['_page_url'] : null
+  let pageUrl: string | null = null
+  if (rawPageUrl) {
+    try {
+      const u = new URL(rawPageUrl)
+      if (u.protocol === 'https:' || u.protocol === 'http:') pageUrl = rawPageUrl
+    } catch { /* invalid URL — discard */ }
+  }
+  const ip = form.capture_ip ? (clientIp || null) : null
   const ua = form.capture_user_agent ? (request.headers.get('user-agent') || null) : null
   let countryCode: string | null = null
   if (form.capture_ip && ip) {
-    countryCode = await detectCountry(request, ip)
+    countryCode = cachedCountry ?? await detectCountry(request, ip)
   }
   await saveSubmission(form.id, {
     data: fieldData,

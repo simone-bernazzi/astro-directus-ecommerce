@@ -93,20 +93,29 @@ export async function sendNotificationEmail(options: {
 
   const transporter = nodemailer.createTransport({ host, port, auth: { user, pass } })
 
+  function esc(s: unknown): string {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;')
+  }
+
   const fieldsHtml = Object.entries(options.data)
-    .map(([k, v]) => `<tr><td style="padding:4px 8px;font-weight:bold;">${k}</td><td style="padding:4px 8px;">${v}</td></tr>`)
+    .map(([k, v]) => `<tr><td style="padding:4px 8px;font-weight:bold;">${esc(k)}</td><td style="padding:4px 8px;">${esc(v)}</td></tr>`)
     .join('')
 
   const metaRows = [
-    options.pageUrl ? `<tr><td style="padding:4px 8px;font-weight:bold;">URL pagina</td><td style="padding:4px 8px;">${options.pageUrl}</td></tr>` : '',
-    options.country ? `<tr><td style="padding:4px 8px;font-weight:bold;">Paese</td><td style="padding:4px 8px;">${options.country}</td></tr>` : '',
-    options.ipAddress ? `<tr><td style="padding:4px 8px;font-weight:bold;">IP</td><td style="padding:4px 8px;">${options.ipAddress}</td></tr>` : '',
-    options.userAgent ? `<tr><td style="padding:4px 8px;font-weight:bold;">User Agent</td><td style="padding:4px 8px;font-size:11px;">${options.userAgent}</td></tr>` : '',
-    `<tr><td style="padding:4px 8px;font-weight:bold;">Data/ora</td><td style="padding:4px 8px;">${options.submittedAt}</td></tr>`,
+    options.pageUrl ? `<tr><td style="padding:4px 8px;font-weight:bold;">URL pagina</td><td style="padding:4px 8px;">${esc(options.pageUrl)}</td></tr>` : '',
+    options.country ? `<tr><td style="padding:4px 8px;font-weight:bold;">Paese</td><td style="padding:4px 8px;">${esc(options.country)}</td></tr>` : '',
+    options.ipAddress ? `<tr><td style="padding:4px 8px;font-weight:bold;">IP</td><td style="padding:4px 8px;">${esc(options.ipAddress)}</td></tr>` : '',
+    options.userAgent ? `<tr><td style="padding:4px 8px;font-weight:bold;">User Agent</td><td style="padding:4px 8px;font-size:11px;">${esc(options.userAgent)}</td></tr>` : '',
+    `<tr><td style="padding:4px 8px;font-weight:bold;">Data/ora</td><td style="padding:4px 8px;">${esc(options.submittedAt)}</td></tr>`,
   ].filter(Boolean).join('')
 
   const html = `
-    <h2>Nuovo invio form: ${options.formName}</h2>
+    <h2>Nuovo invio form: ${esc(options.formName)}</h2>
     <table border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;">
       ${fieldsHtml}
     </table>
