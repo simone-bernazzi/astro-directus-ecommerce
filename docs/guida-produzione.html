@@ -701,10 +701,41 @@ DIRECTUS_TOKEN=<span class="val">token_generato_al_passo_1.4</span></pre></div><
 <span class="note">Il flag <code>--env-file</code> carica il <code>.env</code> automaticamente — Node.js non lo fa di default. Disponibile da Node 20.6+.</span></div></li>
   <li><span class="check-box"></span><div>Verifica nel pannello Directus (<code>https://cms.tuodominio.it/admin</code>) che le collezioni siano state create correttamente</div></li>
 </ul>
-<div class="callout info"><strong>Cosa crea:</strong> tutte le 17 collezioni e-commerce con campi e relazioni — <code>pages</code>, <code>posts</code>, <code>categories</code>, <code>portfolio</code>, <code>faq</code>, <code>site_settings</code>, <code>products</code>, <code>product_categories</code>, <code>product_variants</code>, <code>shipping_zones</code>, <code>orders</code>, <code>order_items</code>, <code>customers</code>, <code>coupons</code>, <code>gift_cards</code>, <code>contact_submissions</code>, <code>stock_notifications</code>. Lo script è idempotente: se una collezione esiste già, la salta.</div>
+<div class="callout info"><strong>Cosa crea:</strong> le collezioni e-commerce e CMS (e-commerce, blog, portfolio, FAQ, impostazioni sito) — <code>pages</code>, <code>posts</code>, <code>categories</code>, <code>portfolio</code>, <code>faq</code>, <code>site_settings</code>, <code>products</code>, <code>product_categories</code>, <code>product_variants</code>, <code>shipping_zones</code>, <code>orders</code>, <code>order_items</code>, <code>customers</code>, <code>coupons</code>, <code>gift_cards</code>, <code>contact_submissions</code>, <code>stock_notifications</code>. Lo script è idempotente: se una collezione esiste già, la salta.<br><strong>CRM e Form dinamici:</strong> sono gestiti da script separati — esegui <code>npm run setup:crm</code> e <code>npm run setup:forms</code> oppure usa <code>npm run setup:all</code> per tutti e tre in sequenza (vedi sezione 1.7).</div>
 <div class="callout warn"><strong>Ripristino da backup:</strong> se stai migrando un progetto esistente con <code>restore.mjs</code>, non eseguire questo script — le collezioni vengono ricreate dal backup.</div>
 
-<h3>1.7 Configurare i permessi</h3>
+<h3>1.7 Setup CRM e Form dinamici</h3>
+<p>Dopo aver eseguito lo script base (sezione 1.6), esegui gli script aggiuntivi per attivare il CRM e i form dinamici.</p>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Esegui il setup delle collezioni CRM
+<pre style="margin-top:6px"><span class="cmd">node</span> --env-file=.env scripts/setup-crm-collections.mjs</pre>
+<span class="note">Crea 7 collezioni: <code>crm_tags</code>, <code>contacts</code>, <code>crm_interactions</code>, <code>crm_tasks</code>, <code>crm_documents</code>, <code>crm_pipeline_history</code>, <code>customer_kpis</code>. Aggiunge i campi <code>contact_id</code>, <code>channel</code> e <code>staff_id</code> alle collezioni esistenti <code>orders</code> e <code>customers</code>.</span></div></li>
+  <li><span class="check-box"></span><div>Esegui il setup delle collezioni Form dinamici
+<pre style="margin-top:6px"><span class="cmd">node</span> --env-file=.env scripts/setup-forms-collections.mjs</pre>
+<span class="note">Crea 2 collezioni: <code>forms</code> (configurazione form con anti-spam) e <code>form_submissions</code> (risposte).</span></div></li>
+  <li><span class="check-box"></span><div><em>In alternativa</em> — esegui tutti e tre gli script in sequenza con un unico comando
+<pre style="margin-top:6px"><span class="cmd">node</span> --env-file=.env scripts/setup-collections.mjs &amp;&amp; \
+<span class="cmd">node</span> --env-file=.env scripts/setup-crm-collections.mjs &amp;&amp; \
+<span class="cmd">node</span> --env-file=.env scripts/setup-forms-collections.mjs</pre>
+<span class="note">Oppure usa <code>npm run setup:all</code> (richiede che le variabili Directus siano già nell'ambiente shell).</span></div></li>
+  <li><span class="check-box"></span><div>Verifica nel pannello Directus che le nuove collezioni siano visibili nella sidebar</div></li>
+</ul>
+<div class="callout info"><strong>Form dinamici:</strong> per usare <code>&lt;FormRenderer slug="nome-form" /&gt;</code> in una pagina Astro, crea prima il form in Directus (<strong>forms</strong> → Crea voce) con slug, campi e configurazione anti-spam. Il componente legge la config da Directus e invia i dati a <code>/api/form/[slug]</code>.</div>
+
+<h3>1.7.1 Calcolo KPI CRM</h3>
+<p>Il template include uno script per calcolare automaticamente CLV, churn score, RFM segment e altri KPI per ogni contatto.</p>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Ricalcola i KPI per tutti i contatti (esecuzione manuale)
+<pre style="margin-top:6px"><span class="cmd">npm run kpis</span></pre></div></li>
+  <li><span class="check-box"></span><div>Ricalcola i KPI per un singolo contatto
+<pre style="margin-top:6px"><span class="cmd">npm run kpis:contact</span>&lt;id-contatto&gt;</pre></div></li>
+  <li><span class="check-box"></span><div>Automazione tramite Directus Flow: crea un Flow con trigger <strong>Schedule</strong> (es. ogni notte alle 3:00) che chiama l'endpoint:
+<pre style="margin-top:6px">POST /api/internal/run-kpis
+<span class="key">x-internal-secret</span>: <span class="val">&lt;INTERNAL_SECRET&gt;</span></pre>
+<span class="note">Imposta <code>INTERNAL_SECRET</code> nel <code>.env</code> e configuralo nel Flow Directus come header della richiesta HTTP.</span></div></li>
+</ul>
+
+<h3>1.8 Configurare i permessi</h3>
 <ul class="checklist">
   <li><span class="check-box"></span><div>Settings → Roles → <strong>Public</strong>: permesso <em>read</em> su <code>pages</code>, <code>posts</code>, <code>categories</code>, <code>portfolio</code>, <code>faq</code>, <code>site_settings</code>, <code>products</code>, <code>product_categories</code></div></li>
   <li><span class="check-box"></span><div>Crea ruolo <strong>Customer</strong>: read su <code>orders</code> (filtro: <code>customer_email = $CURRENT_USER.email</code>)</div></li>
@@ -712,7 +743,7 @@ DIRECTUS_TOKEN=<span class="val">token_generato_al_passo_1.4</span></pre></div><
 </ul>
 
 
-<h3>1.8 Attivare l'integrazione AI (Claude Code + MCP)</h3>
+<h3>1.9 Attivare l'integrazione AI (Claude Code + MCP)</h3>
 <p>Il file <code>.mcp.json</code> nella root della repo configura il server MCP ufficiale di Directus per Claude Code. Claude Code risolve <code>${DIRECTUS_URL}</code> e <code>${DIRECTUS_TOKEN}</code> dall'<strong>ambiente shell</strong> al momento del lancio — non legge il <code>.env</code> automaticamente.</p>
 <ul class="checklist">
   <li><span class="check-box"></span><div>Assicurati che il <code>.env</code> locale contenga <code>DIRECTUS_URL</code> e <code>DIRECTUS_TOKEN</code> corretti (step 1.4 completato)</div></li>
@@ -972,7 +1003,8 @@ Incolla il seguente contenuto:
   <li><span class="check-box"></span><div>Checkout con carta test Stripe (<code>4242 4242 4242 4242</code>)</div></li>
   <li><span class="check-box"></span><div>Pagina success: ordine creato, link download per prodotti digitali</div></li>
   <li><span class="check-box"></span><div>Webhook Stripe: verifica in Stripe Dashboard → Webhooks → last events</div></li>
-  <li><span class="check-box"></span><div>Form contatti: invio → verifica su Directus + eventuale email</div></li>
+  <li><span class="check-box"></span><div>Form contatti (classico): invio → verifica su Directus in <code>contact_submissions</code> + eventuale email</div></li>
+  <li><span class="check-box"></span><div>Form dinamici: invia un form da <code>FormRenderer</code> → verifica submission in Directus (<strong>form_submissions</strong>) + eventuale email di notifica</div></li>
   <li><span class="check-box"></span><div>Area account: login, lista ordini, dettaglio ordine</div></li>
   <li><span class="check-box"></span><div>Backup manuale: <code>npm run backup -- --dry-run</code> → verifica output</div></li>
   <li><span class="check-box"></span><div>Deploy: esegui <code>npm run deploy</code> in locale → verifica riavvio PM2 sul server</div></li>
@@ -1256,6 +1288,71 @@ Incolla il seguente contenuto:
   </tbody>
 </table>
 
+<!-- ADMIN -->
+<div class="section-group-title">Admin e chiavi interne</div>
+<table class="env-table">
+  <thead>
+    <tr>
+      <th style="width:28%">Variabile</th>
+      <th>Descrizione e dove trovarla</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>ADMIN_KEY <span class="required">RICHIESTA</span></td>
+      <td>
+        Chiave per proteggere la pagina <code>/admin</code> e gli endpoint <code>/api/admin/*</code> (notify-shipped, notify-restock).<br>
+        Genera con: <code>node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"</code><br>
+        <span class="where">→ Genera localmente, copia nel <code>.env</code> e sul server</span>
+      </td>
+    </tr>
+    <tr>
+      <td>ADMIN_LOW_STOCK_THRESHOLD <span class="optional">OPZIONALE</span></td>
+      <td>
+        Soglia quantità stock sotto cui scatta l'alert nel dashboard admin. Default: <code>5</code>.<br>
+        <span class="where">→ Imposta in base alle esigenze del cliente</span>
+      </td>
+    </tr>
+    <tr>
+      <td>INTERNAL_SECRET <span class="optional">OPZIONALE</span></td>
+      <td>
+        Chiave segreta per l'endpoint interno <code>/api/internal/run-kpis</code>, usato dai Directus Flows per il calcolo automatico dei KPI CRM.<br>
+        Genera con: <code>node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"</code><br>
+        <span class="where">→ Genera localmente, copia nel <code>.env</code> e configuralo nel Flow Directus come header <code>x-internal-secret</code></span>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- GEO IP -->
+<div class="section-group-title">Geo IP — Rilevamento paese visitatore (opzionale)</div>
+<table class="env-table">
+  <thead>
+    <tr>
+      <th style="width:28%">Variabile</th>
+      <th>Descrizione e dove trovarla</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>GEO_PROVIDER <span class="optional">OPZIONALE</span></td>
+      <td>
+        Provider usato per rilevare il paese dell'IP visitatore nei form dinamici. Default: <code>ip-api</code>.<br>
+        Valori: <code>ip-api</code> (gratuito, nessuna config), <code>maxmind</code> (self-hosted, richiede DB), <code>cloudflare</code> (legge header CDN, richiede Cloudflare proxy).<br>
+        <span class="where">→ Imposta solo se usi il filtro paese nei form dinamici</span>
+      </td>
+    </tr>
+    <tr>
+      <td>MAXMIND_DB_PATH <span class="optional">OPZIONALE</span></td>
+      <td>
+        Percorso al file database MaxMind GeoLite2 (<code>.mmdb</code>). Richiesto solo se <code>GEO_PROVIDER=maxmind</code>.<br>
+        Es: <code>./GeoLite2-Country.mmdb</code><br>
+        <span class="where">→ Scarica il DB gratuito da maxmind.com (richiede registrazione) e posizionalo nella root del progetto</span>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
 <!-- BACKUP -->
 <div class="section-group-title">Backup automatico</div>
 <table class="env-table">
@@ -1380,6 +1477,22 @@ Incolla il seguente contenuto:
 <span class="key">RECAPTCHA_SECRET_KEY</span>=<span class="val">6LcXXXXXXXXXXXXXXXXX</span>
 <span class="key">RECAPTCHA_MIN_SCORE</span>=<span class="val">0.5</span>
 
+<span class="comment"># ── Admin ────────────────────────────────────────────────────────────────</span>
+<span class="key">ADMIN_KEY</span>=<span class="val">chiave_generata_con_crypto_randomBytes_32</span>
+<span class="key">ADMIN_LOW_STOCK_THRESHOLD</span>=<span class="val">5</span>
+<span class="key">INTERNAL_SECRET</span>=<span class="val">altra_chiave_casuale</span>
+
+<span class="comment"># ── Geo IP (opzionale) ───────────────────────────────────────────────────</span>
+<span class="key">GEO_PROVIDER</span>=<span class="val">ip-api</span>
+<span class="comment"># MAXMIND_DB_PATH=./GeoLite2-Country.mmdb   # solo se GEO_PROVIDER=maxmind</span>
+
+<span class="comment"># ── Deploy VPS ───────────────────────────────────────────────────────────</span>
+<span class="key">DEPLOY_HOST</span>=<span class="val">ip-server</span>
+<span class="key">DEPLOY_USER</span>=<span class="val">deploy</span>
+<span class="key">DEPLOY_PATH</span>=<span class="val">/var/www/cliente/frontend</span>
+<span class="key">DEPLOY_PM2_APP</span>=<span class="val">nomeprogetto</span>
+<span class="key">DEPLOY_PORT</span>=<span class="val">4321</span>
+
 <span class="comment"># ── Backup ───────────────────────────────────────────────────────────────</span>
 <span class="key">BACKUP_ADMIN_KEY</span>=<span class="val">chiave_generata_con_crypto_randomBytes_32</span>
 <span class="key">BACKUP_STORAGE</span>=<span class="val">local</span>              <span class="comment"># oppure: s3</span>
@@ -1396,7 +1509,7 @@ Incolla il seguente contenuto:
 
 <div class="callout success">
   <strong>Checklist variabili minime per il primo deploy:</strong><br>
-  DIRECTUS_URL · DIRECTUS_TOKEN · STRIPE_SECRET_KEY · STRIPE_PUBLISHABLE_KEY · STRIPE_WEBHOOK_SECRET · PUBLIC_SITE_URL · ALLOWED_ORIGIN · BACKUP_ADMIN_KEY
+  DIRECTUS_URL · DIRECTUS_TOKEN · STRIPE_SECRET_KEY · STRIPE_PUBLISHABLE_KEY · STRIPE_WEBHOOK_SECRET · PUBLIC_SITE_URL · ALLOWED_ORIGIN · ADMIN_KEY · BACKUP_ADMIN_KEY
 </div>
 
 </details>
