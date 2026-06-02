@@ -2,18 +2,10 @@
 // src/pages/admin/index.astro — protected admin dashboard
 export const prerender = false
 
-import Base from '@/layouts/Base.astro'
-import Header from '@/components/layout/Header.astro'
-import Footer from '@/components/layout/Footer.astro'
-
-const adminKey = import.meta.env.ADMIN_KEY ?? process.env.ADMIN_KEY
-const session = Astro.cookies.get('admin_session')?.value
-if (!adminKey || session !== adminKey) {
-  return Astro.redirect('/admin/login')
-}
+import AdminLayout from '@/layouts/AdminLayout.astro'
 
 const directusUrl = import.meta.env.DIRECTUS_URL ?? process.env.DIRECTUS_URL ?? ''
-const directusToken = import.meta.env.DIRECTUS_TOKEN ?? process.env.DIRECTUS_TOKEN ?? ''
+const directusToken = Astro.cookies.get('admin_token')?.value ?? ''
 
 type OrderRow = { id: string; status: string; customer_email: string; total: number; date_created: string }
 type VariantRow = { id: string; sku: string; name: string; stock_quantity: number; product_id: { name: string } }
@@ -59,131 +51,118 @@ function fmtDate(iso: string) {
 }
 ---
 
-<Base title="Admin Dashboard">
-  <Header />
-  <main class="container py-10">
+<AdminLayout title="Dashboard" active="dashboard">
 
-    <div class="flex items-center justify-between mb-8 flex-wrap gap-4">
-      <h1 class="text-3xl font-bold">Dashboard Admin</h1>
-      <button id="admin-logout" class="text-sm text-[var(--color-muted)] hover:text-red-500 transition-colors">Esci</button>
+  <!-- KPI cards -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+    <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
+      <p class="text-xs text-[var(--color-muted)] uppercase font-medium mb-1">Ordini totali</p>
+      <p class="text-3xl font-bold">{totalOrders}</p>
     </div>
-
-    <!-- KPI cards -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
-        <p class="text-xs text-[var(--color-muted)] uppercase font-medium mb-1">Ordini totali</p>
-        <p class="text-3xl font-bold">{totalOrders}</p>
-      </div>
-      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
-        <p class="text-xs text-[var(--color-muted)] uppercase font-medium mb-1">Fatturato</p>
-        <p class="text-3xl font-bold">€{totalRevenue.toFixed(2)}</p>
-      </div>
-      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
-        <p class="text-xs text-[var(--color-muted)] uppercase font-medium mb-1">Da processare</p>
-        <p class="text-3xl font-bold {pendingCount > 0 ? 'text-blue-600' : ''}">{pendingCount}</p>
-      </div>
-      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
-        <p class="text-xs text-[var(--color-muted)] uppercase font-medium mb-1">Stock in esaurim.</p>
-        <p class="text-3xl font-bold {lowStock.length > 0 ? 'text-red-600' : ''}">{lowStock.length}</p>
-      </div>
+    <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
+      <p class="text-xs text-[var(--color-muted)] uppercase font-medium mb-1">Fatturato</p>
+      <p class="text-3xl font-bold">€{totalRevenue.toFixed(2)}</p>
     </div>
+    <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
+      <p class="text-xs text-[var(--color-muted)] uppercase font-medium mb-1">Da processare</p>
+      <p class="text-3xl font-bold {pendingCount > 0 ? 'text-blue-600' : ''}">{pendingCount}</p>
+    </div>
+    <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
+      <p class="text-xs text-[var(--color-muted)] uppercase font-medium mb-1">Stock in esaurim.</p>
+      <p class="text-3xl font-bold {lowStock.length > 0 ? 'text-red-600' : ''}">{lowStock.length}</p>
+    </div>
+  </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-      <!-- Recent orders -->
-      <div class="lg:col-span-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg overflow-hidden">
-        <div class="px-6 py-4 border-b border-[var(--color-border)] flex items-center justify-between">
-          <h2 class="font-semibold">Ultimi ordini</h2>
-          <a href={`${directusUrl}/admin/content/orders`} target="_blank" rel="noopener" class="text-xs text-[var(--color-muted)] hover:text-[var(--color-brand)]">Vedi tutti →</a>
-        </div>
-        {recentOrders.length === 0
-          ? <p class="p-6 text-[var(--color-muted)] text-sm">Nessun ordine.</p>
-          : (
-            <div class="overflow-x-auto">
-              <table class="w-full text-sm">
-                <thead>
-                  <tr class="border-b border-[var(--color-border)]">
-                    <th class="text-left px-6 py-3 text-xs font-medium text-[var(--color-muted)] uppercase">ID</th>
-                    <th class="text-left px-6 py-3 text-xs font-medium text-[var(--color-muted)] uppercase">Stato</th>
-                    <th class="text-left px-6 py-3 text-xs font-medium text-[var(--color-muted)] uppercase">Cliente</th>
-                    <th class="text-right px-6 py-3 text-xs font-medium text-[var(--color-muted)] uppercase">Totale</th>
-                    <th class="text-right px-6 py-3 text-xs font-medium text-[var(--color-muted)] uppercase">Data</th>
+    <!-- Recent orders -->
+    <div class="lg:col-span-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg overflow-hidden">
+      <div class="px-6 py-4 border-b border-[var(--color-border)] flex items-center justify-between">
+        <h2 class="font-semibold">Ultimi ordini</h2>
+        <a href="/admin/orders" class="text-xs text-[var(--color-muted)] hover:text-[var(--color-brand)]">Vedi tutti →</a>
+      </div>
+      {recentOrders.length === 0
+        ? <p class="p-6 text-[var(--color-muted)] text-sm">Nessun ordine.</p>
+        : (
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-[var(--color-border)]">
+                  <th class="text-left px-6 py-3 text-xs font-medium text-[var(--color-muted)] uppercase">ID</th>
+                  <th class="text-left px-6 py-3 text-xs font-medium text-[var(--color-muted)] uppercase">Stato</th>
+                  <th class="text-left px-6 py-3 text-xs font-medium text-[var(--color-muted)] uppercase">Cliente</th>
+                  <th class="text-right px-6 py-3 text-xs font-medium text-[var(--color-muted)] uppercase">Totale</th>
+                  <th class="text-right px-6 py-3 text-xs font-medium text-[var(--color-muted)] uppercase">Data</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentOrders.map(o => (
+                  <tr class="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-bg)] transition-colors">
+                    <td class="px-6 py-3 font-mono text-xs text-[var(--color-muted)]">{o.id.slice(0, 8)}…</td>
+                    <td class="px-6 py-3">
+                      <span class:list={['inline-block px-2 py-0.5 text-xs font-medium rounded-full', STATUS_COLORS[o.status] ?? 'bg-gray-100 text-gray-700']}>
+                        {STATUS_LABELS[o.status] ?? o.status}
+                      </span>
+                    </td>
+                    <td class="px-6 py-3 truncate max-w-[160px]">{o.customer_email}</td>
+                    <td class="px-6 py-3 text-right font-medium">€{o.total?.toFixed(2)}</td>
+                    <td class="px-6 py-3 text-right text-[var(--color-muted)] whitespace-nowrap">{fmtDate(o.date_created)}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {recentOrders.map(o => (
-                    <tr class="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-bg)] transition-colors">
-                      <td class="px-6 py-3 font-mono text-xs text-[var(--color-muted)]">{o.id.slice(0, 8)}…</td>
-                      <td class="px-6 py-3">
-                        <span class:list={['inline-block px-2 py-0.5 text-xs font-medium rounded-full', STATUS_COLORS[o.status] ?? 'bg-gray-100 text-gray-700']}>
-                          {STATUS_LABELS[o.status] ?? o.status}
-                        </span>
-                      </td>
-                      <td class="px-6 py-3 truncate max-w-[160px]">{o.customer_email}</td>
-                      <td class="px-6 py-3 text-right font-medium">€{o.total?.toFixed(2)}</td>
-                      <td class="px-6 py-3 text-right text-[var(--color-muted)] whitespace-nowrap">{fmtDate(o.date_created)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      }
+    </div>
+
+    <!-- Right column -->
+    <div class="space-y-6">
+
+      <!-- Low stock alerts -->
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg overflow-hidden">
+        <div class="px-5 py-4 border-b border-[var(--color-border)]">
+          <h2 class="font-semibold">Stock in esaurimento <span class="text-xs text-[var(--color-muted)] ml-1">(≤{lowStockThreshold})</span></h2>
+        </div>
+        {lowStock.length === 0
+          ? <p class="px-5 py-4 text-[var(--color-muted)] text-sm">Nessuna variante in esaurimento.</p>
+          : (
+            <ul class="divide-y divide-[var(--color-border)]">
+              {lowStock.map(v => (
+                <li class="px-5 py-3 flex items-center justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium truncate">{v.product_id?.name ?? '—'}</p>
+                    <p class="text-xs text-[var(--color-muted)]">{v.name} · {v.sku}</p>
+                  </div>
+                  <span class:list={['shrink-0 text-sm font-bold tabular-nums', v.stock_quantity === 0 ? 'text-red-600' : 'text-orange-500']}>
+                    {v.stock_quantity}
+                  </span>
+                </li>
+              ))}
+            </ul>
           )
         }
       </div>
 
-      <!-- Right column -->
-      <div class="space-y-6">
-
-        <!-- Low stock alerts -->
-        <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg overflow-hidden">
-          <div class="px-5 py-4 border-b border-[var(--color-border)]">
-            <h2 class="font-semibold">Stock in esaurimento <span class="text-xs text-[var(--color-muted)] ml-1">(≤{lowStockThreshold})</span></h2>
-          </div>
-          {lowStock.length === 0
-            ? <p class="px-5 py-4 text-[var(--color-muted)] text-sm">Nessuna variante in esaurimento.</p>
-            : (
-              <ul class="divide-y divide-[var(--color-border)]">
-                {lowStock.map(v => (
-                  <li class="px-5 py-3 flex items-center justify-between gap-3">
-                    <div class="min-w-0">
-                      <p class="text-sm font-medium truncate">{v.product_id?.name ?? '—'}</p>
-                      <p class="text-xs text-[var(--color-muted)]">{v.name} · {v.sku}</p>
-                    </div>
-                    <span class:list={['shrink-0 text-sm font-bold tabular-nums', v.stock_quantity === 0 ? 'text-red-600' : 'text-orange-500']}>
-                      {v.stock_quantity}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )
-          }
-        </div>
-
-        <!-- Backup -->
-        <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
-          <h2 class="font-semibold mb-3">Backup</h2>
-          <p class="text-sm text-[var(--color-muted)] mb-4">Esegui un backup manuale dei dati Directus.</p>
-          <button
-            id="trigger-backup"
-            class="w-full py-2 bg-[var(--color-brand)] text-white text-sm font-medium rounded-md hover:opacity-90 transition-opacity"
-          >
-            Avvia backup
-          </button>
-          <p id="backup-msg" class="hidden text-xs mt-2 text-center"></p>
-        </div>
-
+      <!-- Backup -->
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
+        <h2 class="font-semibold mb-3">Backup</h2>
+        <p class="text-sm text-[var(--color-muted)] mb-4">Esegui un backup manuale dei dati Directus.</p>
+        <button
+          id="trigger-backup"
+          class="w-full py-2 bg-[var(--color-brand)] text-white text-sm font-medium rounded-md hover:opacity-90 transition-opacity"
+        >
+          Avvia backup
+        </button>
+        <p id="backup-msg" class="hidden text-xs mt-2 text-center"></p>
       </div>
+
     </div>
-  </main>
-  <Footer />
-</Base>
+  </div>
+
+</AdminLayout>
 
 <script>
-  document.getElementById('admin-logout')?.addEventListener('click', async () => {
-    await fetch('/api/admin/auth', { method: 'DELETE' })
-    window.location.href = '/admin/login'
-  })
-
   document.getElementById('trigger-backup')?.addEventListener('click', async () => {
     const btn = document.getElementById('trigger-backup') as HTMLButtonElement
     const msg = document.getElementById('backup-msg')!
