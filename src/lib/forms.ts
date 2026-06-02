@@ -3,7 +3,7 @@ import {
   readItems, createItem,
 } from '@directus/sdk'
 import nodemailer from 'nodemailer'
-import type { Form, FormField, FormSubmission } from './types'
+import type { Form, FormSubmission } from './types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Schema = Record<string, any>
@@ -52,7 +52,7 @@ export async function getForms(): Promise<Form[]> {
 
 export async function saveSubmission(
   formId: string,
-  payload: Omit<FormSubmission, 'id' | 'date_created' | 'is_read'>
+  payload: Omit<FormSubmission, 'id' | 'date_created' | 'is_read' | 'form_id'>
 ): Promise<FormSubmission> {
   const client = createClient()
   const item = await client.request(createItem('form_submissions', { form_id: formId, ...payload }))
