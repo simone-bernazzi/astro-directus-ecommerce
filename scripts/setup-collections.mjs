@@ -178,21 +178,6 @@ async function main() {
   await field('shipping_zones', 'max_weight_g', 'integer', { is_nullable: true }, { interface: 'input' })
   await field('shipping_zones', 'is_active', 'boolean', { default_value: true }, { interface: 'boolean' })
 
-  // ── customers ─────────────────────────────────────────────────────────────
-  await collection('customers', 'person', '{{first_name}} {{last_name}}')
-  await field('customers', 'email', 'string', { is_unique: true }, { interface: 'input', required: true })
-  await field('customers', 'directus_user_id', 'string', { is_nullable: true, is_unique: true }, { interface: 'input' })
-  await field('customers', 'first_name', 'string', {}, { interface: 'input' })
-  await field('customers', 'last_name', 'string', {}, { interface: 'input' })
-  await field('customers', 'phone', 'string', { is_nullable: true }, { interface: 'input' })
-  await field('customers', 'shipping_addresses', 'json', { is_nullable: true }, { interface: 'input-code', options: { language: 'json' }, note: 'Array JSON di indirizzi: [{id,label,name,line1,line2,city,postal_code,country,is_default}]' })
-  await field('customers', 'default_shipping_address', 'json', { is_nullable: true }, { interface: 'input-code', options: { language: 'json' } })
-  await field('customers', 'stripe_customer_id', 'string', { is_nullable: true }, { interface: 'input' })
-  await field('customers', 'total_orders', 'integer', { default_value: 0 }, { interface: 'input' })
-  await field('customers', 'total_spent', 'decimal', { numeric_precision: 12, numeric_scale: 2, default_value: 0 }, { interface: 'input' })
-  // CRM fields
-  await field('customers', 'contact_id', 'integer', { is_nullable: true }, { interface: 'input', hidden: true, note: 'FK → contacts (CRM)' })
-
   // ── contact_submissions ───────────────────────────────────────────────────
   await collection('contact_submissions', 'mail', '{{name}} — {{subject}}')
   await field('contact_submissions', 'name', 'string', { is_nullable: false }, { interface: 'input' })
@@ -315,12 +300,10 @@ async function main() {
   console.log('  6. portfolio.cover → M2O directus_files')
   console.log('  7. portfolio.gallery → M2M directus_files')
   console.log('  8. site_settings.logo → M2O directus_files')
-  console.log('  9. customers.directus_user_id → M2O directus_users')
-  console.log(' 10. orders.customer_id → M2O customers')
-  console.log(' 11. orders.coupon_id → M2O coupons')
-  console.log(' 12. orders.gift_card_id → M2O gift_cards')
-  console.log(' 13. Permessi ruolo Public: Read su products, product_variants, product_categories')
-  console.log(' 14. Permessi ruolo Public: Read su pages, posts, categories, portfolio, faq, site_settings')
+  console.log('  9. orders.coupon_id → M2O coupons')
+  console.log(' 10. orders.gift_card_id → M2O gift_cards')
+  console.log(' 11. Permessi ruolo Public: Read su products, product_variants, product_categories')
+  console.log(' 12. Permessi ruolo Public: Read su pages, posts, categories, portfolio, faq, site_settings')
 }
 
 main().catch(err => { console.error(err); process.exit(1) })

@@ -5,15 +5,15 @@ export const prerender = false
 import Base from '@/layouts/Base.astro'
 import Header from '@/components/layout/Header.astro'
 import Footer from '@/components/layout/Footer.astro'
-import { getOrdersByCustomer } from '@/lib/directus'
+import { getOrdersByContact } from '@/lib/directus'
 
 const token = Astro.cookies.get('directus_token')?.value
 if (!token) {
   return Astro.redirect('/login?redirect=/account/ordini')
 }
 
-const customerId = Astro.cookies.get('directus_customer_id')?.value ?? ''
-const orders = customerId ? await getOrdersByCustomer(customerId).catch(() => []) : []
+const contactId = Astro.cookies.get('directus_contact_id')?.value ?? ''
+const orders = contactId ? await getOrdersByContact(contactId).catch(() => []) : []
 
 const statusLabels: Record<string, string> = {
   pending: 'In attesa',

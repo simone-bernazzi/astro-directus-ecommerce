@@ -84,7 +84,9 @@ async function main() {
       { text: 'Inattivo', value: 'inattivo' },
     ]},
   })
-  await field('contacts', 'customer_id', 'integer', { is_nullable: true }, { interface: 'input', hidden: true, note: 'FK → customers (utente online)' })
+  await field('contacts', 'directus_user_id', 'string', { is_nullable: true, is_unique: true }, { interface: 'input', hidden: true, note: 'FK → directus_users (account online)' })
+  await field('contacts', 'stripe_customer_id', 'string', { is_nullable: true }, { interface: 'input', hidden: true })
+  await field('contacts', 'shipping_addresses', 'json', { is_nullable: true }, { interface: 'input-code', options: { language: 'json' }, note: 'Array JSON di indirizzi: [{id,label,name,line1,line2,city,postal_code,country,is_default}]' })
   await field('contacts', 'default_shipping_address', 'json', { is_nullable: true }, { interface: 'input-code', options: { language: 'json' } })
   await field('contacts', 'is_active', 'boolean', { default_value: true }, { interface: 'boolean' })
 
@@ -189,7 +191,7 @@ async function main() {
 
   console.log('\n✓ Setup CRM completato.')
   console.log('\nPassaggi manuali rimanenti in Directus Admin:')
-  console.log('  1. Crea relazione M2O: contacts.customer_id → customers.id')
+  console.log('  1. Crea relazione M2O: contacts.directus_user_id → directus_users.id')
   console.log('  2. Crea relazione M2O: crm_interactions.contact_id → contacts.id')
   console.log('  3. Crea relazione M2O: crm_tasks.contact_id → contacts.id')
   console.log('  4. Crea relazione M2O: crm_documents.contact_id → contacts.id')

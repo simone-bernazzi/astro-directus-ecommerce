@@ -1,5 +1,5 @@
 // src/pages/api/account/addresses.ts — CRUD for saved shipping addresses
-// Addresses are stored as a JSON array on the customer record (customers.shipping_addresses).
+// Addresses are stored as a JSON array on the contact record (contacts.shipping_addresses).
 // Auth: directus_token cookie (Directus JWT).
 export const prerender = false
 
@@ -39,9 +39,9 @@ async function getUserFromToken(token: string): Promise<{ id: string; email: str
   return data.data ?? null
 }
 
-async function getOrCreateCustomer(directus: ReturnType<typeof getAdminClient>, user: { id: string; email: string }) {
+async function getOrCreateContact(directus: ReturnType<typeof getAdminClient>, user: { id: string; email: string }) {
   const existing = await directus.request(
-    readItems('customers', {
+    readItems('contacts', {
       filter: { directus_user_id: { _eq: user.id } },
       limit: 1,
       fields: ['id', 'shipping_addresses'],
@@ -51,7 +51,7 @@ async function getOrCreateCustomer(directus: ReturnType<typeof getAdminClient>, 
   if (existing[0]) return existing[0]
 
   const byEmail = await directus.request(
-    readItems('customers', {
+    readItems('contacts', {
       filter: { email: { _eq: user.email } },
       limit: 1,
       fields: ['id', 'shipping_addresses'],
@@ -59,12 +59,12 @@ async function getOrCreateCustomer(directus: ReturnType<typeof getAdminClient>, 
   ) as Array<{ id: string; shipping_addresses: ShippingAddress[] | null }>
 
   if (byEmail[0]) {
-    await directus.request(updateItem('customers', byEmail[0].id, { directus_user_id: user.id }))
+    await directus.request(updateItem('contacts', byEmail[0].id, { directus_user_id: user.id }))
     return byEmail[0]
   }
 
   const created = await directus.request(
-    createItem('customers', { email: user.email, directus_user_id: user.id, shipping_addresses: [] })
+    createItem('contacts', { email: user.email, directus_user_id: user.id, shipping_addresses: [], channel_type: 'online' })
   ) as { id: string; shipping_addresses: ShippingAddress[] | null }
   return created
 }
@@ -82,7 +82,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
   if (!user) return new Response(JSON.stringify({ error: 'Token non valido' }), { status: 401 })
 
   const directus = getAdminClient()
-  const customer = await getOrCreateCustomer(directus, user)
+  const customer = await getOrCreateContact(directus, user)
   const addresses: ShippingAddress[] = Array.isArray(customer.shipping_addresses) ? customer.shipping_addresses : []
 
   return new Response(JSON.stringify({ addresses }), { status: 200 })
@@ -119,7 +119,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
 
   const directus = getAdminClient()
-  const customer = await getOrCreateCustomer(directus, user)
+  const customer = await getOrCreateContact(directus, user)
   let addresses: ShippingAddress[] = Array.isArray(customer.shipping_addresses) ? customer.shipping_addresses : []
 
   const newAddress: ShippingAddress = {
@@ -141,7 +141,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   if (addresses.length === 0) newAddress.is_default = true
 
   addresses.push(newAddress)
-  await directus.request(updateItem('customers', customer.id, { shipping_addresses: addresses }))
+  await directus.request(updateItem('contacts', customer.id, { shipping_addresses: addresses }))
 
   return new Response(JSON.stringify({ address: newAddress }), { status: 201 })
 }
@@ -158,14 +158,14 @@ export const DELETE: APIRoute = async ({ request, cookies, url }) => {
   if (!id) return new Response(JSON.stringify({ error: 'id obbligatorio' }), { status: 400 })
 
   const directus = getAdminClient()
-  const customer = await getOrCreateCustomer(directus, user)
+  const customer = await getOrCreateContact(directus, user)
   let addresses: ShippingAddress[] = Array.isArray(customer.shipping_addresses) ? customer.shipping_addresses : []
 
   const wasDefault = addresses.find(a => a.id === id)?.is_default ?? false
   addresses = addresses.filter(a => a.id !== id)
   if (wasDefault && addresses.length > 0) addresses[0].is_default = true
 
-  await directus.request(updateItem('customers', customer.id, { shipping_addresses: addresses }))
+  await directus.request(updateItem('contacts', customer.id, { shipping_addresses: addresses }))
   return new Response(JSON.stringify({ success: true }), { status: 200 })
 }
 
@@ -181,7 +181,7 @@ export const PATCH: APIRoute = async ({ request, cookies, url }) => {
   if (!id) return new Response(JSON.stringify({ error: 'id obbligatorio' }), { status: 400 })
 
   const directus = getAdminClient()
-  const customer = await getOrCreateCustomer(directus, user)
+  const customer = await getOrCreateContact(directus, user)
   const addresses: ShippingAddress[] = Array.isArray(customer.shipping_addresses) ? customer.shipping_addresses : []
 
   const setDefault = url.searchParams.get('default') === 'true'
@@ -189,6 +189,6 @@ export const PATCH: APIRoute = async ({ request, cookies, url }) => {
     addresses.forEach(a => { a.is_default = a.id === id })
   }
 
-  await directus.request(updateItem('customers', customer.id, { shipping_addresses: addresses }))
+  await directus.request(updateItem('contacts', customer.id, { shipping_addresses: addresses }))
   return new Response(JSON.stringify({ success: true }), { status: 200 })
 }

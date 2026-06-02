@@ -444,11 +444,11 @@ export async function getGiftCardByCode(code: string): Promise<GiftCard | null> 
 // Orders
 // ---------------------------------------------------------------------------
 
-export async function getOrdersByCustomer(customerId: string): Promise<Order[]> {
+export async function getOrdersByContact(contactId: string): Promise<Order[]> {
   const client = getClient()
   const items = await client.request(
     readItems('orders', {
-      filter: { customer_id: { _eq: customerId } },
+      filter: { contact_id: { _eq: contactId } },
       fields: ['*', 'order_items.*'],
       sort: ['-date_created'],
     })

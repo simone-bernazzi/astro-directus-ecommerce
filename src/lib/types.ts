@@ -235,7 +235,6 @@ export interface Order {
   status: OrderStatus
   customer_email: string
   customer_name: string
-  customer_id: string | null
   subtotal: number
   discount_amount: number
   shipping_cost: number
@@ -254,19 +253,6 @@ export interface Order {
   channel: 'online' | 'offline'
   contact_id: string | null
   staff_id: string | null
-}
-
-export interface Customer {
-  id: string
-  directus_user_id: string
-  first_name: string
-  last_name: string
-  phone: string | null
-  default_shipping_address: ShippingAddress | null
-  stripe_customer_id: string | null
-  total_orders: number
-  total_spent: number
-  contact_id: string | null
 }
 
 // ─── Cart (client-side) ──────────────────────────────────────────────────────
@@ -318,7 +304,9 @@ export interface Contact {
   channel_type: ChannelType
   canale_prevalente: 'offline' | 'online'
   pipeline_stage: PipelineStage
-  customer_id: string | null
+  directus_user_id: string | null
+  stripe_customer_id: string | null
+  shipping_addresses: ShippingAddress[] | null
   default_shipping_address: ShippingAddress | null
   is_active: boolean
   tags: CrmTag[]
