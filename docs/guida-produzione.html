@@ -711,13 +711,14 @@ DIRECTUS_TOKEN=<span class="val">token_generato_al_passo_1.4</span></pre></div><
 <span class="note">Il flag <code>--env-file</code> carica il <code>.env</code> automaticamente — Node.js non lo fa di default. Disponibile da Node 20.6+.</span></div></li>
   <li><span class="check-box"></span><div>Verifica nel pannello Directus (<code>https://cms.tuodominio.it/admin</code>) che le collezioni siano state create correttamente</div></li>
 </ul>
-<div class="callout info"><strong>Cosa crea:</strong> le collezioni e-commerce e CMS (e-commerce, blog, portfolio, FAQ, impostazioni sito) — <code>pages</code>, <code>posts</code>, <code>categories</code>, <code>portfolio</code>, <code>faq</code>, <code>site_settings</code>, <code>products</code>, <code>product_categories</code>, <code>product_variants</code>, <code>shipping_zones</code>, <code>orders</code>, <code>order_items</code>, <code>customers</code>, <code>coupons</code>, <code>gift_cards</code>, <code>contact_submissions</code>, <code>stock_notifications</code>. Lo script è idempotente: se una collezione esiste già, la salta.<br><strong>CRM e Form dinamici:</strong> sono gestiti da script separati — esegui <code>npm run setup:crm</code> e <code>npm run setup:forms</code> oppure usa <code>npm run setup:all</code> per tutti e tre in sequenza (vedi sezione 2).</div>
+<div class="callout info"><strong>Cosa crea:</strong> le collezioni e-commerce e CMS (e-commerce, blog, portfolio, FAQ, impostazioni sito) — <code>pages</code>, <code>posts</code>, <code>categories</code>, <code>portfolio</code>, <code>faq</code>, <code>site_settings</code>, <code>products</code>, <code>product_categories</code>, <code>product_variants</code>, <code>shipping_zones</code>, <code>orders</code>, <code>order_items</code>, <code>coupons</code>, <code>gift_cards</code>, <code>contact_submissions</code>, <code>stock_notifications</code>. Lo script è idempotente: se una collezione esiste già, la salta.<br><strong>Nota:</strong> la collezione <code>contacts</code> (unica anagrafica clienti — online e offline) è creata dallo script CRM.<br><strong>CRM e Form dinamici:</strong> sono gestiti da script separati — esegui <code>npm run setup:crm</code> e <code>npm run setup:forms</code> oppure usa <code>npm run setup:all</code> per tutti e tre in sequenza (vedi sezione 2).</div>
 <div class="callout warn"><strong>Ripristino da backup:</strong> se stai migrando un progetto esistente con <code>restore.mjs</code>, non eseguire questo script — le collezioni vengono ricreate dal backup.</div>
 
 <h3>1.7 Configurare i permessi</h3>
 <ul class="checklist">
   <li><span class="check-box"></span><div>Settings → Roles → <strong>Public</strong>: permesso <em>read</em> su <code>pages</code>, <code>posts</code>, <code>categories</code>, <code>portfolio</code>, <code>faq</code>, <code>site_settings</code>, <code>products</code>, <code>product_categories</code></div></li>
-  <li><span class="check-box"></span><div>Crea ruolo <strong>Customer</strong>: read su <code>orders</code> (filtro: <code>customer_email = $CURRENT_USER.email</code>)</div></li>
+  <li><span class="check-box"></span><div>Crea ruolo <strong>Customer</strong>: read su <code>orders</code> (filtro: <code>customer_email = $CURRENT_USER.email</code>)
+<span class="note">Gli utenti online sono collegati tramite <code>contacts.directus_user_id</code>. Le loro spedizioni e KPI sono sulla stessa scheda contatto — filtrabili per <code>channel_type</code> (offline / online / both).</span></div></li>
   <li><span class="check-box"></span><div>Il ruolo <strong>Admin</strong> ha accesso completo (non modificare)</div></li>
 </ul>
 
@@ -734,7 +735,7 @@ DIRECTUS_TOKEN=<span class="val">token_generato_al_passo_1.4</span></pre></div><
 <ul class="checklist">
   <li><span class="check-box"></span><div>Esegui il setup delle collezioni CRM
 <pre style="margin-top:6px"><span class="cmd">node</span> --env-file=.env scripts/setup-crm-collections.mjs</pre>
-<span class="note">Crea 7 collezioni: <code>crm_tags</code>, <code>contacts</code>, <code>crm_interactions</code>, <code>crm_tasks</code>, <code>crm_documents</code>, <code>crm_pipeline_history</code>, <code>customer_kpis</code>. Aggiunge i campi <code>contact_id</code>, <code>channel</code> e <code>staff_id</code> alle collezioni esistenti <code>orders</code> e <code>customers</code>.</span></div></li>
+<span class="note">Crea 7 collezioni: <code>crm_tags</code>, <code>contacts</code>, <code>crm_interactions</code>, <code>crm_tasks</code>, <code>crm_documents</code>, <code>crm_pipeline_history</code>, <code>customer_kpis</code>. <code>contacts</code> è la collezione unica per tutti gli utenti (online e offline) — include i campi <code>directus_user_id</code>, <code>stripe_customer_id</code>, <code>shipping_addresses</code> e <code>channel_type</code> per distinguere la tipologia.</span></div></li>
   <li><span class="check-box"></span><div>Esegui il setup delle collezioni Form dinamici
 <pre style="margin-top:6px"><span class="cmd">node</span> --env-file=.env scripts/setup-forms-collections.mjs</pre>
 <span class="note">Crea 2 collezioni: <code>forms</code> (configurazione form con anti-spam) e <code>form_submissions</code> (risposte).</span></div></li>
@@ -751,8 +752,8 @@ DIRECTUS_TOKEN=<span class="val">token_generato_al_passo_1.4</span></pre></div><
 <div class="option-body">
 <p>Lo script crea i campi ma non le relazioni grafiche né i permessi. Configura manualmente:</p>
 <ul class="checklist">
-  <li><span class="check-box"></span><div>Crea relazione <strong>M2O</strong>: <code>contacts.customer_id</code> → <code>customers.id</code>
-<span class="note">Settings → Data Model → contacts → Aggiungi campo → Relazione M2O → customers</span></div></li>
+  <li><span class="check-box"></span><div>Crea relazione <strong>M2O</strong>: <code>contacts.directus_user_id</code> → <code>directus_users.id</code>
+<span class="note">Settings → Data Model → contacts → Aggiungi campo → Relazione M2O → directus_users. Collega il contatto all'account di login online.</span></div></li>
   <li><span class="check-box"></span><div>Crea relazione <strong>M2O</strong>: <code>crm_interactions.contact_id</code> → <code>contacts.id</code></div></li>
   <li><span class="check-box"></span><div>Crea relazione <strong>M2O</strong>: <code>crm_tasks.contact_id</code> → <code>contacts.id</code></div></li>
   <li><span class="check-box"></span><div>Crea relazione <strong>M2O</strong>: <code>crm_documents.contact_id</code> → <code>contacts.id</code></div></li>
@@ -775,7 +776,7 @@ DIRECTUS_TOKEN=<span class="val">token_generato_al_passo_1.4</span></pre></div><
 <p>Con il server MCP Directus attivo, incolla questo prompt in Claude Code (dopo <code>npm run claude</code>) per configurare tutto in un colpo solo:</p>
 <pre style="white-space:pre-wrap;">Usando il server MCP Directus, esegui nell'ordine queste operazioni:
 
-1. Crea relazione M2O: campo "customer_id" nella collezione "contacts" punta a "customers.id"
+1. Crea relazione M2O: campo "directus_user_id" nella collezione "contacts" punta a "directus_users.id"
 2. Crea relazione M2O: campo "contact_id" nella collezione "crm_interactions" punta a "contacts.id"
 3. Crea relazione M2O: campo "contact_id" nella collezione "crm_tasks" punta a "contacts.id"
 4. Crea relazione M2O: campo "contact_id" nella collezione "crm_documents" punta a "contacts.id"
