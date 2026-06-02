@@ -381,3 +381,49 @@ export interface CustomerKpi {
   rfm_segment: RfmSegment
   calculated_at: string | null
 }
+
+// ─── Contact Forms ────────────────────────────────────────────────────────────
+
+export type FormFieldType = 'text' | 'email' | 'tel' | 'textarea' | 'select' | 'checkbox' | 'file'
+
+export interface FormField {
+  name: string
+  label: string
+  type: FormFieldType
+  required: boolean
+  placeholder?: string
+  options?: string[]
+}
+
+export interface Form {
+  id: string
+  name: string
+  slug: string
+  fields: FormField[]
+  success_message: string | null
+  redirect_enabled: boolean
+  redirect_url: string | null
+  notification_email: string | null
+  recaptcha_enabled: boolean
+  capture_ip: boolean
+  capture_user_agent: boolean
+  capture_page_url: boolean
+  honeypot_enabled: boolean
+  country_filter_enabled: boolean
+  allowed_countries: string[] | null
+  keyword_filter_enabled: boolean
+  blocked_keywords: string[] | null
+  is_active: boolean
+}
+
+export interface FormSubmission {
+  id: string
+  form_id: string
+  data: Record<string, unknown>
+  page_url: string | null
+  ip_address: string | null
+  user_agent: string | null
+  country_code: string | null
+  is_read: boolean
+  date_created: string
+}
