@@ -18,6 +18,9 @@
     "backup:monthly": "node scripts/backup.mjs --type monthly",
     "restore": "node scripts/restore.mjs",
     "migrate": "node scripts/migrate.mjs",
+    "setup": "node scripts/setup-collections.mjs",
+    "setup:crm": "node scripts/setup-crm-collections.mjs",
+    "setup:all": "node scripts/setup-collections.mjs && node scripts/setup-crm-collections.mjs",
     "claude": "bash scripts/claude.sh",
     "deploy": "bash scripts/deploy.sh"
   },
