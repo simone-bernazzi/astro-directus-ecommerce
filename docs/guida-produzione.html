@@ -390,30 +390,40 @@
   <div class="phase-card">
     <div class="phase-num">Fase 1</div>
     <div class="phase-title">Directus CMS</div>
-    <div class="phase-desc">Hosting cPanel/VPS, database MySQL, token API, schema collezioni</div>
+    <div class="phase-desc">Hosting cPanel/VPS, database MySQL, token API, schema collezioni, permessi</div>
   </div>
   <div class="phase-card">
     <div class="phase-num">Fase 2</div>
+    <div class="phase-title">CRM e Form dinamici</div>
+    <div class="phase-desc">Collezioni CRM, form dinamici con anti-spam, KPI automatici</div>
+  </div>
+  <div class="phase-card">
+    <div class="phase-num">Fase 3</div>
+    <div class="phase-title">Claude Code + MCP</div>
+    <div class="phase-desc">Integrazione AI con server MCP Directus per gestione contenuti e CRM</div>
+  </div>
+  <div class="phase-card">
+    <div class="phase-num">Fase 4</div>
     <div class="phase-title">Stripe</div>
     <div class="phase-desc">Account, chiavi API, webhook endpoint, test pagamenti</div>
   </div>
   <div class="phase-card">
-    <div class="phase-num">Fase 3</div>
+    <div class="phase-num">Fase 5</div>
     <div class="phase-title">reCAPTCHA</div>
     <div class="phase-desc">Registrazione sito Google, chiavi pubblica e segreta</div>
   </div>
   <div class="phase-card">
-    <div class="phase-num">Fase 4</div>
+    <div class="phase-num">Fase 6</div>
     <div class="phase-title">Frontend Deploy</div>
     <div class="phase-desc">VPS con Node.js + PM2 + Nginx, deploy automatico con npm run deploy</div>
   </div>
   <div class="phase-card">
-    <div class="phase-num">Fase 5</div>
+    <div class="phase-num">Fase 7</div>
     <div class="phase-title">Backup</div>
     <div class="phase-desc">Configurazione backup automatico, chiave admin, storage S3 opzionale</div>
   </div>
   <div class="phase-card">
-    <div class="phase-num">Fase 6</div>
+    <div class="phase-num">Fase 8</div>
     <div class="phase-title">Go-Live</div>
     <div class="phase-desc">DNS, HTTPS, smoke test, checklist finale</div>
   </div>
@@ -701,10 +711,25 @@ DIRECTUS_TOKEN=<span class="val">token_generato_al_passo_1.4</span></pre></div><
 <span class="note">Il flag <code>--env-file</code> carica il <code>.env</code> automaticamente — Node.js non lo fa di default. Disponibile da Node 20.6+.</span></div></li>
   <li><span class="check-box"></span><div>Verifica nel pannello Directus (<code>https://cms.tuodominio.it/admin</code>) che le collezioni siano state create correttamente</div></li>
 </ul>
-<div class="callout info"><strong>Cosa crea:</strong> le collezioni e-commerce e CMS (e-commerce, blog, portfolio, FAQ, impostazioni sito) — <code>pages</code>, <code>posts</code>, <code>categories</code>, <code>portfolio</code>, <code>faq</code>, <code>site_settings</code>, <code>products</code>, <code>product_categories</code>, <code>product_variants</code>, <code>shipping_zones</code>, <code>orders</code>, <code>order_items</code>, <code>customers</code>, <code>coupons</code>, <code>gift_cards</code>, <code>contact_submissions</code>, <code>stock_notifications</code>. Lo script è idempotente: se una collezione esiste già, la salta.<br><strong>CRM e Form dinamici:</strong> sono gestiti da script separati — esegui <code>npm run setup:crm</code> e <code>npm run setup:forms</code> oppure usa <code>npm run setup:all</code> per tutti e tre in sequenza (vedi sezione 1.7).</div>
+<div class="callout info"><strong>Cosa crea:</strong> le collezioni e-commerce e CMS (e-commerce, blog, portfolio, FAQ, impostazioni sito) — <code>pages</code>, <code>posts</code>, <code>categories</code>, <code>portfolio</code>, <code>faq</code>, <code>site_settings</code>, <code>products</code>, <code>product_categories</code>, <code>product_variants</code>, <code>shipping_zones</code>, <code>orders</code>, <code>order_items</code>, <code>customers</code>, <code>coupons</code>, <code>gift_cards</code>, <code>contact_submissions</code>, <code>stock_notifications</code>. Lo script è idempotente: se una collezione esiste già, la salta.<br><strong>CRM e Form dinamici:</strong> sono gestiti da script separati — esegui <code>npm run setup:crm</code> e <code>npm run setup:forms</code> oppure usa <code>npm run setup:all</code> per tutti e tre in sequenza (vedi sezione 2).</div>
 <div class="callout warn"><strong>Ripristino da backup:</strong> se stai migrando un progetto esistente con <code>restore.mjs</code>, non eseguire questo script — le collezioni vengono ricreate dal backup.</div>
 
-<h3>1.7 Setup CRM e Form dinamici</h3>
+<h3>1.7 Configurare i permessi</h3>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Settings → Roles → <strong>Public</strong>: permesso <em>read</em> su <code>pages</code>, <code>posts</code>, <code>categories</code>, <code>portfolio</code>, <code>faq</code>, <code>site_settings</code>, <code>products</code>, <code>product_categories</code></div></li>
+  <li><span class="check-box"></span><div>Crea ruolo <strong>Customer</strong>: read su <code>orders</code> (filtro: <code>customer_email = $CURRENT_USER.email</code>)</div></li>
+  <li><span class="check-box"></span><div>Il ruolo <strong>Admin</strong> ha accesso completo (non modificare)</div></li>
+</ul>
+
+
+
+<!-- ═══════════════════════════════════════════════════════
+     FASE 2 — CRM E FORM DINAMICI
+════════════════════════════════════════════════════════ -->
+<details class="section">
+<summary><h2><span class="num">2</span>CRM e Form dinamici — Setup collezioni e KPI</h2></summary>
+
+<h3>Setup collezioni Directus</h3>
 <p>Dopo aver eseguito lo script base (sezione 1.6), esegui gli script aggiuntivi per attivare il CRM e i form dinamici.</p>
 <ul class="checklist">
   <li><span class="check-box"></span><div>Esegui il setup delle collezioni CRM
@@ -816,7 +841,7 @@ Conferma ogni operazione completata prima di passare alla successiva.</pre>
 
 <div class="callout info"><strong>Form dinamici:</strong> per usare <code>&lt;FormRenderer slug="nome-form" /&gt;</code> in una pagina Astro, crea prima il form in Directus (<strong>forms</strong> → Crea voce) con slug, campi e configurazione anti-spam. Il componente legge la config da Directus e invia i dati a <code>/api/form/[slug]</code>.</div>
 
-<h3>1.7.1 Calcolo KPI CRM</h3>
+<h3>Calcolo KPI automatico</h3>
 <p>Il template include uno script per calcolare automaticamente CLV, churn score, RFM segment e altri KPI per ogni contatto.</p>
 <ul class="checklist">
   <li><span class="check-box"></span><div>Ricalcola i KPI per tutti i contatti (esecuzione manuale)
@@ -829,15 +854,14 @@ Conferma ogni operazione completata prima di passare alla successiva.</pre>
 <span class="note">Imposta <code>INTERNAL_SECRET</code> nel <code>.env</code> e configuralo nel Flow Directus come header della richiesta HTTP.</span></div></li>
 </ul>
 
-<h3>1.8 Configurare i permessi</h3>
-<ul class="checklist">
-  <li><span class="check-box"></span><div>Settings → Roles → <strong>Public</strong>: permesso <em>read</em> su <code>pages</code>, <code>posts</code>, <code>categories</code>, <code>portfolio</code>, <code>faq</code>, <code>site_settings</code>, <code>products</code>, <code>product_categories</code></div></li>
-  <li><span class="check-box"></span><div>Crea ruolo <strong>Customer</strong>: read su <code>orders</code> (filtro: <code>customer_email = $CURRENT_USER.email</code>)</div></li>
-  <li><span class="check-box"></span><div>Il ruolo <strong>Admin</strong> ha accesso completo (non modificare)</div></li>
-</ul>
+</details>
 
+<!-- ═══════════════════════════════════════════════════════
+     FASE 3 — CLAUDE CODE + MCP
+════════════════════════════════════════════════════════ -->
+<details class="section">
+<summary><h2><span class="num">3</span>Claude Code + MCP — Integrazione AI con Directus</h2></summary>
 
-<h3>1.9 Attivare l'integrazione AI (Claude Code + MCP)</h3>
 <p>Il file <code>.mcp.json</code> nella root della repo configura il server MCP ufficiale di Directus per Claude Code. Claude Code risolve <code>${DIRECTUS_URL}</code> e <code>${DIRECTUS_TOKEN}</code> dall'<strong>ambiente shell</strong> al momento del lancio — non legge il <code>.env</code> automaticamente.</p>
 <ul class="checklist">
   <li><span class="check-box"></span><div>Assicurati che il <code>.env</code> locale contenga <code>DIRECTUS_URL</code> e <code>DIRECTUS_TOKEN</code> corretti (step 1.4 completato)</div></li>
@@ -850,12 +874,13 @@ Conferma ogni operazione completata prima di passare alla successiva.</pre>
 <code>set -a &amp;&amp; source .env &amp;&amp; set +a &amp;&amp; claude</code><br>
 Da usare se non vuoi aggiornare il progetto client con lo script.</div>
 
+</details>
 
 <!-- ═══════════════════════════════════════════════════════
-     FASE 2 — STRIPE
+     FASE 4 — STRIPE
 ════════════════════════════════════════════════════════ -->
 <details class="section">
-<summary><h2><span class="num">2</span>Stripe — Pagamenti e webhook</h2></summary>
+<summary><h2><span class="num">4</span>Stripe — Pagamenti e webhook</h2></summary>
 
 <h3>2.1 Creare account e ottenere le chiavi API</h3>
 <ul class="checklist">
@@ -883,10 +908,10 @@ Da usare se non vuoi aggiornare il progetto client con lo script.</div>
 </details>
 
 <!-- ═══════════════════════════════════════════════════════
-     FASE 3 — reCAPTCHA
+     FASE 5 — reCAPTCHA
 ════════════════════════════════════════════════════════ -->
 <details class="section">
-<summary><h2><span class="num">3</span>Google reCAPTCHA v3</h2></summary>
+<summary><h2><span class="num">5</span>Google reCAPTCHA v3</h2></summary>
 
 <ul class="checklist">
   <li><span class="check-box"></span><div>Vai su <strong>google.com/recaptcha/admin</strong> → accedi con account Google</div></li>
@@ -903,10 +928,10 @@ Da usare se non vuoi aggiornare il progetto client con lo script.</div>
 </details>
 
 <!-- ═══════════════════════════════════════════════════════
-     FASE 4 — FRONTEND DEPLOY
+     FASE 6 — FRONTEND DEPLOY
 ════════════════════════════════════════════════════════ -->
 <details class="section">
-<summary><h2><span class="num">4</span>Frontend Deploy — VPS con Node.js + PM2 + Nginx</h2></summary>
+<summary><h2><span class="num">6</span>Frontend Deploy — VPS con Node.js + PM2 + Nginx</h2></summary>
 <p>Il progetto usa <code>@astrojs/node</code> in standalone mode. Directus e frontend girano sullo stesso VPS (es. Hetzner), nessun servizio esterno necessario.</p>
 <div class="callout info"><strong>Progetto clonato da una versione precedente del template?</strong> Se il <code>package.json</code> contiene ancora <code>@astrojs/netlify</code>, sostituiscilo con Node.js:
 <pre style="margin-top:6px"><span class="cmd">npm</span> remove @astrojs/netlify
@@ -1036,15 +1061,15 @@ Incolla il seguente contenuto:
 <pre><span class="cmd">crontab</span> -e
 <span class="comment"># Backup giornaliero alle 2:00</span>
 0 2 * * * cd /var/www/<span class="val">cliente</span>/frontend &amp;&amp; node scripts/backup.mjs &gt;&gt; /var/log/backup-<span class="val">cliente</span>.log 2&gt;&amp;1</pre>
-<div class="callout info">Vedi <strong>Fase 5</strong> per la configurazione completa del backup (chiave admin, S3, ecc.).</div>
+<div class="callout info">Vedi <strong>Fase 7</strong> per la configurazione completa del backup (chiave admin, S3, ecc.).</div>
 
 </details>
 
 <!-- ═══════════════════════════════════════════════════════
-     FASE 5 — BACKUP
+     FASE 7 — BACKUP
 ════════════════════════════════════════════════════════ -->
 <details class="section">
-<summary><h2><span class="num">5</span>Backup automatico</h2></summary>
+<summary><h2><span class="num">7</span>Backup automatico</h2></summary>
 
 <h3>5.1 Generare BACKUP_ADMIN_KEY</h3>
 <p>La chiave protegge l'endpoint <code>/api/admin/backup</code> da accessi non autorizzati. Deve essere una stringa casuale sicura:</p>
@@ -1075,10 +1100,10 @@ Incolla il seguente contenuto:
 </details>
 
 <!-- ═══════════════════════════════════════════════════════
-     FASE 6 — GO-LIVE
+     FASE 8 — GO-LIVE
 ════════════════════════════════════════════════════════ -->
 <details class="section">
-<summary><h2><span class="num">6</span>Go-Live — DNS e checklist finale</h2></summary>
+<summary><h2><span class="num">8</span>Go-Live — DNS e checklist finale</h2></summary>
 
 <h3>6.1 Go-live su VPS</h3>
 <p>Se hai fatto il deploy su staging e vuoi passare al dominio definitivo, segui la <strong>sezione 7</strong>. Altrimenti, verifica questi prerequisiti prima della checklist finale:</p>
@@ -1108,10 +1133,10 @@ Incolla il seguente contenuto:
 </details>
 
 <!-- ═══════════════════════════════════════════════════════
-     FASE 7 — DA STAGING A PRODUZIONE (FRONTEND)
+     FASE 9 — DA STAGING A PRODUZIONE (FRONTEND)
 ════════════════════════════════════════════════════════ -->
 <details class="section">
-<summary><h2><span class="num">7</span>Da staging a produzione — Spostare il frontend</h2></summary>
+<summary><h2><span class="num">9</span>Da staging a produzione — Spostare il frontend</h2></summary>
 
 <p>Usa questa procedura quando il frontend è attivo su <code>staging.tuodominio.it</code> e vuoi spostarlo sul dominio definitivo <code>tuodominio.it</code>. Il CMS su <code>cms.tuodominio.it</code> rimane invariato.</p>
 
@@ -1187,12 +1212,12 @@ Incolla il seguente contenuto:
 </details>
 
 <!-- ═══════════════════════════════════════════════════════
-     VARIABILI D'AMBIENTE — RIFERIMENTO COMPLETO
+     FASE 10 — VARIABILI D'AMBIENTE — RIFERIMENTO COMPLETO
 ════════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
 
 <details class="section">
-<summary><h2><span class="num">8</span>Variabili d'ambiente — Riferimento completo</h2></summary>
+<summary><h2><span class="num">10</span>Variabili d'ambiente — Riferimento completo</h2></summary>
 
 <p>Copia <code>.env.example</code> in <code>.env</code> e compila ogni variabile seguendo questa guida. Le variabili marcate <strong>RICHIESTA</strong> bloccano il funzionamento del sito se mancanti.</p>
 
@@ -1541,10 +1566,10 @@ Incolla il seguente contenuto:
 </details>
 
 <!-- ═══════════════════════════════════════════════════════
-     FILE .ENV — TEMPLATE DI RIFERIMENTO
+     FASE 11 — FILE .ENV — TEMPLATE DI RIFERIMENTO
 ════════════════════════════════════════════════════════ -->
 <details class="section">
-<summary><h2><span class="num">9</span>File .env completo — Template di riferimento</h2></summary>
+<summary><h2><span class="num">11</span>File .env completo — Template di riferimento</h2></summary>
 <pre><span class="comment"># ── Directus ─────────────────────────────────────────────────────────────</span>
 <span class="key">DIRECTUS_URL</span>=<span class="url">https://cms.tuodominio.it</span>
 <span class="key">DIRECTUS_TOKEN</span>=<span class="val">il_token_generato_da_directus</span>
