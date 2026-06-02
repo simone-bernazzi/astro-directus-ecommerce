@@ -15,7 +15,7 @@ export interface RfmInput {
   totalSpent: number;
 }
 
-export type RfmSegment = 'champions' | 'loyal' | 'at_risk' | 'dormant' | 'new' | 'other';
+export type { RfmSegment } from './types';
 
 export function calculateClv({ totalSpent, totalOrders, daysSinceFirstOrder }: ClvInput): number {
   if (totalOrders === 0 || totalSpent === 0) return 0;
@@ -36,7 +36,7 @@ export function calculateChurnScore({ daysSinceLastPurchase, totalOrders }: Chur
   if (totalOrders >= 6) score = Math.round(score * 0.6);
   else if (totalOrders >= 3) score = Math.round(score * 0.8);
 
-  return Math.min(100, Math.max(10, score));
+  return Math.min(100, score);
 }
 
 export function calculateLeadScore({

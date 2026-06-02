@@ -30,8 +30,8 @@ describe('calculateChurnScore', () => {
     expect(calculateChurnScore({ daysSinceLastPurchase: 200, totalOrders: 1 })).toBe(90);
   });
 
-  it('restituisce 10 per cliente con acquisto negli ultimi 30 giorni', () => {
-    expect(calculateChurnScore({ daysSinceLastPurchase: 10, totalOrders: 3 })).toBe(10);
+  it('riduce sotto 10 per cliente fedele con acquisto recente', () => {
+    expect(calculateChurnScore({ daysSinceLastPurchase: 10, totalOrders: 3 })).toBe(8);
   });
 
   it('riduce il punteggio per clienti con molti ordini', () => {
@@ -85,5 +85,35 @@ describe('calculateAvgOrderValue', () => {
 
   it('calcola la media correttamente', () => {
     expect(calculateAvgOrderValue({ totalSpent: 300, totalOrders: 3 })).toBe(100);
+  });
+});
+
+describe('calculateLeadScore', () => {
+  it('lead: base score 20', () => {
+    expect(calculateLeadScore({ pipelineStage: 'lead', daysSinceLastInteraction: 30, totalInteractions: 1 })).toBe(20);
+  });
+
+  it('cliente_attivo: base score 80', () => {
+    expect(calculateLeadScore({ pipelineStage: 'cliente_attivo', daysSinceLastInteraction: 30, totalInteractions: 1 })).toBe(80);
+  });
+
+  it('stage sconosciuto: fallback a 20', () => {
+    expect(calculateLeadScore({ pipelineStage: 'unknown', daysSinceLastInteraction: 30, totalInteractions: 1 })).toBe(20);
+  });
+
+  it('interazione recente (+20) porta il punteggio più alto', () => {
+    const withRecent = calculateLeadScore({ pipelineStage: 'lead', daysSinceLastInteraction: 5, totalInteractions: 1 });
+    const withoutRecent = calculateLeadScore({ pipelineStage: 'lead', daysSinceLastInteraction: 30, totalInteractions: 1 });
+    expect(withRecent).toBe(withoutRecent + 20);
+  });
+
+  it('molte interazioni (+10) porta il punteggio più alto', () => {
+    const withMany = calculateLeadScore({ pipelineStage: 'lead', daysSinceLastInteraction: 30, totalInteractions: 3 });
+    const withFew = calculateLeadScore({ pipelineStage: 'lead', daysSinceLastInteraction: 30, totalInteractions: 1 });
+    expect(withMany).toBe(withFew + 10);
+  });
+
+  it('score non supera 100', () => {
+    expect(calculateLeadScore({ pipelineStage: 'cliente_fidelizzato', daysSinceLastInteraction: 3, totalInteractions: 5 })).toBeLessThanOrEqual(100);
   });
 });
