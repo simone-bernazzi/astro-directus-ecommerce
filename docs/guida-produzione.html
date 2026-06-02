@@ -745,6 +745,30 @@ DIRECTUS_TOKEN=<span class="val">token_generato_al_passo_1.4</span></pre></div><
 </details>
 
 <details class="option">
+<summary>▸ Alternativa CRM: configura relazioni e permessi con Claude Code + MCP</summary>
+<div class="option-body">
+<p>Con il server MCP Directus attivo, incolla questo prompt in Claude Code (dopo <code>npm run claude</code>) per configurare tutto in un colpo solo:</p>
+<pre style="white-space:pre-wrap;">Usando il server MCP Directus, esegui nell'ordine queste operazioni:
+
+1. Crea relazione M2O: campo "customer_id" nella collezione "contacts" punta a "customers.id"
+2. Crea relazione M2O: campo "contact_id" nella collezione "crm_interactions" punta a "contacts.id"
+3. Crea relazione M2O: campo "contact_id" nella collezione "crm_tasks" punta a "contacts.id"
+4. Crea relazione M2O: campo "contact_id" nella collezione "crm_documents" punta a "contacts.id"
+5. Crea relazione M2O: campo "contact_id" nella collezione "crm_pipeline_history" punta a "contacts.id"
+6. Crea relazione M2O: campo "contact_id" nella collezione "customer_kpis" punta a "contacts.id"
+7. Crea relazione M2O: campo "contact_id" nella collezione "orders" punta a "contacts.id"
+8. Crea relazione M2M tra "contacts" e "crm_tags" (junction table: contacts_crm_tags, campo many: contact_id → contacts, campo tags: tag_id → crm_tags)
+9. Crea ruolo "Staff" se non esiste. Imposta permessi:
+   - CRUD completo su: contacts, crm_interactions, crm_tasks, crm_documents, crm_pipeline_history
+   - Read su: customer_kpis, orders (solo i propri)
+10. Verifica che il ruolo "Administrator" abbia accesso completo (read/create/update/delete) a tutte le collezioni: contacts, crm_tags, crm_interactions, crm_tasks, crm_documents, crm_pipeline_history, customer_kpis
+
+Conferma ogni operazione completata prima di passare alla successiva.</pre>
+<div class="callout info"><strong>Prerequisito:</strong> lancia Claude Code con <code>npm run claude</code> — lo script esporta automaticamente <code>DIRECTUS_URL</code> e <code>DIRECTUS_TOKEN</code> nell'ambiente, rendendo il server MCP operativo.</div>
+</div>
+</details>
+
+<details class="option">
 <summary>▸ Passaggi manuali Form dinamici — da eseguire in Directus Admin dopo lo script</summary>
 <div class="option-body">
 <p>Lo script crea i campi ma non le relazioni grafiche né i permessi. Configura manualmente:</p>
@@ -758,6 +782,35 @@ DIRECTUS_TOKEN=<span class="val">token_generato_al_passo_1.4</span></pre></div><
 </ul>
 <div class="callout warn"><strong>Sicurezza:</strong> non esporre <code>blocked_keywords</code> e <code>notification_email</code> al ruolo Public — contengono dati di configurazione interna che i bot potrebbero usare per aggirare i filtri.</div>
 <div class="callout info"><strong>Primo form:</strong> dopo aver configurato i permessi, crea il tuo primo form in Directus (<strong>forms</strong> → Nuova voce), poi usalo in una pagina Astro con <code>&lt;FormRenderer slug="nome-form" /&gt;</code>.</div>
+</div>
+</details>
+
+<details class="option">
+<summary>▸ Alternativa Form dinamici: configura relazioni e permessi con Claude Code + MCP</summary>
+<div class="option-body">
+<p>Con il server MCP Directus attivo, incolla questo prompt in Claude Code per configurare tutto in un colpo solo:</p>
+<pre style="white-space:pre-wrap;">Usando il server MCP Directus, esegui nell'ordine queste operazioni:
+
+1. Crea relazione M2O: campo "form_id" nella collezione "form_submissions" punta a "forms.id"
+
+2. Configura permessi ruolo "Public" sulla collezione "forms":
+   - Azione: read
+   - Campi ABILITATI: id, name, slug, fields, success_message, redirect_enabled, redirect_url,
+     recaptcha_enabled, honeypot_enabled, capture_page_url, is_active
+   - Campi NON abilitati (lasciare disabilitati per sicurezza):
+     blocked_keywords, notification_email, allowed_countries,
+     country_filter_enabled, keyword_filter_enabled, capture_ip, capture_user_agent
+   - Filtro: is_active = true (solo form attivi visibili al pubblico)
+
+3. Collezione "form_submissions": nessun permesso per il ruolo Public.
+   La scrittura avviene esclusivamente server-side tramite DIRECTUS_TOKEN.
+
+4. Verifica che il ruolo "Administrator" abbia accesso completo (read/create/update/delete)
+   a entrambe le collezioni: forms, form_submissions.
+
+Conferma ogni operazione completata prima di passare alla successiva.</pre>
+<div class="callout warn"><strong>Sicurezza:</strong> <code>blocked_keywords</code> e <code>notification_email</code> non devono mai essere esposti al ruolo Public — contengono dati di configurazione interna che i bot potrebbero usare per aggirare i filtri anti-spam.</div>
+<div class="callout info"><strong>Prerequisito:</strong> lancia Claude Code con <code>npm run claude</code> prima di incollare il prompt.</div>
 </div>
 </details>
 
