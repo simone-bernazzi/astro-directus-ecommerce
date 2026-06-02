@@ -1,0 +1,245 @@
+---
+// src/components/forms/FormRenderer.astro
+// Dynamic form renderer — fetches form config from Directus by slug
+
+import { getForm } from '../../lib/forms'
+import type { Form } from '../../lib/types'
+
+interface Props {
+  slug: string
+}
+
+const { slug } = Astro.props
+
+const form: Form | null = await getForm(slug)
+
+const siteKey = import.meta.env.PUBLIC_RECAPTCHA_SITE_KEY ?? ''
+---
+
+{form ? (
+  <div class="form-renderer">
+    <form id={`form-${slug}`} novalidate>
+      {/* Honeypot — hidden via CSS, visible to bots */}
+      <input
+        name="_hp"
+        type="text"
+        tabindex="-1"
+        autocomplete="off"
+        class="absolute opacity-0 pointer-events-none h-0 w-0 overflow-hidden"
+        aria-hidden="true"
+      />
+
+      {/* Page URL — populated by JS */}
+      <input type="hidden" name="_page_url" value="" />
+
+      {/* Dynamic fields */}
+      {form.fields.map((field) => (
+        <div class="mb-4">
+          {field.type !== 'checkbox' && (
+            <label
+              for={`field-${slug}-${field.name}`}
+              class="block text-sm font-medium text-[var(--color-text)] mb-1.5"
+            >
+              {field.label}
+              {field.required && <span class="text-red-500"> *</span>}
+            </label>
+          )}
+
+          {field.type === 'textarea' ? (
+            <textarea
+              id={`field-${slug}-${field.name}`}
+              name={field.name}
+              rows={4}
+              required={field.required || undefined}
+              placeholder={field.placeholder ?? ''}
+              class="w-full border border-[var(--color-border)] rounded-lg px-4 py-2.5 text-sm focus:outline-2 focus:outline-[var(--color-brand)] transition-colors"
+            ></textarea>
+          ) : field.type === 'select' ? (
+            <select
+              id={`field-${slug}-${field.name}`}
+              name={field.name}
+              required={field.required || undefined}
+              class="w-full border border-[var(--color-border)] rounded-lg px-4 py-2.5 text-sm focus:outline-2 focus:outline-[var(--color-brand)] transition-colors"
+            >
+              <option value="">--</option>
+              {(field.options ?? []).map((opt) => (
+                <option value={opt}>{opt}</option>
+              ))}
+            </select>
+          ) : field.type === 'checkbox' ? (
+            <div class="flex gap-3 items-start">
+              <input
+                id={`field-${slug}-${field.name}`}
+                name={field.name}
+                type="checkbox"
+                required={field.required || undefined}
+                class="mt-0.5 w-4 h-4 accent-[var(--color-brand)] flex-shrink-0"
+              />
+              <label
+                for={`field-${slug}-${field.name}`}
+                class="text-sm text-[var(--color-muted)] leading-snug"
+              >
+                {field.label}
+                {field.required && <span class="text-red-500"> *</span>}
+              </label>
+            </div>
+          ) : (
+            <input
+              id={`field-${slug}-${field.name}`}
+              name={field.name}
+              type={field.type}
+              required={field.required || undefined}
+              placeholder={field.placeholder ?? ''}
+              class="w-full border border-[var(--color-border)] rounded-lg px-4 py-2.5 text-sm focus:outline-2 focus:outline-[var(--color-brand)] transition-colors"
+            />
+          )}
+        </div>
+      ))}
+
+      {/* reCAPTCHA badge note */}
+      {form.recaptcha_enabled && siteKey && (
+        <p class="text-xs text-[var(--color-muted)] mb-4">
+          Questo sito è protetto da reCAPTCHA. Si applicano la
+          <a href="https://policies.google.com/privacy" class="hover:underline" target="_blank" rel="noopener">Privacy Policy</a> e i
+          <a href="https://policies.google.com/terms" class="hover:underline" target="_blank" rel="noopener">Termini di Servizio</a> di Google.
+        </p>
+      )}
+
+      {/* Global error */}
+      <p id={`form-error-${slug}`} class="text-sm text-red-600 hidden mb-2"></p>
+
+      {/* Submit button */}
+      <button
+        type="submit"
+        class="w-full sm:w-auto px-8 py-3 bg-[var(--color-brand)] text-white font-semibold rounded-lg hover:bg-[var(--color-brand-dark)] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+      >
+        <span id={`submit-label-${slug}`}>Invia</span>
+        <svg
+          id={`submit-spinner-${slug}`}
+          class="hidden w-4 h-4 animate-spin"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+      </button>
+    </form>
+
+    {/* Success message */}
+    <div id={`form-success-${slug}`} class="hidden text-center py-8">
+      <p class="text-lg font-medium">{form.success_message ?? 'Messaggio inviato!'}</p>
+    </div>
+  </div>
+) : (
+  <p class="text-sm text-[var(--color-muted)]">Form non disponibile.</p>
+)}
+
+{form?.recaptcha_enabled && siteKey && (
+  <script
+    src={`https://www.google.com/recaptcha/api.js?render=${siteKey}`}
+    async
+    defer
+  ></script>
+)}
+
+<script define:vars={{ slug, siteKey, recaptchaEnabled: form?.recaptcha_enabled ?? false, redirectEnabled: form?.redirect_enabled ?? false, redirectUrl: form?.redirect_url ?? null }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const formEl = document.getElementById(`form-${slug}`)
+    const successEl = document.getElementById(`form-success-${slug}`)
+    const errorEl = document.getElementById(`form-error-${slug}`)
+    const submitBtn = formEl?.querySelector('button[type="submit"]')
+    const submitLabel = document.getElementById(`submit-label-${slug}`)
+    const submitSpinner = document.getElementById(`submit-spinner-${slug}`)
+
+    // Populate _page_url
+    const pageUrlInput = formEl?.querySelector('input[name="_page_url"]')
+    if (pageUrlInput) {
+      pageUrlInput.value = window.location.href
+    }
+
+    function setLoading(loading) {
+      if (!submitBtn) return
+      submitBtn.disabled = loading
+      if (submitLabel) submitLabel.textContent = loading ? 'Invio in corso...' : 'Invia'
+      if (submitSpinner) submitSpinner.classList.toggle('hidden', !loading)
+    }
+
+    function showError(message) {
+      if (errorEl) {
+        errorEl.textContent = message
+        errorEl.classList.remove('hidden')
+      }
+    }
+
+    function hideError() {
+      if (errorEl) errorEl.classList.add('hidden')
+    }
+
+    async function getRecaptchaToken() {
+      if (!siteKey || typeof grecaptcha === 'undefined') return null
+      return new Promise((resolve) => {
+        grecaptcha.ready(() => {
+          grecaptcha.execute(siteKey, { action: 'form_submit' }).then(resolve)
+        })
+      })
+    }
+
+    formEl?.addEventListener('submit', async (e) => {
+      e.preventDefault()
+      hideError()
+
+      const fd = new FormData(formEl)
+
+      // Build plain payload object — skip honeypot key
+      const payload = {}
+      for (const [key, value] of fd.entries()) {
+        if (key === '_hp') continue
+        payload[key] = value
+      }
+
+      setLoading(true)
+
+      try {
+        let recaptchaToken = null
+        if (recaptchaEnabled) {
+          recaptchaToken = await getRecaptchaToken()
+        }
+
+        if (recaptchaToken) {
+          payload.recaptchaToken = recaptchaToken
+        }
+
+        const res = await fetch(`/api/form/${slug}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+
+        const result = await res.json()
+
+        if (res.ok && result.success) {
+          if (redirectEnabled && redirectUrl) {
+            window.location.href = redirectUrl
+          } else {
+            formEl.classList.add('hidden')
+            if (successEl) successEl.classList.remove('hidden')
+            formEl.reset()
+            // Re-set _page_url after reset
+            const pageUrlInputAfterReset = formEl.querySelector('input[name="_page_url"]')
+            if (pageUrlInputAfterReset) {
+              pageUrlInputAfterReset.value = window.location.href
+            }
+          }
+        } else {
+          showError(result.error ?? "Errore durante l'invio.")
+        }
+      } catch {
+        showError('Errore di rete. Controlla la connessione e riprova.')
+      } finally {
+        setLoading(false)
+      }
+    })
+  })
+</script>
