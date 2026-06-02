@@ -1,0 +1,99 @@
+---
+// src/pages/admin/orders/index.astro
+export const prerender = false
+
+import AdminLayout from '@/layouts/AdminLayout.astro'
+import DataTable from '@/components/admin/DataTable.astro'
+import type { Column } from '@/components/admin/DataTable.astro'
+
+const directusUrl = process.env.DIRECTUS_URL ?? ''
+const token = Astro.cookies.get('admin_token')?.value ?? ''
+
+async function dFetch(path: string) {
+  try {
+    const res = await fetch(`${directusUrl}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch { return null }
+}
+
+const PAGE_SIZE = 25
+const page = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1'))
+const offset = (page - 1) * PAGE_SIZE
+
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  pending: 'In attesa', paid: 'Pagato', shipped: 'Spedito',
+  delivered: 'Consegnato', refunded: 'Rimborsato',
+}
+const ORDER_STATUS_COLORS: Record<string, string> = {
+  pending: 'background:#fef9c3;color:#ca8a04',
+  paid: 'background:#eff6ff;color:#3b82f6',
+  shipped: 'background:#fdf4ff;color:#a855f7',
+  delivered: 'background:#f0fdf4;color:#22c55e',
+  refunded: 'background:#f3f4f6;color:#6b7280',
+}
+
+const [listRes, countRes] = await Promise.all([
+  dFetch(`/items/orders?fields[]=id,customer_name,customer_email,total,status,date_created,channel,contact_id&sort[]=-date_created&limit=${PAGE_SIZE}&offset=${offset}`),
+  dFetch('/items/orders?aggregate[count]=id'),
+])
+
+type OrderRow = {
+  id: string
+  customer_name: string
+  customer_email: string
+  total: number
+  status: string
+  date_created: string
+  channel: string
+  contact_id: string | null
+}
+
+const orders = (listRes?.data ?? []) as OrderRow[]
+const total = parseInt(countRes?.data?.[0]?.count?.id ?? '0')
+
+const columns: Column[] = [
+  {
+    key: 'id',
+    label: 'ID',
+    format: (v) => `<span style="font-family:monospace;font-size:12px;color:#6b7280">#${String(v).slice(0, 8)}</span>`,
+  },
+  { key: 'customer_name', label: 'Cliente', format: (v) => `<span style="font-weight:500">${String(v ?? '—')}</span>` },
+  { key: 'customer_email', label: 'Email' },
+  {
+    key: 'total',
+    label: 'Totale',
+    format: (v) => `<span style="font-weight:500">€${Number(v ?? 0).toFixed(2)}</span>`,
+  },
+  {
+    key: 'status',
+    label: 'Stato',
+    format: (v) => {
+      const s = String(v ?? '')
+      const style = ORDER_STATUS_COLORS[s] ?? 'background:#f3f4f6;color:#6b7280'
+      return `<span style="${style};padding:2px 8px;border-radius:10px;font-size:12px">${ORDER_STATUS_LABELS[s] ?? s}</span>`
+    },
+  },
+  {
+    key: 'date_created',
+    label: 'Data',
+    format: (v) => v ? new Date(String(v)).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—',
+  },
+  { key: 'channel', label: 'Canale', format: (v) => `<span style="color:#6b7280;font-size:13px">${String(v ?? '—')}</span>` },
+]
+---
+
+<AdminLayout title="Ordini" active="orders">
+  <DataTable
+    columns={columns}
+    rows={orders as unknown as Record<string, unknown>[]}
+    idField="id"
+    detailBase="/admin/orders/"
+    page={page}
+    total={total}
+    pageSize={PAGE_SIZE}
+    emptyMessage="Nessun ordine trovato."
+  />
+</AdminLayout>
