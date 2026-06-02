@@ -1,0 +1,424 @@
+---
+// src/layouts/AdminLayout.astro
+export const prerender = false
+
+interface Props {
+  title: string
+  active?: string
+}
+
+const { title, active } = Astro.props
+
+// ---------------------------------------------------------------------------
+// Fetch branding colors from Directus site_settings using admin_token cookie
+// ---------------------------------------------------------------------------
+const DIRECTUS_URL = process.env.DIRECTUS_URL ?? ''
+
+let primaryColor = '#111827'
+let accentColor = '#6366f1'
+
+const adminToken = Astro.cookies.get('admin_token')?.value
+
+if (adminToken && DIRECTUS_URL) {
+  try {
+    const res = await fetch(
+      `${DIRECTUS_URL}/items/site_settings?fields=primary_color,accent_color&limit=1`,
+      {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      }
+    )
+    if (res.ok) {
+      const json = await res.json() as { data?: { primary_color?: string; accent_color?: string } }
+      const settings = json.data
+      if (settings?.primary_color) primaryColor = settings.primary_color
+      if (settings?.accent_color) accentColor = settings.accent_color
+    }
+  } catch {
+    // silently fall back to defaults
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Navigation items
+// ---------------------------------------------------------------------------
+const navItems = [
+  { key: 'dashboard',   label: 'Dashboard',   href: '/admin',           icon: 'grid' },
+  { key: 'contacts',    label: 'Contacts',    href: '/admin/contacts',  icon: 'users' },
+  { key: 'orders',      label: 'Orders',      href: '/admin/orders',    icon: 'shopping-bag' },
+  { key: 'products',    label: 'Products',    href: '/admin/products',  icon: 'package' },
+  { key: 'coupons',     label: 'Coupons',     href: '/admin/coupons',   icon: 'tag' },
+  { key: 'gift-cards',  label: 'Gift Cards',  href: '/admin/gift-cards',icon: 'gift' },
+  { key: 'shipping',    label: 'Shipping',    href: '/admin/shipping',  icon: 'truck' },
+  { key: 'forms',       label: 'Forms',       href: '/admin/forms',     icon: 'mail' },
+  { key: 'pages',       label: 'Pages',       href: '/admin/pages',     icon: 'file-text' },
+  { key: 'articles',    label: 'Articles',    href: '/admin/articles',  icon: 'edit' },
+  { key: 'settings',    label: 'Settings',    href: '/admin/settings',  icon: 'settings' },
+] as const
+
+// SVG path data per icon key
+const icons: Record<string, string> = {
+  'grid':          '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  'users':         '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  'shopping-bag':  '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+  'package':       '<line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+  'tag':           '<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>',
+  'gift':          '<polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>',
+  'truck':         '<rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>',
+  'mail':          '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>',
+  'file-text':     '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>',
+  'edit':          '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',
+  'settings':      '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+  'menu':          '<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>',
+  'log-out':       '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+}
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title} — Admin</title>
+    <style set:html={`
+      :root {
+        --admin-primary: ${primaryColor};
+        --admin-accent: ${accentColor};
+      }
+    `}></style>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="admin-shell" id="admin-shell">
+      <!-- ── Sidebar ─────────────────────────────────────────── -->
+      <aside class="sidebar" id="admin-sidebar">
+        <div class="sidebar-header">
+          <button
+            class="toggle-btn"
+            id="sidebar-toggle"
+            type="button"
+            aria-label="Toggle sidebar"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" set:html={icons['menu']} />
+          </button>
+        </div>
+
+        <nav class="sidebar-nav">
+          <ul>
+            {navItems.map((item) => (
+              <li>
+                <a
+                  href={item.href}
+                  class={`nav-link${active === item.key ? ' nav-link--active' : ''}`}
+                  title={item.label}
+                >
+                  <span class="nav-icon">
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="18"
+                      height="18"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.75"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      set:html={icons[item.icon]}
+                    />
+                  </span>
+                  <span class="nav-label">{item.label}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button class="logout-btn" id="logout-btn" type="button" title="Logout">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" set:html={icons['log-out']} />
+            </span>
+            <span class="nav-label">Logout</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- ── Main area ───────────────────────────────────────── -->
+      <div class="main-area">
+        <header class="topbar">
+          <h1 class="topbar-title">{title}</h1>
+          <div class="topbar-actions">
+            <slot name="topbar-actions" />
+          </div>
+        </header>
+
+        <main class="main-content">
+          <slot />
+        </main>
+      </div>
+    </div>
+
+    <script>
+      // ── Sidebar expand/collapse (state persisted in localStorage) ──────────
+      const STORAGE_KEY = 'admin-sidebar-expanded'
+      const shell = document.getElementById('admin-shell')!
+      const toggleBtn = document.getElementById('sidebar-toggle')!
+
+      function applyState(expanded: boolean) {
+        if (expanded) {
+          shell.classList.add('sidebar-expanded')
+        } else {
+          shell.classList.remove('sidebar-expanded')
+        }
+      }
+
+      // Restore state immediately (no flash)
+      const stored = localStorage.getItem(STORAGE_KEY)
+      const initialExpanded = stored === null ? false : stored === 'true'
+      applyState(initialExpanded)
+
+      toggleBtn.addEventListener('click', () => {
+        const isExpanded = shell.classList.contains('sidebar-expanded')
+        const next = !isExpanded
+        applyState(next)
+        localStorage.setItem(STORAGE_KEY, String(next))
+      })
+
+      // ── Logout ─────────────────────────────────────────────────────────────
+      const logoutBtn = document.getElementById('logout-btn')!
+      logoutBtn.addEventListener('click', async () => {
+        try {
+          await fetch('/api/admin/auth', { method: 'DELETE' })
+        } catch {
+          // ignore network errors — still redirect
+        }
+        window.location.href = '/admin/login'
+      })
+    </script>
+  </body>
+</html>
+
+<style>
+  /* ── Reset / base ─────────────────────────────────────────────────────── */
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 14px;
+    background: #f8f9fb;
+    color: #1a1d23;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  /* ── Shell layout ─────────────────────────────────────────────────────── */
+  .admin-shell {
+    display: flex;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ──────────────────────────────────────────────────────────── */
+  .sidebar {
+    --sidebar-w: 56px;
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    background: var(--admin-primary);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    transition: width 0.22s ease, min-width 0.22s ease;
+    overflow: hidden;
+    z-index: 100;
+  }
+
+  .admin-shell.sidebar-expanded .sidebar {
+    --sidebar-w: 200px;
+  }
+
+  /* ── Sidebar header / toggle ──────────────────────────────────────────── */
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    height: 52px;
+    padding: 0 16px;
+    flex-shrink: 0;
+    border-bottom: 1px solid rgba(255 255 255 / 0.08);
+  }
+
+  .toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: none;
+    border: none;
+    color: rgba(255 255 255 / 0.75);
+    cursor: pointer;
+    border-radius: 4px;
+    flex-shrink: 0;
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .toggle-btn:hover {
+    color: #fff;
+    background: rgba(255 255 255 / 0.1);
+  }
+
+  /* ── Nav ──────────────────────────────────────────────────────────────── */
+  .sidebar-nav {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 8px 0;
+    scrollbar-width: none;
+  }
+
+  .sidebar-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sidebar-nav ul {
+    list-style: none;
+  }
+
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 40px;
+    padding: 0 16px;
+    color: rgba(255 255 255 / 0.65);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: color 0.15s, background 0.15s;
+    border-radius: 0;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .nav-link:hover {
+    color: #fff;
+    background: rgba(255 255 255 / 0.08);
+  }
+
+  .nav-link--active {
+    color: #fff;
+    background: var(--admin-accent);
+  }
+
+  .nav-link--active:hover {
+    background: var(--admin-accent);
+    filter: brightness(1.1);
+  }
+
+  .nav-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+
+  .nav-label {
+    overflow: hidden;
+    opacity: 0;
+    width: 0;
+    transition: opacity 0.18s ease, width 0.18s ease;
+    pointer-events: none;
+  }
+
+  .admin-shell.sidebar-expanded .nav-label {
+    opacity: 1;
+    width: auto;
+    pointer-events: auto;
+  }
+
+  /* ── Sidebar footer / logout ──────────────────────────────────────────── */
+  .sidebar-footer {
+    padding: 8px 0 12px;
+    border-top: 1px solid rgba(255 255 255 / 0.08);
+    flex-shrink: 0;
+  }
+
+  .logout-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 40px;
+    padding: 0 16px;
+    width: 100%;
+    background: none;
+    border: none;
+    color: rgba(255 255 255 / 0.55);
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: left;
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .logout-btn:hover {
+    color: #fff;
+    background: rgba(255 255 255 / 0.08);
+  }
+
+  .logout-btn .nav-label {
+    /* inherits same show/hide logic as nav-label */
+  }
+
+  /* ── Main area ────────────────────────────────────────────────────────── */
+  .main-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  /* ── Top bar ──────────────────────────────────────────────────────────── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    height: 52px;
+    padding: 0 24px;
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+    flex-shrink: 0;
+  }
+
+  .topbar-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  /* ── Content ──────────────────────────────────────────────────────────── */
+  .main-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+  }
+</style>
