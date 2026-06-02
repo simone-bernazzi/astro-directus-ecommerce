@@ -907,13 +907,20 @@ Conferma ogni operazione completata prima di passare alla successiva.</pre>
    - related collection: customer_kpis
    - foreign key field: contact_id
 
-6. Rendi visibile il campo "stripe_customer_id" su contacts:
+6. Aggiungi campo alias O2M "orders" su contacts:
+   - interface: list-o2m
+   - special: o2m
+   - related collection: orders
+   - foreign key field: contact_id
+   - display template: #{{id}} — {{status}} — €{{total}} ({{date_created}})
+
+7. Rendi visibile il campo "stripe_customer_id" su contacts:
    - imposta hidden: false
    - interface: input
    - readonly: true (solo visualizzazione, non modificabile)
 
 Conferma ogni operazione completata prima di passare alla successiva.</pre>
-<div class="callout info">Dopo questo step, aprendo una scheda contatto in Directus vedrai i pannelli CRM inline: Interazioni, Task, Documenti, Storico pipeline, KPI. Il campo <code>stripe_customer_id</code> sarà visibile in sola lettura.</div>
+<div class="callout info">Dopo questo step, aprendo una scheda contatto in Directus vedrai tutti i pannelli inline: Interazioni, Task, Documenti, Storico pipeline, KPI cliente, Ordini. Il campo <code>stripe_customer_id</code> sarà visibile in sola lettura. La scheda contatto diventa la dashboard completa del cliente.</div>
 </div>
 </details>
 
