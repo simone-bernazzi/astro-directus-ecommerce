@@ -76,7 +76,8 @@ declare -a RELATIONS=(
 for rel in "${RELATIONS[@]}"; do
   IFS='|' read -r col field related <<< "$rel"
   post "relations" \
-    "{\"collection\":\"$col\",\"field\":\"$field\",\"related_collection\":\"$related\"}"
+    "{\"collection\":\"$col\",\"field\":\"$field\",\"related_collection\":\"$related\"}" \
+    "$col.$field → $related"
 done
 
 # ── 2. M2M contacts ↔ crm_tags ───────────────────────────────────────────────
