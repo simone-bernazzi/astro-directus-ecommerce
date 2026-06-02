@@ -1,0 +1,164 @@
+---
+// src/pages/admin/orders/[id].astro
+export const prerender = false
+
+import AdminLayout from '@/layouts/AdminLayout.astro'
+import SectionCard from '@/components/admin/SectionCard.astro'
+import type { Order } from '@/lib/types'
+
+const { id } = Astro.params
+if (!id) return Astro.redirect('/admin/orders')
+
+const directusUrl = process.env.DIRECTUS_URL ?? ''
+const token = Astro.cookies.get('admin_token')?.value ?? ''
+
+async function dFetch(path: string) {
+  try {
+    const res = await fetch(`${directusUrl}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch { return null }
+}
+
+const orderRes = await dFetch(`/items/orders/${id}?fields[]=*,order_items.*`)
+if (!orderRes?.data) return Astro.redirect('/admin/orders')
+
+const order = orderRes.data as Order
+
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  pending: 'In attesa', paid: 'Pagato', shipped: 'Spedito',
+  delivered: 'Consegnato', refunded: 'Rimborsato',
+}
+const ORDER_STATUS_COLORS: Record<string, string> = {
+  pending: 'background:#fef9c3;color:#ca8a04',
+  paid: 'background:#eff6ff;color:#3b82f6',
+  shipped: 'background:#fdf4ff;color:#a855f7',
+  delivered: 'background:#f0fdf4;color:#22c55e',
+  refunded: 'background:#f3f4f6;color:#6b7280',
+}
+
+function fmtDate(iso: string | null | undefined) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+const statusStyle = ORDER_STATUS_COLORS[order.status] ?? 'background:#f3f4f6;color:#6b7280'
+---
+
+<AdminLayout title={`Ordine #${order.id.slice(0, 8)}`} active="orders">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+    <a href="/admin/orders" style="color:#6b7280;text-decoration:none;font-size:13px">← Ordini</a>
+    <span style="color:#d1d5db">/</span>
+    <h1 style="font-size:18px;font-weight:700;color:#111827;font-family:monospace">#{order.id.slice(0, 8)}</h1>
+    <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${statusStyle}`}>
+      {ORDER_STATUS_LABELS[order.status] ?? order.status}
+    </span>
+    <span style="margin-left:auto;font-size:13px;color:#6b7280">{fmtDate(order.date_created)}</span>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:16px">
+
+    <!-- Info ordine -->
+    <SectionCard title="Informazioni ordine">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px">
+        <div><span style="color:#6b7280">Cliente:</span> <strong>{order.customer_name}</strong></div>
+        <div><span style="color:#6b7280">Email:</span> {order.customer_email}</div>
+        <div><span style="color:#6b7280">Canale:</span> {order.channel}</div>
+        <div><span style="color:#6b7280">Stripe session:</span> <code style="font-size:11px;color:#6b7280">{order.stripe_session_id}</code></div>
+        {order.notes && <div style="grid-column:span 2"><span style="color:#6b7280">Note:</span> {order.notes}</div>}
+        {order.tracking_number && (
+          <div style="grid-column:span 2">
+            <span style="color:#6b7280">Tracking:</span>
+            {order.tracking_url
+              ? <a href={order.tracking_url} target="_blank" rel="noopener" style="color:#3b82f6">{order.tracking_number}</a>
+              : order.tracking_number
+            }
+          </div>
+        )}
+      </div>
+    </SectionCard>
+
+    <!-- Prodotti ordinati -->
+    <SectionCard title={`Prodotti (${order.order_items?.length ?? 0})`}>
+      {!order.order_items?.length
+        ? <p style="color:#9ca3af;font-size:14px">Nessun prodotto.</p>
+        : (
+          <table style="width:100%;border-collapse:collapse;font-size:14px">
+            <thead>
+              <tr style="border-bottom:1px solid #e5e7eb">
+                <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Prodotto</th>
+                <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">SKU</th>
+                <th style="text-align:center;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Qtà</th>
+                <th style="text-align:right;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Prezzo</th>
+                <th style="text-align:right;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Totale</th>
+              </tr>
+            </thead>
+            <tbody>
+              {order.order_items.map(item => (
+                <tr style="border-bottom:1px solid #f3f4f6">
+                  <td style="padding:8px">
+                    <div style="font-weight:500">{item.product_name}</div>
+                    <div style="font-size:12px;color:#6b7280">{item.variant_name}</div>
+                  </td>
+                  <td style="padding:8px;font-family:monospace;font-size:12px;color:#6b7280">{item.sku}</td>
+                  <td style="padding:8px;text-align:center">{item.quantity}</td>
+                  <td style="padding:8px;text-align:right">€{item.unit_price.toFixed(2)}</td>
+                  <td style="padding:8px;text-align:right;font-weight:500">€{(item.unit_price * item.quantity).toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )
+      }
+    </SectionCard>
+
+    <!-- Spedizione -->
+    <SectionCard title="Spedizione">
+      {order.shipping_address
+        ? (
+          <div style="font-size:14px;line-height:1.6">
+            <p style="font-weight:500">{order.shipping_address.name}</p>
+            <p style="color:#6b7280">{order.shipping_address.line1}{order.shipping_address.line2 ? `, ${order.shipping_address.line2}` : ''}</p>
+            <p style="color:#6b7280">{order.shipping_address.postal_code} {order.shipping_address.city} ({order.shipping_address.state}), {order.shipping_address.country}</p>
+          </div>
+        )
+        : <p style="color:#9ca3af;font-size:14px">Nessun indirizzo di spedizione.</p>
+      }
+    </SectionCard>
+
+    <!-- Riepilogo pagamento -->
+    <SectionCard title="Pagamento">
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:14px;max-width:300px">
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:#6b7280">Subtotale</span>
+          <span>€{order.subtotal.toFixed(2)}</span>
+        </div>
+        {order.discount_amount > 0 && (
+          <div style="display:flex;justify-content:space-between;color:#22c55e">
+            <span>Sconto</span>
+            <span>-€{order.discount_amount.toFixed(2)}</span>
+          </div>
+        )}
+        {(order.gift_card_amount_used ?? 0) > 0 && (
+          <div style="display:flex;justify-content:space-between;color:#22c55e">
+            <span>Gift card</span>
+            <span>-€{(order.gift_card_amount_used ?? 0).toFixed(2)}</span>
+          </div>
+        )}
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:#6b7280">Spedizione</span>
+          <span>€{order.shipping_cost.toFixed(2)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;border-top:1px solid #e5e7eb;padding-top:8px;margin-top:4px">
+          <span>Totale</span>
+          <span>€{order.total.toFixed(2)}</span>
+        </div>
+      </div>
+    </SectionCard>
+
+  </div>
+</AdminLayout>
