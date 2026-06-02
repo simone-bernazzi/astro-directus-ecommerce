@@ -867,6 +867,56 @@ Conferma ogni operazione completata prima di passare alla successiva.</pre>
 </div>
 </details>
 
+<details class="option">
+<summary>▸ Step 3 CRM — Configura pannelli inline nella scheda contatto (Claude Code + MCP)</summary>
+<div class="option-body">
+<p>Dopo aver configurato relazioni e permessi, esegui questo prompt per aggiungere i pannelli inline (O2M) alla scheda contatto in Directus Admin — in modo che le interazioni, i task, i documenti e i KPI appaiano direttamente nella pagina del contatto.</p>
+<pre style="white-space:pre-wrap;">Usando il server MCP Directus, esegui queste operazioni sulla collezione "contacts":
+
+1. Aggiungi campo alias O2M "crm_interactions" su contacts:
+   - interface: list-o2m
+   - special: o2m
+   - related collection: crm_interactions
+   - foreign key field: contact_id
+   - display template: {{type}} — {{subject}} ({{date}})
+
+2. Aggiungi campo alias O2M "crm_tasks" su contacts:
+   - interface: list-o2m
+   - special: o2m
+   - related collection: crm_tasks
+   - foreign key field: contact_id
+   - display template: {{title}} — {{status}} ({{due_date}})
+
+3. Aggiungi campo alias O2M "crm_documents" su contacts:
+   - interface: list-o2m
+   - special: o2m
+   - related collection: crm_documents
+   - foreign key field: contact_id
+   - display template: {{label}} ({{type}})
+
+4. Aggiungi campo alias O2M "crm_pipeline_history" su contacts:
+   - interface: list-o2m
+   - special: o2m
+   - related collection: crm_pipeline_history
+   - foreign key field: contact_id
+   - display template: {{from_stage}} → {{to_stage}} ({{date}})
+
+5. Aggiungi campo alias O2M "customer_kpis" su contacts:
+   - interface: list-o2m
+   - special: o2m
+   - related collection: customer_kpis
+   - foreign key field: contact_id
+
+6. Rendi visibile il campo "stripe_customer_id" su contacts:
+   - imposta hidden: false
+   - interface: input
+   - readonly: true (solo visualizzazione, non modificabile)
+
+Conferma ogni operazione completata prima di passare alla successiva.</pre>
+<div class="callout info">Dopo questo step, aprendo una scheda contatto in Directus vedrai i pannelli CRM inline: Interazioni, Task, Documenti, Storico pipeline, KPI. Il campo <code>stripe_customer_id</code> sarà visibile in sola lettura.</div>
+</div>
+</details>
+
 <div class="callout info"><strong>Form dinamici:</strong> per usare <code>&lt;FormRenderer slug="nome-form" /&gt;</code> in una pagina Astro, crea prima il form in Directus (<strong>forms</strong> → Crea voce) con slug, campi e configurazione anti-spam. Il componente legge la config da Directus e invia i dati a <code>/api/form/[slug]</code>.</div>
 
 <h3>Calcolo KPI automatico</h3>
