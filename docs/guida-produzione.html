@@ -720,6 +720,47 @@ DIRECTUS_TOKEN=<span class="val">token_generato_al_passo_1.4</span></pre></div><
 <span class="note">Oppure usa <code>npm run setup:all</code> (richiede che le variabili Directus siano già nell'ambiente shell).</span></div></li>
   <li><span class="check-box"></span><div>Verifica nel pannello Directus che le nuove collezioni siano visibili nella sidebar</div></li>
 </ul>
+
+<details class="option">
+<summary>▸ Passaggi manuali CRM — da eseguire in Directus Admin dopo lo script</summary>
+<div class="option-body">
+<p>Lo script crea i campi ma non le relazioni grafiche né i permessi. Configura manualmente:</p>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Crea relazione <strong>M2O</strong>: <code>contacts.customer_id</code> → <code>customers.id</code>
+<span class="note">Settings → Data Model → contacts → Aggiungi campo → Relazione M2O → customers</span></div></li>
+  <li><span class="check-box"></span><div>Crea relazione <strong>M2O</strong>: <code>crm_interactions.contact_id</code> → <code>contacts.id</code></div></li>
+  <li><span class="check-box"></span><div>Crea relazione <strong>M2O</strong>: <code>crm_tasks.contact_id</code> → <code>contacts.id</code></div></li>
+  <li><span class="check-box"></span><div>Crea relazione <strong>M2O</strong>: <code>crm_documents.contact_id</code> → <code>contacts.id</code></div></li>
+  <li><span class="check-box"></span><div>Crea relazione <strong>M2O</strong>: <code>crm_pipeline_history.contact_id</code> → <code>contacts.id</code></div></li>
+  <li><span class="check-box"></span><div>Crea relazione <strong>M2M</strong>: <code>contacts</code> ↔ <code>crm_tags</code>
+<span class="note">Settings → Data Model → contacts → Aggiungi campo → Relazione M2M → crm_tags. Directus crea automaticamente la junction table.</span></div></li>
+  <li><span class="check-box"></span><div>Crea relazione <strong>M2O</strong>: <code>customer_kpis.contact_id</code> → <code>contacts.id</code></div></li>
+  <li><span class="check-box"></span><div>Crea relazione <strong>M2O</strong>: <code>orders.contact_id</code> → <code>contacts.id</code></div></li>
+  <li><span class="check-box"></span><div>Imposta permessi ruolo <strong>Staff</strong>: CRUD su <code>contacts</code>, <code>crm_interactions</code>, <code>crm_tasks</code>, <code>crm_documents</code>, <code>crm_pipeline_history</code>. Read su <code>customer_kpis</code>
+<span class="note">Settings → Roles → Staff → Aggiungi permessi per ciascuna collezione</span></div></li>
+  <li><span class="check-box"></span><div>Imposta permessi ruolo <strong>Admin</strong>: accesso completo a tutte le collezioni CRM
+<span class="note">Settings → Roles → Admin → verifica che tutte le nuove collezioni abbiano accesso completo</span></div></li>
+</ul>
+</div>
+</details>
+
+<details class="option">
+<summary>▸ Passaggi manuali Form dinamici — da eseguire in Directus Admin dopo lo script</summary>
+<div class="option-body">
+<p>Lo script crea i campi ma non le relazioni grafiche né i permessi. Configura manualmente:</p>
+<ul class="checklist">
+  <li><span class="check-box"></span><div>Crea relazione <strong>M2O</strong>: <code>form_submissions.form_id</code> → <code>forms.id</code>
+<span class="note">Settings → Data Model → form_submissions → Aggiungi campo → Relazione M2O → forms</span></div></li>
+  <li><span class="check-box"></span><div>Imposta permessi ruolo <strong>Public</strong>: <em>Read</em> su <code>forms</code> — abilita solo i campi non sensibili
+<span class="note">Campi da abilitare: <code>id</code>, <code>name</code>, <code>slug</code>, <code>fields</code>, <code>success_message</code>, <code>redirect_enabled</code>, <code>redirect_url</code>, <code>recaptcha_enabled</code>, <code>honeypot_enabled</code>, <code>capture_page_url</code>, <code>is_active</code>. <strong>NON abilitare:</strong> <code>blocked_keywords</code>, <code>notification_email</code>, <code>allowed_countries</code>.</span></div></li>
+  <li><span class="check-box"></span><div>Permessi ruolo <strong>Public</strong> su <code>form_submissions</code>: <em>nessun permesso diretto</em>
+<span class="note">La scrittura avviene server-side tramite <code>DIRECTUS_TOKEN</code> (non dal browser). Il ruolo Public non deve avere Create su form_submissions.</span></div></li>
+</ul>
+<div class="callout warn"><strong>Sicurezza:</strong> non esporre <code>blocked_keywords</code> e <code>notification_email</code> al ruolo Public — contengono dati di configurazione interna che i bot potrebbero usare per aggirare i filtri.</div>
+<div class="callout info"><strong>Primo form:</strong> dopo aver configurato i permessi, crea il tuo primo form in Directus (<strong>forms</strong> → Nuova voce), poi usalo in una pagina Astro con <code>&lt;FormRenderer slug="nome-form" /&gt;</code>.</div>
+</div>
+</details>
+
 <div class="callout info"><strong>Form dinamici:</strong> per usare <code>&lt;FormRenderer slug="nome-form" /&gt;</code> in una pagina Astro, crea prima il form in Directus (<strong>forms</strong> → Crea voce) con slug, campi e configurazione anti-spam. Il componente legge la config da Directus e invia i dati a <code>/api/form/[slug]</code>.</div>
 
 <h3>1.7.1 Calcolo KPI CRM</h3>
