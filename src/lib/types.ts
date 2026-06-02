@@ -304,7 +304,7 @@ export interface Contact {
   channel_type: ChannelType
   canale_prevalente: 'offline' | 'online'
   pipeline_stage: PipelineStage
-  directus_user_id: string | null
+  user_id: string | null
   stripe_customer_id: string | null
   shipping_addresses: ShippingAddress[] | null
   default_shipping_address: ShippingAddress | null

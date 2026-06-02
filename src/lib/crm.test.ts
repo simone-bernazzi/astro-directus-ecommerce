@@ -17,7 +17,7 @@ describe('CRM types', () => {
       channel_type: 'online',
       canale_prevalente: 'online',
       pipeline_stage: 'cliente_attivo',
-      directus_user_id: null,
+      user_id: null,
       stripe_customer_id: null,
       shipping_addresses: null,
       default_shipping_address: null,

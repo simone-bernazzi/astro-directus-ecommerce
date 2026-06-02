@@ -42,7 +42,7 @@ async function getUserFromToken(token: string): Promise<{ id: string; email: str
 async function getOrCreateContact(directus: ReturnType<typeof getAdminClient>, user: { id: string; email: string }) {
   const existing = await directus.request(
     readItems('contacts', {
-      filter: { directus_user_id: { _eq: user.id } },
+      filter: { user_id: { _eq: user.id } },
       limit: 1,
       fields: ['id', 'shipping_addresses'],
     })
@@ -59,12 +59,12 @@ async function getOrCreateContact(directus: ReturnType<typeof getAdminClient>, u
   ) as Array<{ id: string; shipping_addresses: ShippingAddress[] | null }>
 
   if (byEmail[0]) {
-    await directus.request(updateItem('contacts', byEmail[0].id, { directus_user_id: user.id }))
+    await directus.request(updateItem('contacts', byEmail[0].id, { user_id: user.id }))
     return byEmail[0]
   }
 
   const created = await directus.request(
-    createItem('contacts', { email: user.email, directus_user_id: user.id, shipping_addresses: [], channel_type: 'online' })
+    createItem('contacts', { email: user.email, user_id: user.id, shipping_addresses: [], channel_type: 'online' })
   ) as { id: string; shipping_addresses: ShippingAddress[] | null }
   return created
 }

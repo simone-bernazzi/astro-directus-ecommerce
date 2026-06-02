@@ -743,7 +743,7 @@ Apri <code>.env</code> e imposta almeno:
 <ul class="checklist">
   <li><span class="check-box"></span><div>Crea la collezione contatti e tutte le collezioni CRM collegate
 <pre style="margin-top:6px"><span class="cmd">node</span> --env-file=.env scripts/setup-crm-collections.mjs</pre>
-<span class="note">Crea: <code>contacts</code> (anagrafica unica per clienti online e offline — include <code>directus_user_id</code>, <code>stripe_customer_id</code>, <code>shipping_addresses</code>, <code>channel_type</code>), <code>crm_tags</code>, <code>crm_interactions</code>, <code>crm_tasks</code>, <code>crm_documents</code>, <code>crm_pipeline_history</code>, <code>customer_kpis</code>.</span></div></li>
+<span class="note">Crea: <code>contacts</code> (anagrafica unica per clienti online e offline — include <code>user_id</code>, <code>stripe_customer_id</code>, <code>shipping_addresses</code>, <code>channel_type</code>), <code>crm_tags</code>, <code>crm_interactions</code>, <code>crm_tasks</code>, <code>crm_documents</code>, <code>crm_pipeline_history</code>, <code>customer_kpis</code>.</span></div></li>
 </ul>
 
 <h3>Script 3 — Form dinamici</h3>
@@ -759,7 +759,7 @@ Apri <code>.env</code> e imposta almeno:
 <ul class="checklist">
   <li><span class="check-box"></span><div>Settings → Roles → <strong>Public</strong>: permesso <em>Read</em> su <code>pages</code>, <code>posts</code>, <code>categories</code>, <code>portfolio</code>, <code>faq</code>, <code>site_settings</code>, <code>products</code>, <code>product_categories</code>, <code>product_variants</code></div></li>
   <li><span class="check-box"></span><div>Crea ruolo <strong>Customer</strong>: Read su <code>orders</code> con filtro <code>customer_email = $CURRENT_USER.email</code>
-<span class="note">Gli utenti online sono collegati alla scheda contatto tramite <code>contacts.directus_user_id</code>. Indirizzi di spedizione e KPI vivono sulla stessa scheda — filtrabili per <code>channel_type</code> (offline / online / both).</span></div></li>
+<span class="note">Gli utenti online sono collegati alla scheda contatto tramite <code>contacts.user_id</code>. Indirizzi di spedizione e KPI vivono sulla stessa scheda — filtrabili per <code>channel_type</code> (offline / online / both).</span></div></li>
   <li><span class="check-box"></span><div>Crea ruolo <strong>Staff</strong>: CRUD su <code>contacts</code>, <code>crm_interactions</code>, <code>crm_tasks</code>, <code>crm_documents</code>, <code>crm_pipeline_history</code>. Read su <code>customer_kpis</code>, <code>orders</code></div></li>
   <li><span class="check-box"></span><div>Il ruolo <strong>Admin</strong> ha accesso completo a tutte le collezioni (verificare dopo ogni setup)</div></li>
 </ul>
@@ -769,7 +769,7 @@ Apri <code>.env</code> e imposta almeno:
 <div class="option-body">
 <p>Lo script crea i campi ma non le relazioni grafiche né i permessi. Configura manualmente:</p>
 <ul class="checklist">
-  <li><span class="check-box"></span><div>Crea relazione <strong>M2O</strong>: <code>contacts.directus_user_id</code> → <code>directus_users.id</code>
+  <li><span class="check-box"></span><div>Crea relazione <strong>M2O</strong>: <code>contacts.user_id</code> → <code>directus_users.id</code>
 <span class="note">Settings → Data Model → contacts → Aggiungi campo → Relazione M2O → directus_users. Collega il contatto all'account di login online.</span></div></li>
   <li><span class="check-box"></span><div>Crea relazione <strong>M2O</strong>: <code>crm_interactions.contact_id</code> → <code>contacts.id</code></div></li>
   <li><span class="check-box"></span><div>Crea relazione <strong>M2O</strong>: <code>crm_tasks.contact_id</code> → <code>contacts.id</code></div></li>
@@ -790,31 +790,27 @@ Apri <code>.env</code> e imposta almeno:
 <details class="option">
 <summary>▸ Alternativa CRM: configura relazioni e permessi con Claude Code + MCP</summary>
 <div class="option-body">
-<p>Con il server MCP Directus attivo, incolla questo prompt in Claude Code (dopo <code>npm run claude</code>) per configurare tutto in un colpo solo:</p>
+<div class="callout warn"><strong>Limite noto del MCP Directus:</strong> il server MCP non può scrivere sulle <em>core collections</em> di Directus (<code>directus_relations</code>, <code>directus_collections</code>). Questo significa che il prompt MCP imposta le interfacce dei campi M2O ma <strong>non registra i record di relazione</strong> — i campi appaiono senza "Related Collection" nel Data Model. Per completare le relazioni, usa <code>npm run setup:relations</code> (vedi sotto) dopo aver eseguito il prompt.</div>
+
+<p>Con il server MCP Directus attivo, incolla questo prompt in Claude Code (dopo <code>npm run claude</code>):</p>
 <pre style="white-space:pre-wrap;">Usando il server MCP Directus, esegui nell'ordine queste operazioni:
 
-1. Crea relazione M2O: campo "directus_user_id" nella collezione "contacts" punta a "directus_users.id"
-2. Crea relazione M2O: campo "contact_id" nella collezione "crm_interactions" punta a "contacts.id"
-3. Crea relazione M2O: campo "contact_id" nella collezione "crm_tasks" punta a "contacts.id"
-4. Crea relazione M2O: campo "contact_id" nella collezione "crm_documents" punta a "contacts.id"
-5. Crea relazione M2O: campo "contact_id" nella collezione "crm_pipeline_history" punta a "contacts.id"
-6. Crea relazione M2O: campo "contact_id" nella collezione "customer_kpis" punta a "contacts.id"
-7. Crea relazione M2O: campo "contact_id" nella collezione "orders" punta a "contacts.id"
-8. Crea relazione M2M tra "contacts" e "crm_tags" (junction table: contacts_crm_tags, campo many: contact_id → contacts, campo tags: tag_id → crm_tags)
-9. Crea ruolo "Staff" se non esiste. Imposta permessi:
-   - CRUD completo su: contacts, crm_interactions, crm_tasks, crm_documents, crm_pipeline_history
-   - Read su: customer_kpis, orders (solo i propri)
-10. Verifica che il ruolo "Administrator" abbia accesso completo (read/create/update/delete) a tutte le collezioni: contacts, crm_tags, crm_interactions, crm_tasks, crm_documents, crm_pipeline_history, customer_kpis
-11. Nascondi dal menu di navigazione le collezioni che compaiono come pannelli inline nella scheda contatto. Per ciascuna, imposta il campo "hidden" (o "hidden_in_nav") a true nelle impostazioni della collezione:
-   - crm_interactions
-   - crm_tasks
-   - crm_documents
-   - crm_pipeline_history
-   - customer_kpis
-   Queste collezioni restano accessibili aprendo una scheda contatto — non serve vederle come voci separate nel menu.
+1. Aggiorna l'interfaccia del campo "user_id" nella collezione "contacts": imposta interface "select-dropdown-m2o"
+2. Aggiorna l'interfaccia del campo "contact_id" nella collezione "crm_interactions": imposta interface "select-dropdown-m2o"
+3. Aggiorna l'interfaccia del campo "contact_id" nella collezione "crm_tasks": imposta interface "select-dropdown-m2o"
+4. Aggiorna l'interfaccia del campo "contact_id" nella collezione "crm_documents": imposta interface "select-dropdown-m2o"
+5. Aggiorna l'interfaccia del campo "contact_id" nella collezione "crm_pipeline_history": imposta interface "select-dropdown-m2o"
+6. Aggiorna l'interfaccia del campo "contact_id" nella collezione "customer_kpis": imposta interface "select-dropdown-m2o"
+7. Crea il campo "contact_id" (integer, nullable) nella collezione "orders" con interface "select-dropdown-m2o" se non esiste già.
+
+Nota: le relazioni M2O, M2M, i permessi e il menu verranno completati separatamente con lo script complete-relations.sh.
 
 Conferma ogni operazione completata prima di passare alla successiva.</pre>
-<div class="callout info"><strong>Prerequisito:</strong> lancia Claude Code con <code>npm run claude</code> — lo script esporta automaticamente <code>DIRECTUS_URL</code> e <code>DIRECTUS_TOKEN</code> nell'ambiente, rendendo il server MCP operativo.</div>
+
+<p style="margin-top:12px"><strong>Poi, dallo stesso terminale (con <code>.env</code> caricato), esegui:</strong></p>
+<pre style="margin-top:4px"><span class="cmd">npm run setup:relations</span></pre>
+<p>Lo script <code>scripts/complete-relations.sh</code> completa ciò che il MCP non può fare: registra tutte le relazioni M2O in <code>directus_relations</code>, crea la junction table M2M <code>contacts_crm_tags</code>, nasconde le sub-collezioni CRM dal menu, e crea il ruolo Staff con i permessi corretti.</p>
+<div class="callout info"><strong>Prerequisito:</strong> lancia Claude Code con <code>npm run claude</code> — lo script esporta automaticamente <code>DIRECTUS_URL</code> e <code>DIRECTUS_TOKEN</code> nell'ambiente. Lo stesso <code>.env</code> viene usato da <code>npm run setup:relations</code>.</div>
 </div>
 </details>
 
@@ -838,12 +834,12 @@ Conferma ogni operazione completata prima di passare alla successiva.</pre>
 <details class="option">
 <summary>▸ Alternativa Form dinamici: configura relazioni e permessi con Claude Code + MCP</summary>
 <div class="option-body">
-<p>Con il server MCP Directus attivo, incolla questo prompt in Claude Code per configurare tutto in un colpo solo:</p>
+<div class="callout warn"><strong>Limite noto del MCP Directus:</strong> il MCP non può scrivere su <code>directus_relations</code> (core collection). La relazione M2O <code>form_submissions.form_id → forms</code> va completata manualmente in Settings → Data Model → form_submissions → campo form_id → tab Relationship, oppure via <code>curl -X POST $DIRECTUS_URL/relations</code> con il token admin.</div>
+
+<p>Con il server MCP Directus attivo, incolla questo prompt in Claude Code per configurare permessi e menu:</p>
 <pre style="white-space:pre-wrap;">Usando il server MCP Directus, esegui nell'ordine queste operazioni:
 
-1. Crea relazione M2O: campo "form_id" nella collezione "form_submissions" punta a "forms.id"
-
-2. Configura permessi ruolo "Public" sulla collezione "forms":
+1. Configura permessi ruolo "Public" sulla collezione "forms":
    - Azione: read
    - Campi ABILITATI: id, name, slug, fields, success_message, redirect_enabled, redirect_url,
      recaptcha_enabled, honeypot_enabled, capture_page_url, is_active
@@ -852,12 +848,15 @@ Conferma ogni operazione completata prima di passare alla successiva.</pre>
      country_filter_enabled, keyword_filter_enabled, capture_ip, capture_user_agent
    - Filtro: is_active = true (solo form attivi visibili al pubblico)
 
-3. Collezione "form_submissions": nessun permesso per il ruolo Public.
+2. Collezione "form_submissions": nessun permesso per il ruolo Public.
    La scrittura avviene esclusivamente server-side tramite DIRECTUS_TOKEN.
 
-4. Verifica che il ruolo "Administrator" abbia accesso completo (read/create/update/delete)
+3. Verifica che il ruolo "Administrator" abbia accesso completo (read/create/update/delete)
    a entrambe le collezioni: forms, form_submissions.
-5. Nascondi dal menu di navigazione la collezione "form_submissions" — è accessibile come pannello inline dalla scheda del form, non serve come voce separata nel menu. Imposta "hidden" (o "hidden_in_nav") a true nelle impostazioni della collezione.
+
+4. Nascondi dal menu di navigazione la collezione "form_submissions" — è accessibile come pannello inline dalla scheda del form. Imposta "hidden" a true nelle impostazioni della collezione.
+
+Nota: la relazione M2O form_submissions.form_id → forms va completata manualmente (vedi callout sopra).
 
 Conferma ogni operazione completata prima di passare alla successiva.</pre>
 <div class="callout warn"><strong>Sicurezza:</strong> <code>blocked_keywords</code> e <code>notification_email</code> non devono mai essere esposti al ruolo Public — contengono dati di configurazione interna che i bot potrebbero usare per aggirare i filtri anti-spam.</div>
