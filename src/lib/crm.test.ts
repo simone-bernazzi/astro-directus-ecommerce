@@ -68,7 +68,7 @@ describe('fullName', () => {
     expect(fullName({ first_name: 'Mario', last_name: 'Rossi' })).toBe('Mario Rossi');
   });
 
-  it('trimma spazi extra', () => {
-    expect(fullName({ first_name: 'Anna', last_name: 'Bianchi' })).toBe('Anna Bianchi');
+  it('trimma spazi extra quando first_name è vuoto', () => {
+    expect(fullName({ first_name: '', last_name: 'Bianchi' })).toBe('Bianchi');
   });
 });

@@ -4,23 +4,29 @@ import {
 } from '@directus/sdk';
 import type {
   Contact, CrmInteraction, CrmTask, CrmTag,
-  CrmDocument, CustomerKpi, CrmPipelineHistory,
+  CustomerKpi, CrmPipelineHistory,
   PipelineStage,
 } from './types';
 
-function getRequiredEnv(key: string): string {
-  const value = import.meta.env?.[key] ?? process.env[key];
-  if (!value) throw new Error(`Missing required env var: ${key}`);
-  return value;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Schema = Record<string, any>
+
+function getEnv(key: string): string {
+  return (
+    (typeof import.meta !== 'undefined' && (import.meta as Record<string, unknown> & { env?: Record<string, string> }).env?.[key]) ||
+    process.env[key] ||
+    ''
+  )
 }
 
-function createClient() {
-  return createDirectus(getRequiredEnv('DIRECTUS_URL'))
-    .with(staticToken(getRequiredEnv('DIRECTUS_TOKEN')))
-    .with(rest());
+function getClient() {
+  const url = getEnv('DIRECTUS_URL')
+  const token = getEnv('DIRECTUS_TOKEN')
+  if (!url) throw new Error('DIRECTUS_URL not configured.')
+  let client = createDirectus<Schema>(url).with(rest())
+  if (token) client = client.with(staticToken(token)) as typeof client
+  return client
 }
-
-const client = createClient();
 
 // ─── Contacts ────────────────────────────────────────────────────────────────
 
@@ -35,7 +41,7 @@ export async function getContacts(options?: {
   if (options?.pipelineStage) filter.pipeline_stage = { _eq: options.pipelineStage };
   if (options?.channelType) filter.channel_type = { _eq: options.channelType };
 
-  const items = await client.request(
+  const items = await getClient().request(
     readItems('contacts', {
       filter,
       fields: ['*', { tags: ['*'] }],
@@ -48,7 +54,7 @@ export async function getContacts(options?: {
 
 export async function getContact(id: string): Promise<Contact | null> {
   try {
-    const item = await client.request(
+    const item = await getClient().request(
       readItem('contacts', id, {
         fields: ['*', { tags: ['*'] }],
       })
@@ -60,7 +66,7 @@ export async function getContact(id: string): Promise<Contact | null> {
 }
 
 export async function getContactByEmail(email: string): Promise<Contact | null> {
-  const items = await client.request(
+  const items = await getClient().request(
     readItems('contacts', {
       filter: { email: { _eq: email } },
       fields: ['*', { tags: ['*'] }],
@@ -94,7 +100,7 @@ export async function updateContactChannelType(
 // ─── Interactions ─────────────────────────────────────────────────────────────
 
 export async function getInteractionsByContact(contactId: string): Promise<CrmInteraction[]> {
-  const items = await client.request(
+  const items = await getClient().request(
     readItems('crm_interactions', {
       filter: { contact_id: { _eq: contactId } },
       fields: ['*'],
@@ -114,7 +120,7 @@ export async function createInteraction(
 // ─── Tasks ───────────────────────────────────────────────────────────────────
 
 export async function getTasksByContact(contactId: string): Promise<CrmTask[]> {
-  const items = await client.request(
+  const items = await getClient().request(
     readItems('crm_tasks', {
       filter: { contact_id: { _eq: contactId } },
       fields: ['*'],
@@ -126,10 +132,10 @@ export async function getTasksByContact(contactId: string): Promise<CrmTask[]> {
 
 export async function getTasksDueToday(): Promise<CrmTask[]> {
   const today = new Date().toISOString().split('T')[0];
-  const items = await client.request(
+  const items = await getClient().request(
     readItems('crm_tasks', {
       filter: {
-        due_date: { _between: [`${today}T00:00:00`, `${today}T23:59:59`] },
+        due_date: { _between: [`${today}T00:00:00`, `${today}T23:59:59.999`] },
         status: { _in: ['pending', 'in_progress'] },
       },
       fields: ['*'],
@@ -147,7 +153,7 @@ export async function createTask(data: Omit<CrmTask, 'id'>): Promise<CrmTask> {
 // ─── KPIs ────────────────────────────────────────────────────────────────────
 
 export async function getKpiByContact(contactId: string): Promise<CustomerKpi | null> {
-  const items = await client.request(
+  const items = await getClient().request(
     readItems('customer_kpis', {
       filter: { contact_id: { _eq: contactId } },
       fields: ['*'],
@@ -158,7 +164,7 @@ export async function getKpiByContact(contactId: string): Promise<CustomerKpi | 
 }
 
 export async function getContactsAtRisk(churnThreshold = 70): Promise<CustomerKpi[]> {
-  const items = await client.request(
+  const items = await getClient().request(
     readItems('customer_kpis', {
       filter: { churn_score: { _gte: churnThreshold } },
       fields: ['*'],
@@ -171,7 +177,7 @@ export async function getContactsAtRisk(churnThreshold = 70): Promise<CustomerKp
 // ─── Pipeline History ────────────────────────────────────────────────────────
 
 export async function getPipelineHistory(contactId: string): Promise<CrmPipelineHistory[]> {
-  const items = await client.request(
+  const items = await getClient().request(
     readItems('crm_pipeline_history', {
       filter: { contact_id: { _eq: contactId } },
       fields: ['*'],
