@@ -805,6 +805,13 @@ Apri <code>.env</code> e imposta almeno:
    - CRUD completo su: contacts, crm_interactions, crm_tasks, crm_documents, crm_pipeline_history
    - Read su: customer_kpis, orders (solo i propri)
 10. Verifica che il ruolo "Administrator" abbia accesso completo (read/create/update/delete) a tutte le collezioni: contacts, crm_tags, crm_interactions, crm_tasks, crm_documents, crm_pipeline_history, customer_kpis
+11. Nascondi dal menu di navigazione le collezioni che compaiono come pannelli inline nella scheda contatto. Per ciascuna, imposta il campo "hidden" (o "hidden_in_nav") a true nelle impostazioni della collezione:
+   - crm_interactions
+   - crm_tasks
+   - crm_documents
+   - crm_pipeline_history
+   - customer_kpis
+   Queste collezioni restano accessibili aprendo una scheda contatto — non serve vederle come voci separate nel menu.
 
 Conferma ogni operazione completata prima di passare alla successiva.</pre>
 <div class="callout info"><strong>Prerequisito:</strong> lancia Claude Code con <code>npm run claude</code> — lo script esporta automaticamente <code>DIRECTUS_URL</code> e <code>DIRECTUS_TOKEN</code> nell'ambiente, rendendo il server MCP operativo.</div>
@@ -850,6 +857,7 @@ Conferma ogni operazione completata prima di passare alla successiva.</pre>
 
 4. Verifica che il ruolo "Administrator" abbia accesso completo (read/create/update/delete)
    a entrambe le collezioni: forms, form_submissions.
+5. Nascondi dal menu di navigazione la collezione "form_submissions" — è accessibile come pannello inline dalla scheda del form, non serve come voce separata nel menu. Imposta "hidden" (o "hidden_in_nav") a true nelle impostazioni della collezione.
 
 Conferma ogni operazione completata prima di passare alla successiva.</pre>
 <div class="callout warn"><strong>Sicurezza:</strong> <code>blocked_keywords</code> e <code>notification_email</code> non devono mai essere esposti al ruolo Public — contengono dati di configurazione interna che i bot potrebbero usare per aggirare i filtri anti-spam.</div>
