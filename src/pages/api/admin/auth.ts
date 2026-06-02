@@ -1,13 +1,19 @@
-// src/pages/api/admin/auth.ts
+// Admin JWT auth: login (POST), logout (DELETE), token refresh (PATCH)
 export const prerender = false
 
 import type { APIRoute } from 'astro'
 
-const DIRECTUS_URL = () => process.env.DIRECTUS_URL ?? ''
+const DIRECTUS_URL = process.env.DIRECTUS_URL ?? ''
+
+const COOKIE_OPTS = {
+  httpOnly: true,
+  secure: import.meta.env.PROD,
+  sameSite: 'lax' as const,
+  path: '/',
+}
 
 export const POST: APIRoute = async ({ request, cookies }) => {
-  const url = DIRECTUS_URL()
-  if (!url) {
+  if (!DIRECTUS_URL) {
     return new Response(JSON.stringify({ error: 'DIRECTUS_URL non configurata' }), { status: 503 })
   }
 
@@ -20,37 +26,32 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return new Response(JSON.stringify({ error: 'Email e password obbligatorie' }), { status: 400 })
   }
 
-  const res = await fetch(`${url}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: body.email, password: body.password }),
-  })
+  let res: Response
+  try {
+    res = await fetch(`${DIRECTUS_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: body.email, password: body.password }),
+    })
+  } catch {
+    return new Response(JSON.stringify({ error: 'Servizio non raggiungibile' }), { status: 503 })
+  }
 
   if (!res.ok) {
     return new Response(JSON.stringify({ error: 'Credenziali non valide' }), { status: 401 })
   }
 
-  const { data } = await res.json() as { data: { access_token: string; refresh_token: string; expires: number } }
+  const { data } = await res.json() as { data: { access_token: string; refresh_token: string } }
 
-  const cookieOpts = {
-    httpOnly: true,
-    secure: import.meta.env.PROD,
-    sameSite: 'lax' as const,
-    path: '/',
-  }
-
-  cookies.set('admin_token', data.access_token, { ...cookieOpts, maxAge: 900 })
-  cookies.set('admin_refresh', data.refresh_token, { ...cookieOpts, maxAge: 60 * 60 * 24 * 7 })
+  cookies.set('admin_token', data.access_token, { ...COOKIE_OPTS, maxAge: 900 })
+  cookies.set('admin_refresh', data.refresh_token, { ...COOKIE_OPTS, maxAge: 60 * 60 * 24 * 7 })
 
   return new Response(JSON.stringify({ success: true }), { status: 200 })
 }
 
-export const DELETE: APIRoute = async ({ cookies }) => {
-  const token = cookies.get('admin_token')?.value
-  const url = DIRECTUS_URL()
-
-  if (token && url) {
-    await fetch(`${url}/auth/logout`, {
+export const DELETE: APIRoute = async ({ cookies, url }) => {
+  if (cookies.get('admin_token')?.value && url) {
+    await fetch(`${DIRECTUS_URL}/auth/logout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: cookies.get('admin_refresh')?.value }),
@@ -66,17 +67,21 @@ export const DELETE: APIRoute = async ({ cookies }) => {
 
 export const PATCH: APIRoute = async ({ cookies }) => {
   const refreshToken = cookies.get('admin_refresh')?.value
-  const url = DIRECTUS_URL()
 
-  if (!refreshToken || !url) {
-    return new Response(JSON.stringify({ error: 'No refresh token' }), { status: 401 })
+  if (!refreshToken || !DIRECTUS_URL) {
+    return new Response(JSON.stringify({ error: 'Nessun token di refresh' }), { status: 401 })
   }
 
-  const res = await fetch(`${url}/auth/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh_token: refreshToken, mode: 'json' }),
-  })
+  let res: Response
+  try {
+    res = await fetch(`${DIRECTUS_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken, mode: 'json' }),
+    })
+  } catch {
+    return new Response(JSON.stringify({ error: 'Servizio non raggiungibile' }), { status: 503 })
+  }
 
   if (!res.ok) {
     cookies.delete('admin_token', { path: '/' })
@@ -86,15 +91,8 @@ export const PATCH: APIRoute = async ({ cookies }) => {
 
   const { data } = await res.json() as { data: { access_token: string; refresh_token: string } }
 
-  const cookieOpts = {
-    httpOnly: true,
-    secure: import.meta.env.PROD,
-    sameSite: 'lax' as const,
-    path: '/',
-  }
-
-  cookies.set('admin_token', data.access_token, { ...cookieOpts, maxAge: 900 })
-  cookies.set('admin_refresh', data.refresh_token, { ...cookieOpts, maxAge: 60 * 60 * 24 * 7 })
+  cookies.set('admin_token', data.access_token, { ...COOKIE_OPTS, maxAge: 900 })
+  cookies.set('admin_refresh', data.refresh_token, { ...COOKIE_OPTS, maxAge: 60 * 60 * 24 * 7 })
 
   return new Response(JSON.stringify({ success: true }), { status: 200 })
 }
