@@ -871,6 +871,7 @@ Conferma ogni operazione completata prima di passare alla successiva.</pre>
 <summary>▸ Step 3 CRM — Configura pannelli inline nella scheda contatto (Claude Code + MCP)</summary>
 <div class="option-body">
 <p>Dopo aver configurato relazioni e permessi, esegui questo prompt per aggiungere i pannelli inline (O2M) alla scheda contatto in Directus Admin — in modo che le interazioni, i task, i documenti e i KPI appaiano direttamente nella pagina del contatto.</p>
+<div class="callout warn"><strong>Prerequisito:</strong> assicurati di aver eseguito <code>npm run setup</code> prima di questo step. Lo script aggiunge il campo <code>date_created</code> alla collection <code>orders</code>, necessario per il pannello Ordini — senza di esso Directus restituisce un errore di permessi all'apertura della scheda contatto.</div>
 <pre style="white-space:pre-wrap;">Usando il server MCP Directus, esegui queste operazioni sulla collezione "contacts":
 
 1. Aggiungi campo alias O2M "crm_interactions" su contacts:
