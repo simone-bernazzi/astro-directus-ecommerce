@@ -86,6 +86,9 @@ async function main() {
   await field('products', 'seo_title_en', 'string', { is_nullable: true }, { interface: 'input' })
   await field('products', 'seo_description_en', 'text', { is_nullable: true }, { interface: 'input-multiline' })
   await field('products', 'category_id', 'integer', { is_nullable: true }, { interface: 'input', hidden: true })
+  // CRM fields
+  await field('products', 'is_ecommerce', 'boolean', { default_value: false }, { interface: 'boolean', note: 'Se true, il prodotto è pubblicato sul sito e-commerce' })
+  await field('products', 'is_archived', 'boolean', { default_value: false }, { interface: 'boolean', note: 'Soft delete dal catalogo' })
 
   // ── product_variants ──────────────────────────────────────────────────────
   await collection('product_variants', 'tune', '{{name}} ({{sku}})')
@@ -121,6 +124,14 @@ async function main() {
   await field('orders', 'notes', 'text', { is_nullable: true }, { interface: 'input-multiline' })
   await field('orders', 'tracking_number', 'string', { is_nullable: true }, { interface: 'input' })
   await field('orders', 'tracking_url', 'string', { is_nullable: true }, { interface: 'input' })
+  // CRM fields
+  await field('orders', 'channel', 'string', { default_value: 'online' }, {
+    interface: 'select-dropdown',
+    options: { choices: [{ text: 'Online', value: 'online' }, { text: 'Offline (negozio)', value: 'offline' }] },
+    note: 'Canale di vendita',
+  })
+  await field('orders', 'contact_id', 'integer', { is_nullable: true }, { interface: 'input', hidden: true, note: 'FK → contacts (CRM)' })
+  await field('orders', 'staff_id', 'uuid', { is_nullable: true }, { interface: 'input', hidden: true, note: 'Operatore che ha processato ordine offline' })
 
   // ── order_items ───────────────────────────────────────────────────────────
   await collection('order_items', 'list', '{{product_name}}')
@@ -179,6 +190,8 @@ async function main() {
   await field('customers', 'stripe_customer_id', 'string', { is_nullable: true }, { interface: 'input' })
   await field('customers', 'total_orders', 'integer', { default_value: 0 }, { interface: 'input' })
   await field('customers', 'total_spent', 'decimal', { numeric_precision: 12, numeric_scale: 2, default_value: 0 }, { interface: 'input' })
+  // CRM fields
+  await field('customers', 'contact_id', 'integer', { is_nullable: true }, { interface: 'input', hidden: true, note: 'FK → contacts (CRM)' })
 
   // ── contact_submissions ───────────────────────────────────────────────────
   await collection('contact_submissions', 'mail', '{{name}} — {{subject}}')
