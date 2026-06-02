@@ -30,15 +30,14 @@ err()  { echo "  ⚠️  $*"; }
 
 post() {
   local url="$1" data="$2" label="${3:-$1}"
-  local body code
-  body=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/$url" \
+  local tmpfile code resp
+  tmpfile=$(mktemp)
+  code=$(curl -s -o "$tmpfile" -w "%{http_code}" -X POST "$BASE_URL/$url" \
     -H "$H_AUTH" -H "$H_JSON" -d "$data")
-  code=$(echo "$body" | tail -1)
-  local resp
-  resp=$(echo "$body" | head -n -1)
+  resp=$(cat "$tmpfile"); rm -f "$tmpfile"
   if [[ "$code" =~ ^2 ]]; then
     ok "$label"
-  elif [[ "$code" == "400" ]] && echo "$resp" | grep -qi "already exist"; then
+  elif [[ "$code" == "400" ]] && echo "$resp" | grep -qiE "already exist|already has|duplicate entry|field.*relationship"; then
     skip "$label"
   else
     err "$label (HTTP $code)"

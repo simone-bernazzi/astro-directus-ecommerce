@@ -834,9 +834,9 @@ Conferma ogni operazione completata prima di passare alla successiva.</pre>
 <details class="option">
 <summary>▸ Alternativa Form dinamici: configura relazioni e permessi con Claude Code + MCP</summary>
 <div class="option-body">
-<div class="callout warn"><strong>Limite noto del MCP Directus:</strong> il MCP non può scrivere su <code>directus_relations</code> (core collection). La relazione M2O <code>form_submissions.form_id → forms</code> va completata manualmente in Settings → Data Model → form_submissions → campo form_id → tab Relationship, oppure via <code>curl -X POST $DIRECTUS_URL/relations</code> con il token admin.</div>
+<div class="callout warn"><strong>Limite noto del MCP Directus:</strong> il server MCP non può scrivere sulle <em>core collections</em> di Directus (<code>directus_relations</code>). La relazione M2O <code>form_submissions.form_id → forms</code> viene registrata da <code>npm run setup:relations</code> — eseguilo dopo il prompt MCP.</div>
 
-<p>Con il server MCP Directus attivo, incolla questo prompt in Claude Code per configurare permessi e menu:</p>
+<p>Con il server MCP Directus attivo, incolla questo prompt in Claude Code (dopo <code>npm run claude</code>):</p>
 <pre style="white-space:pre-wrap;">Usando il server MCP Directus, esegui nell'ordine queste operazioni:
 
 1. Configura permessi ruolo "Public" sulla collezione "forms":
@@ -854,13 +854,16 @@ Conferma ogni operazione completata prima di passare alla successiva.</pre>
 3. Verifica che il ruolo "Administrator" abbia accesso completo (read/create/update/delete)
    a entrambe le collezioni: forms, form_submissions.
 
-4. Nascondi dal menu di navigazione la collezione "form_submissions" — è accessibile come pannello inline dalla scheda del form. Imposta "hidden" a true nelle impostazioni della collezione.
-
-Nota: la relazione M2O form_submissions.form_id → forms va completata manualmente (vedi callout sopra).
+4. Nascondi dal menu di navigazione la collezione "form_submissions" — è accessibile come
+   pannello inline dalla scheda del form. Imposta "hidden" a true nelle impostazioni della collezione.
 
 Conferma ogni operazione completata prima di passare alla successiva.</pre>
+
+<p style="margin-top:12px"><strong>Poi esegui per registrare la relazione M2O:</strong></p>
+<pre style="margin-top:4px"><span class="cmd">npm run setup:relations</span></pre>
+<p>Lo script registra <code>form_submissions.form_id → forms</code> in <code>directus_relations</code> (operazione che il MCP non può completare).</p>
 <div class="callout warn"><strong>Sicurezza:</strong> <code>blocked_keywords</code> e <code>notification_email</code> non devono mai essere esposti al ruolo Public — contengono dati di configurazione interna che i bot potrebbero usare per aggirare i filtri anti-spam.</div>
-<div class="callout info"><strong>Prerequisito:</strong> lancia Claude Code con <code>npm run claude</code> prima di incollare il prompt.</div>
+<div class="callout info"><strong>Prerequisito:</strong> lancia Claude Code con <code>npm run claude</code> — lo script esporta automaticamente <code>DIRECTUS_URL</code> e <code>DIRECTUS_TOKEN</code> nell'ambiente.</div>
 </div>
 </details>
 
