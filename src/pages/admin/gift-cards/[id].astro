@@ -1,0 +1,114 @@
+---
+// src/pages/admin/gift-cards/[id].astro
+export const prerender = false
+
+import AdminLayout from '@/layouts/AdminLayout.astro'
+import SectionCard from '@/components/admin/SectionCard.astro'
+import type { GiftCard } from '@/lib/types'
+
+const { id } = Astro.params
+if (!id) return Astro.redirect('/admin/gift-cards')
+
+const directusUrl = process.env.DIRECTUS_URL ?? ''
+const token = Astro.cookies.get('admin_token')?.value ?? ''
+
+async function dFetch(path: string) {
+  try {
+    const res = await fetch(`${directusUrl}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch { return null }
+}
+
+const cardRes = await dFetch(`/items/gift_cards/${id}?fields[]=*`)
+if (!cardRes?.data) return Astro.redirect('/admin/gift-cards')
+
+const card = cardRes.data as GiftCard
+
+function fmtDate(iso: string | null | undefined) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' })
+}
+
+const isExpired = card.expires_at ? new Date(card.expires_at) < new Date() : false
+const percentUsed = card.initial_value > 0 ? Math.round((1 - card.remaining_value / card.initial_value) * 100) : 0
+---
+
+<AdminLayout title={`Gift card: ${card.code}`} active="gift-cards">
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+    <a href="/admin/gift-cards" style="color:#6b7280;text-decoration:none;font-size:13px">← Gift card</a>
+    <span style="color:#d1d5db">/</span>
+    <h1 style="font-size:18px;font-weight:700;color:#111827;font-family:monospace">{card.code}</h1>
+    {isExpired
+      ? <span style="padding:3px 10px;border-radius:10px;font-size:12px;background:#fef2f2;color:#dc2626">Scaduta</span>
+      : card.is_active
+        ? <span style="padding:3px 10px;border-radius:10px;font-size:12px;background:#f0fdf4;color:#22c55e">Attiva</span>
+        : <span style="padding:3px 10px;border-radius:10px;font-size:12px;background:#f3f4f6;color:#6b7280">Inattiva</span>
+    }
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:16px">
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+      <SectionCard>
+        <div style="text-align:center">
+          <div style="font-size:24px;font-weight:700;color:#111827">€{card.initial_value.toFixed(2)}</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px">Valore iniziale</div>
+        </div>
+      </SectionCard>
+      <SectionCard>
+        <div style="text-align:center">
+          <div style={`font-size:24px;font-weight:700;${card.remaining_value === 0 ? 'color:#9ca3af' : 'color:#111827'}`}>€{card.remaining_value.toFixed(2)}</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px">Saldo residuo</div>
+        </div>
+      </SectionCard>
+      <SectionCard>
+        <div style="text-align:center">
+          <div style="font-size:24px;font-weight:700;color:#111827">{percentUsed}%</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px">Utilizzata</div>
+        </div>
+      </SectionCard>
+    </div>
+
+    <SectionCard title="Dettagli">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px">
+        <div><span style="color:#6b7280">Scadenza:</span> {fmtDate(card.expires_at)}</div>
+        <div><span style="color:#6b7280">Stato:</span> {card.is_active ? 'Attiva' : 'Inattiva'}</div>
+      </div>
+    </SectionCard>
+
+    <SectionCard title={`Storico utilizzi (${card.redemptions?.length ?? 0})`}>
+      {!card.redemptions?.length
+        ? <p style="color:#9ca3af;font-size:14px">Nessun utilizzo.</p>
+        : (
+          <table style="width:100%;border-collapse:collapse;font-size:14px">
+            <thead>
+              <tr style="border-bottom:1px solid #e5e7eb">
+                <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Data</th>
+                <th style="text-align:right;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Importo</th>
+                <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Ordine</th>
+              </tr>
+            </thead>
+            <tbody>
+              {card.redemptions.map(r => (
+                <tr style="border-bottom:1px solid #f3f4f6">
+                  <td style="padding:8px;color:#6b7280">{fmtDate(r.date)}</td>
+                  <td style="padding:8px;text-align:right;color:#dc2626;font-weight:500">-€{r.amount.toFixed(2)}</td>
+                  <td style="padding:8px">
+                    <a href={`/admin/orders/${r.order_id}`} style="color:#3b82f6;font-family:monospace;font-size:12px">
+                      #{r.order_id.slice(0, 8)}
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )
+      }
+    </SectionCard>
+
+  </div>
+</AdminLayout>

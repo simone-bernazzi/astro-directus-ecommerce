@@ -1,0 +1,79 @@
+---
+// src/pages/admin/gift-cards/index.astro
+export const prerender = false
+
+import AdminLayout from '@/layouts/AdminLayout.astro'
+import DataTable from '@/components/admin/DataTable.astro'
+import type { Column } from '@/components/admin/DataTable.astro'
+import type { GiftCard } from '@/lib/types'
+
+const directusUrl = process.env.DIRECTUS_URL ?? ''
+const token = Astro.cookies.get('admin_token')?.value ?? ''
+
+async function dFetch(path: string) {
+  try {
+    const res = await fetch(`${directusUrl}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch { return null }
+}
+
+const PAGE_SIZE = 25
+const page = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1'))
+const offset = (page - 1) * PAGE_SIZE
+
+const [listRes, countRes] = await Promise.all([
+  dFetch(`/items/gift_cards?fields[]=id,code,initial_value,remaining_value,expires_at,is_active&sort[]=-date_created&limit=${PAGE_SIZE}&offset=${offset}`),
+  dFetch('/items/gift_cards?aggregate[count]=id'),
+])
+
+type GiftCardRow = Pick<GiftCard, 'id' | 'code' | 'initial_value' | 'remaining_value' | 'expires_at' | 'is_active'>
+
+const cards = (listRes?.data ?? []) as GiftCardRow[]
+const total = parseInt(countRes?.data?.[0]?.count?.id ?? '0')
+
+const columns: Column[] = [
+  { key: 'code', label: 'Codice', format: (v) => `<span style="font-family:monospace;font-weight:600;color:#111827">${String(v ?? '—')}</span>` },
+  { key: 'initial_value', label: 'Valore iniziale', format: (v) => `€${Number(v ?? 0).toFixed(2)}` },
+  {
+    key: 'remaining_value',
+    label: 'Saldo residuo',
+    format: (v) => {
+      const n = Number(v ?? 0)
+      return `<span style="font-weight:500;${n === 0 ? 'color:#9ca3af' : 'color:#111827'}">€${n.toFixed(2)}</span>`
+    },
+  },
+  {
+    key: 'expires_at',
+    label: 'Scadenza',
+    format: (v) => {
+      if (!v) return '—'
+      const d = new Date(String(v))
+      const expired = d < new Date()
+      return `<span style="${expired ? 'color:#dc2626' : 'color:#6b7280'}">${d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>`
+    },
+  },
+  {
+    key: 'is_active',
+    label: 'Stato',
+    format: (v) => v
+      ? `<span style="background:#f0fdf4;color:#22c55e;padding:2px 8px;border-radius:10px;font-size:12px">Attiva</span>`
+      : `<span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:10px;font-size:12px">Inattiva</span>`,
+  },
+]
+---
+
+<AdminLayout title="Gift card" active="gift-cards">
+  <DataTable
+    columns={columns}
+    rows={cards as unknown as Record<string, unknown>[]}
+    idField="id"
+    detailBase="/admin/gift-cards/"
+    page={page}
+    total={total}
+    pageSize={PAGE_SIZE}
+    emptyMessage="Nessuna gift card trovata."
+  />
+</AdminLayout>
