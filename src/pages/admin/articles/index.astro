@@ -1,0 +1,79 @@
+---
+// src/pages/admin/articles/index.astro
+export const prerender = false
+
+import AdminLayout from '@/layouts/AdminLayout.astro'
+import DataTable from '@/components/admin/DataTable.astro'
+import type { Column } from '@/components/admin/DataTable.astro'
+import type { Post } from '@/lib/types'
+
+const directusUrl = process.env.DIRECTUS_URL ?? ''
+const token = Astro.cookies.get('admin_token')?.value ?? ''
+
+async function dFetch(path: string) {
+  try {
+    const res = await fetch(`${directusUrl}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch { return null }
+}
+
+function escHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+const PAGE_SIZE = 25
+const page = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1'))
+const offset = (page - 1) * PAGE_SIZE
+
+const [listRes, countRes] = await Promise.all([
+  dFetch(`/items/posts?fields[]=id,title,slug,status,published_at,category.name&sort[]=-published_at&limit=${PAGE_SIZE}&offset=${offset}`),
+  dFetch('/items/posts?aggregate[count]=id'),
+])
+
+type ArticleRow = Pick<Post, 'id' | 'title' | 'slug' | 'status' | 'published_at'> & {
+  category: { name: string } | null
+}
+
+const articles = (listRes?.data ?? []) as ArticleRow[]
+const total = parseInt(countRes?.data?.[0]?.count?.id ?? '0')
+
+const columns: Column[] = [
+  { key: 'title', label: 'Titolo', format: (v) => `<span style="font-weight:500;color:#111827">${escHtml(String(v ?? '—'))}</span>` },
+  {
+    key: 'category',
+    label: 'Categoria',
+    format: (v) => {
+      const cat = v as { name: string } | null
+      return `<span style="color:#6b7280;font-size:13px">${escHtml(cat?.name ?? '—')}</span>`
+    },
+  },
+  {
+    key: 'status',
+    label: 'Stato',
+    format: (v) => v === 'published'
+      ? `<span style="background:#f0fdf4;color:#22c55e;padding:2px 8px;border-radius:10px;font-size:12px">Pubblicato</span>`
+      : `<span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:10px;font-size:12px">Bozza</span>`,
+  },
+  {
+    key: 'published_at',
+    label: 'Pubblicato',
+    format: (v) => v ? new Date(String(v)).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—',
+  },
+]
+---
+
+<AdminLayout title="Articoli" active="articles">
+  <DataTable
+    columns={columns}
+    rows={articles as unknown as Record<string, unknown>[]}
+    idField="id"
+    detailBase="/admin/articles/"
+    page={page}
+    total={total}
+    pageSize={PAGE_SIZE}
+    emptyMessage="Nessun articolo trovato."
+  />
+</AdminLayout>
