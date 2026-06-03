@@ -1163,6 +1163,11 @@ Incolla il seguente contenuto:
 
 <div class="callout info" style="margin-top:16px"><strong>Come funziona il sottodominio:</strong> il vhost Nginx per <code>admin.<span class="val">tuodominio.it</span></code> fa proxy verso la stessa porta del frontend (<code>DEPLOY_PORT</code>). Nginx reindirizza <code>/</code> a <code>/admin</code> automaticamente — tutte le route <code>/admin/*</code> vengono servite dall'app Astro come se si visitasse <code><span class="val">tuodominio.it</span>/admin/*</code>.</div>
 
+<div class="callout warn" style="margin-top:12px"><strong>⚠ I comandi Nginx e Certbot richiedono root.</strong> L'utente <code>deploy</code> non ha i permessi per scrivere in <code>/etc/nginx/</code>. Connettiti come root prima di procedere:
+<pre style="margin-top:6px"><span class="cmd">ssh</span> root@<span class="val">ip-server</span></pre>
+Oppure, se sei già connesso come <code>deploy</code>, eleva i privilegi:
+<pre style="margin-top:6px"><span class="cmd">sudo su -</span></pre></div>
+
 <ul class="checklist" style="margin-top:16px">
   <li><span class="check-box"></span><div>Aggiungi il record DNS A per il sottodominio admin
 <table style="margin-top:8px; border-collapse:collapse; font-size:12px; width:100%">
