@@ -1040,8 +1040,10 @@ Non usare <code>*</code> in produzione: esporrebbe il checkout e le API a chiama
   <li><span class="check-box"></span><div>Build in locale (con Node 22)
 <pre style="margin-top:6px"><span class="cmd">npm</span> run build</pre></div></li>
   <li><span class="check-box"></span><div>Carica i file sul server con il comando di deploy automatico
-<pre style="margin-top:6px"><span class="cmd">npm</span> run deploy</pre>
-<span class="note">Lo script fa build → rsync dist/ + package.json → npm install --production → pm2 startOrRestart sul server. Richiede <code>DEPLOY_HOST</code>, <code>DEPLOY_USER</code>, <code>DEPLOY_PATH</code>, <code>DEPLOY_PM2_APP</code> nel <code>.env</code> locale.</span></div></li>
+<pre style="margin-top:6px"><span class="comment"># Assicurati di usare Node 22 prima di lanciare il deploy</span>
+<span class="cmd">nvm</span> use 22
+<span class="cmd">npm</span> run deploy</pre>
+<span class="note">Lo script fa build → rsync dist/ + package.json + ecosystem.config.cjs → npm install --production → pm2 startOrRestart sul server. Richiede <code>DEPLOY_HOST</code>, <code>DEPLOY_USER</code>, <code>DEPLOY_PATH</code>, <code>DEPLOY_PM2_APP</code> nel <code>.env</code> locale. <strong>Node 22 è obbligatorio</strong>: Astro 6 non supporta versioni precedenti e il build fallisce immediatamente con Node 20 o inferiore.</span></div></li>
   <li><span class="check-box"></span><div><em>In alternativa al deploy automatico</em> — carica manualmente e avvia
 <pre style="margin-top:6px"><span class="cmd">rsync</span> -avz --delete dist/ deploy@<span class="val">ip-server</span>:/var/www/<span class="val">cliente</span>/frontend/dist/
 <span class="cmd">rsync</span> -avz ecosystem.config.cjs deploy@<span class="val">ip-server</span>:/var/www/<span class="val">cliente</span>/frontend/
@@ -1053,7 +1055,8 @@ Non usare <code>*</code> in produzione: esporrebbe il checkout e le API a chiama
 <span class="cmd">npm</span> install --production
 <span class="cmd">pm2</span> startOrRestart ecosystem.config.cjs --update-env
 <span class="cmd">pm2</span> save</pre>
-<span class="note">Con <code>@astrojs/node</code> standalone mode il <code>dist/</code> non include le dipendenze — è necessario <code>npm install</code> sul server. Porta sempre <code>package.json</code> e <code>package-lock.json</code> insieme al <code>dist/</code>.</span></div></li>
+<span class="note">Con <code>@astrojs/node</code> standalone mode il <code>dist/</code> non include le dipendenze — è necessario <code>npm install</code> sul server. Porta sempre <code>package.json</code> e <code>package-lock.json</code> insieme al <code>dist/</code>.<br><br>
+<strong>Variabili d'ambiente e PM2:</strong> il file <code>ecosystem.config.cjs</code> legge automaticamente il <code>.env</code> sul server tramite una funzione <code>loadDotEnv()</code> integrata e passa tutte le variabili al processo Node.js. Non è necessario esportarle manualmente nella shell. Se aggiungi nuove variabili al <code>.env</code> del server, basta ri-eseguire <code>npm run deploy</code> (che copia il config e riavvia PM2 con <code>--update-env</code>).</span></div></li>
 </ul>
 
 <h3 id="sec-4-7">4.7 Nginx vhost (frontend)</h3>
@@ -1214,9 +1217,10 @@ Incolla il seguente contenuto:
 <span class="note">Il file <code>.env</code> contiene <code>DIRECTUS_URL</code> e le altre variabili necessarie all'app. Senza di esso il pannello admin risponde con errori di configurazione al login. Va copiato una volta; i deploy successivi con <code>npm run deploy</code> non lo sovrascrivono.</span></div></li>
 
   <li><span class="check-box"></span><div>Deploya il build aggiornato
-<pre style="margin-top:6px"><span class="comment"># Dal Mac, nella cartella del progetto</span>
+<pre style="margin-top:6px"><span class="comment"># Dal Mac, nella cartella del progetto (Node 22 obbligatorio)</span>
+<span class="cmd">nvm</span> use 22
 <span class="cmd">npm</span> run deploy</pre>
-<span class="note">Fa build → rsync <code>dist/</code> → npm install → pm2 restart. Necessario per portare sul server il codice del pannello admin (le route <code>/admin/*</code> aggiunte di recente).</span></div></li>
+<span class="note">Fa build → rsync <code>dist/</code> + <code>ecosystem.config.cjs</code> → npm install → pm2 restart. Necessario per portare sul server il codice del pannello admin (le route <code>/admin/*</code>). Il build fallisce se è attivo Node 20 o inferiore.</span></div></li>
 
   <li><span class="check-box"></span><div>Verifica l'accesso al pannello admin
 <pre style="margin-top:6px"><span class="comment"># Apri nel browser:</span>
