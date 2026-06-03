@@ -1,0 +1,96 @@
+---
+// src/pages/admin/products/index.astro
+export const prerender = false
+
+import AdminLayout from '@/layouts/AdminLayout.astro'
+import DataTable from '@/components/admin/DataTable.astro'
+import type { Column } from '@/components/admin/DataTable.astro'
+import type { Product } from '@/lib/types'
+
+const directusUrl = process.env.DIRECTUS_URL ?? ''
+const token = Astro.cookies.get('admin_token')?.value ?? ''
+
+async function dFetch(path: string) {
+  try {
+    const res = await fetch(`${directusUrl}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch { return null }
+}
+
+const PAGE_SIZE = 25
+const page = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1'))
+const offset = (page - 1) * PAGE_SIZE
+
+const [listRes, countRes] = await Promise.all([
+  dFetch(`/items/products?fields[]=id,name,slug,base_price,status,type,is_active,category_id.name,variants.sku&sort[]=sort_order&limit=${PAGE_SIZE}&offset=${offset}`),
+  dFetch('/items/products?aggregate[count]=id'),
+])
+
+type ProductRow = Pick<Product, 'id' | 'name' | 'slug' | 'base_price' | 'status' | 'type' | 'is_active'> & {
+  category_id: { name: string } | null
+  variants: Array<{ sku: string }>
+}
+
+const products = (listRes?.data ?? []) as ProductRow[]
+const total = parseInt(countRes?.data?.[0]?.count?.id ?? '0')
+
+const columns: Column[] = [
+  {
+    key: 'name',
+    label: 'Prodotto',
+    format: (v) => `<span style="font-weight:500;color:#111827">${String(v ?? '—')}</span>`,
+  },
+  {
+    key: 'variants',
+    label: 'SKU',
+    format: (v) => {
+      const variants = v as Array<{ sku: string }> | null
+      const sku = variants?.[0]?.sku ?? '—'
+      return `<span style="font-family:monospace;font-size:12px;color:#6b7280">${sku}</span>`
+    },
+  },
+  {
+    key: 'base_price',
+    label: 'Prezzo',
+    format: (v) => `<span style="font-weight:500">€${Number(v ?? 0).toFixed(2)}</span>`,
+  },
+  {
+    key: 'category_id',
+    label: 'Categoria',
+    format: (v) => {
+      const cat = v as { name: string } | null
+      return `<span style="color:#6b7280;font-size:13px">${cat?.name ?? '—'}</span>`
+    },
+  },
+  {
+    key: 'type',
+    label: 'Tipo',
+    format: (v) => v === 'digital'
+      ? `<span style="background:#eff6ff;color:#3b82f6;padding:2px 8px;border-radius:10px;font-size:12px">Digitale</span>`
+      : `<span style="background:#f0fdf4;color:#22c55e;padding:2px 8px;border-radius:10px;font-size:12px">Fisico</span>`,
+  },
+  {
+    key: 'status',
+    label: 'Stato',
+    format: (v) => v === 'published'
+      ? `<span style="background:#f0fdf4;color:#22c55e;padding:2px 8px;border-radius:10px;font-size:12px">Pubblicato</span>`
+      : `<span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:10px;font-size:12px">Bozza</span>`,
+  },
+]
+---
+
+<AdminLayout title="Prodotti" active="products">
+  <DataTable
+    columns={columns}
+    rows={products as unknown as Record<string, unknown>[]}
+    idField="id"
+    detailBase="/admin/products/"
+    page={page}
+    total={total}
+    pageSize={PAGE_SIZE}
+    emptyMessage="Nessun prodotto trovato."
+  />
+</AdminLayout>
