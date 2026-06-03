@@ -1145,14 +1145,7 @@ Incolla il seguente contenuto:
 </ul>
 <div class="callout info"><strong>Verifica finale:</strong> apri <code>https://cms.<span class="val">tuodominio.it</span>/admin</code> e <code>https://<span class="val">tuodominio.it</span></code> nel browser — il lucchetto verde conferma che SSL è attivo su entrambi.</div>
 
-<h3>4.9 Backup cron</h3>
-<p>Il backup si configura come cron job di sistema sul VPS:</p>
-<pre><span class="cmd">crontab</span> -e
-<span class="comment"># Backup giornaliero alle 2:00</span>
-0 2 * * * cd /var/www/<span class="val">cliente</span>/frontend &amp;&amp; node scripts/backup.mjs &gt;&gt; /var/log/backup-<span class="val">cliente</span>.log 2&gt;&amp;1</pre>
-<div class="callout info">Vedi <strong>Fase 7</strong> per la configurazione completa del backup (chiave admin, S3, ecc.).</div>
-
-<h3 id="sec-admin-subdomain">4.10 Admin Panel — Configurazione sottodominio</h3>
+<h3 id="sec-admin-subdomain">4.9 Admin Panel — Configurazione sottodominio</h3>
 <p>Il pannello admin è già integrato nell'app Astro sotto le route <code>/admin/*</code>, protette dal middleware di autenticazione. Non richiede un'app separata né una porta diversa — gira sullo stesso processo Node.js del sito.</p>
 <p style="margin-top:8px">Puoi accedervi in due modi:</p>
 <table style="margin-top:8px; border-collapse:collapse; font-size:12px; width:100%">
@@ -1241,7 +1234,11 @@ https://admin.<span class="val">tuodominio.it</span>/admin/login</pre>
 <p>Copia l'output → <code>BACKUP_ADMIN_KEY</code> nel file <code>.env</code> locale e sul server.</p>
 
 <h3>5.2 Schedule cron</h3>
-<p>Configura il cron job sul VPS (vedi 4.9). Esempi di schedule:</p>
+<p>Il backup si configura come cron job di sistema sul VPS:</p>
+<pre><span class="cmd">crontab</span> -e
+<span class="comment"># Backup giornaliero alle 2:00</span>
+0 2 * * * cd /var/www/<span class="val">cliente</span>/frontend &amp;&amp; node scripts/backup.mjs &gt;&gt; /var/log/backup-<span class="val">cliente</span>.log 2&gt;&amp;1</pre>
+<p style="margin-top:8px">Altri esempi di schedule:</p>
 <pre><span class="comment"># Nel crontab del server (crontab -e)</span>
 0 2 * * *   <span class="comment"># ogni giorno alle 02:00</span>
 0 2 * * 0   <span class="comment"># ogni domenica alle 02:00</span>
