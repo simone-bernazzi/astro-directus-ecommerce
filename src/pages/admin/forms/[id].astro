@@ -1,0 +1,123 @@
+---
+// src/pages/admin/forms/[id].astro
+export const prerender = false
+
+import AdminLayout from '@/layouts/AdminLayout.astro'
+import SectionCard from '@/components/admin/SectionCard.astro'
+import DataTable from '@/components/admin/DataTable.astro'
+import type { Column } from '@/components/admin/DataTable.astro'
+import type { Form, FormSubmission } from '@/lib/types'
+
+const { id } = Astro.params
+if (!id) return Astro.redirect('/admin/forms')
+
+const directusUrl = process.env.DIRECTUS_URL ?? ''
+const token = Astro.cookies.get('admin_token')?.value ?? ''
+
+async function dFetch(path: string) {
+  try {
+    const res = await fetch(`${directusUrl}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch { return null }
+}
+
+const SUB_PAGE_SIZE = 25
+const subPage = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1'))
+const subOffset = (subPage - 1) * SUB_PAGE_SIZE
+
+const [formRes, subsRes, subCountRes] = await Promise.all([
+  dFetch(`/items/forms/${id}?fields[]=*`),
+  dFetch(`/items/form_submissions?filter[form_id][_eq]=${id}&fields[]=id,data,date_created,is_read&sort[]=-date_created&limit=${SUB_PAGE_SIZE}&offset=${subOffset}`),
+  dFetch(`/items/form_submissions?filter[form_id][_eq]=${id}&aggregate[count]=id`),
+])
+
+if (!formRes?.data) return Astro.redirect('/admin/forms')
+
+const form = formRes.data as Form
+const submissions = (subsRes?.data ?? []) as Partial<FormSubmission>[]
+const subTotal = parseInt(subCountRes?.data?.[0]?.count?.id ?? '0')
+
+function extractPreview(data: Record<string, unknown>): string {
+  const val = Object.values(data)[0]
+  const str = String(val ?? '')
+  return str.length > 60 ? str.slice(0, 60) + '…' : str || '—'
+}
+
+const subColumns: Column[] = [
+  {
+    key: 'data',
+    label: 'Anteprima',
+    format: (v) => `<span style="color:#374151;font-size:13px">${extractPreview(v as Record<string, unknown>)}</span>`,
+  },
+  {
+    key: 'date_created',
+    label: 'Data',
+    format: (v) => v ? new Date(String(v)).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—',
+  },
+  {
+    key: 'is_read',
+    label: 'Stato',
+    format: (v) => v
+      ? `<span style="background:#f0fdf4;color:#22c55e;padding:2px 8px;border-radius:10px;font-size:12px">Letto</span>`
+      : `<span style="background:#fef9c3;color:#ca8a04;padding:2px 8px;border-radius:10px;font-size:12px">Nuovo</span>`,
+  },
+]
+---
+
+<AdminLayout title={form.name} active="forms">
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+    <a href="/admin/forms" style="color:#6b7280;text-decoration:none;font-size:13px">← Form</a>
+    <span style="color:#d1d5db">/</span>
+    <h1 style="font-size:18px;font-weight:700;color:#111827">{form.name}</h1>
+    <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${
+      form.is_active ? 'background:#f0fdf4;color:#22c55e' : 'background:#f3f4f6;color:#6b7280'
+    }`}>{form.is_active ? 'Attivo' : 'Inattivo'}</span>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:16px">
+
+    <SectionCard title="Configurazione">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px">
+        <div><span style="color:#6b7280">Slug:</span> <code style="font-size:12px">{form.slug}</code></div>
+        <div><span style="color:#6b7280">Campi:</span> {form.fields?.length ?? 0}</div>
+        <div><span style="color:#6b7280">Notifica email:</span> {form.notification_email ?? '—'}</div>
+        <div><span style="color:#6b7280">Redirect:</span> {form.redirect_enabled ? (form.redirect_url ?? '—') : 'No'}</div>
+        <div><span style="color:#6b7280">reCAPTCHA:</span> {form.recaptcha_enabled ? 'Sì' : 'No'}</div>
+        <div><span style="color:#6b7280">Honeypot:</span> {form.honeypot_enabled ? 'Sì' : 'No'}</div>
+      </div>
+    </SectionCard>
+
+    {form.fields && form.fields.length > 0 && (
+      <SectionCard title="Campi form">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          {form.fields.map((f) => (
+            <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f3f4f6;font-size:13px">
+              <span style="font-family:monospace;color:#6b7280;font-size:12px;min-width:120px">{f.name}</span>
+              <span style="color:#374151;font-weight:500">{f.label}</span>
+              <span style="background:#f3f4f6;color:#6b7280;padding:1px 6px;border-radius:4px;font-size:11px">{f.type}</span>
+              {f.required && <span style="color:#dc2626;font-size:11px">*</span>}
+            </div>
+          ))}
+        </div>
+      </SectionCard>
+    )}
+
+    <SectionCard title={`Submissions (${subTotal})`}>
+      <DataTable
+        columns={subColumns}
+        rows={submissions as unknown as Record<string, unknown>[]}
+        idField="id"
+        detailBase="/admin/contact-submissions/"
+        page={subPage}
+        total={subTotal}
+        pageSize={SUB_PAGE_SIZE}
+        emptyMessage="Nessuna submission."
+      />
+    </SectionCard>
+
+  </div>
+</AdminLayout>

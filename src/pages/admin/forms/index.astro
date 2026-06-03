@@ -1,0 +1,71 @@
+---
+// src/pages/admin/forms/index.astro
+export const prerender = false
+
+import AdminLayout from '@/layouts/AdminLayout.astro'
+import DataTable from '@/components/admin/DataTable.astro'
+import type { Column } from '@/components/admin/DataTable.astro'
+import type { Form } from '@/lib/types'
+
+const directusUrl = process.env.DIRECTUS_URL ?? ''
+const token = Astro.cookies.get('admin_token')?.value ?? ''
+
+async function dFetch(path: string) {
+  try {
+    const res = await fetch(`${directusUrl}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch { return null }
+}
+
+const PAGE_SIZE = 25
+const page = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1'))
+const offset = (page - 1) * PAGE_SIZE
+
+const [listRes, countRes] = await Promise.all([
+  dFetch(`/items/forms?fields[]=id,name,slug,fields,is_active&sort[]=name&limit=${PAGE_SIZE}&offset=${offset}`),
+  dFetch('/items/forms?aggregate[count]=id'),
+])
+
+type FormRow = Pick<Form, 'id' | 'name' | 'slug' | 'is_active'> & {
+  fields: unknown[] | null
+}
+
+const forms = (listRes?.data ?? []) as FormRow[]
+const total = parseInt(countRes?.data?.[0]?.count?.id ?? '0')
+
+const columns: Column[] = [
+  { key: 'name', label: 'Nome', format: (v) => `<span style="font-weight:500;color:#111827">${String(v ?? '—')}</span>` },
+  { key: 'slug', label: 'Slug', format: (v) => `<span style="font-family:monospace;font-size:12px;color:#6b7280">${String(v ?? '—')}</span>` },
+  {
+    key: 'fields',
+    label: 'Campi',
+    format: (v) => {
+      const fields = v as unknown[] | null
+      return `<span style="color:#6b7280">${fields?.length ?? 0}</span>`
+    },
+  },
+  {
+    key: 'is_active',
+    label: 'Stato',
+    format: (v) => v
+      ? `<span style="background:#f0fdf4;color:#22c55e;padding:2px 8px;border-radius:10px;font-size:12px">Attivo</span>`
+      : `<span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:10px;font-size:12px">Inattivo</span>`,
+  },
+]
+---
+
+<AdminLayout title="Form" active="forms">
+  <DataTable
+    columns={columns}
+    rows={forms as unknown as Record<string, unknown>[]}
+    idField="id"
+    detailBase="/admin/forms/"
+    page={page}
+    total={total}
+    pageSize={PAGE_SIZE}
+    emptyMessage="Nessun form trovato."
+  />
+</AdminLayout>
