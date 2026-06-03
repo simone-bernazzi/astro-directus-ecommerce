@@ -1,0 +1,65 @@
+---
+// src/pages/admin/products/categories/index.astro
+export const prerender = false
+
+import AdminLayout from '@/layouts/AdminLayout.astro'
+import DataTable from '@/components/admin/DataTable.astro'
+import type { Column } from '@/components/admin/DataTable.astro'
+import type { ProductCategory } from '@/lib/types'
+
+const directusUrl = process.env.DIRECTUS_URL ?? ''
+const token = Astro.cookies.get('admin_token')?.value ?? ''
+
+async function dFetch(path: string) {
+  try {
+    const res = await fetch(`${directusUrl}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch { return null }
+}
+
+const PAGE_SIZE = 50
+const page = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1'))
+const offset = (page - 1) * PAGE_SIZE
+
+const [listRes, countRes] = await Promise.all([
+  dFetch(`/items/product_categories?fields[]=id,name,slug,parent_id.name,sort_order&sort[]=sort_order&limit=${PAGE_SIZE}&offset=${offset}`),
+  dFetch('/items/product_categories?aggregate[count]=id'),
+])
+
+type CatRow = Pick<ProductCategory, 'id' | 'name' | 'slug' | 'sort_order'> & {
+  parent_id: { name: string } | null
+}
+
+const categories = (listRes?.data ?? []) as CatRow[]
+const total = parseInt(countRes?.data?.[0]?.count?.id ?? '0')
+
+const columns: Column[] = [
+  { key: 'name', label: 'Nome', format: (v) => `<span style="font-weight:500;color:#111827">${String(v ?? '—')}</span>` },
+  { key: 'slug', label: 'Slug', format: (v) => `<span style="font-family:monospace;font-size:12px;color:#6b7280">${String(v ?? '—')}</span>` },
+  {
+    key: 'parent_id',
+    label: 'Parent',
+    format: (v) => {
+      const p = v as { name: string } | null
+      return p?.name ? `<span style="color:#6b7280;font-size:13px">${p.name}</span>` : '<span style="color:#d1d5db">—</span>'
+    },
+  },
+  { key: 'sort_order', label: 'Ordine', format: (v) => `<span style="color:#6b7280">${String(v ?? 0)}</span>` },
+]
+---
+
+<AdminLayout title="Categorie prodotti" active="products">
+  <DataTable
+    columns={columns}
+    rows={categories as unknown as Record<string, unknown>[]}
+    idField="id"
+    detailBase="/admin/products/categories/"
+    page={page}
+    total={total}
+    pageSize={PAGE_SIZE}
+    emptyMessage="Nessuna categoria trovata."
+  />
+</AdminLayout>
