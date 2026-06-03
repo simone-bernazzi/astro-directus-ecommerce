@@ -40,17 +40,23 @@ const form = formRes.data as Form
 const submissions = (subsRes?.data ?? []) as Partial<FormSubmission>[]
 const subTotal = parseInt(subCountRes?.data?.[0]?.count?.id ?? '0')
 
-function extractPreview(data: Record<string, unknown>): string {
-  const val = Object.values(data)[0]
+function escHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+function extractPreview(data: unknown): string {
+  if (!data || typeof data !== 'object') return '—'
+  const val = Object.values(data as Record<string, unknown>)[0]
   const str = String(val ?? '')
-  return str.length > 60 ? str.slice(0, 60) + '…' : str || '—'
+  const truncated = str.length > 60 ? str.slice(0, 60) + '…' : str || '—'
+  return escHtml(truncated)
 }
 
 const subColumns: Column[] = [
   {
     key: 'data',
     label: 'Anteprima',
-    format: (v) => `<span style="color:#374151;font-size:13px">${extractPreview(v as Record<string, unknown>)}</span>`,
+    format: (v) => `<span style="color:#374151;font-size:13px">${extractPreview(v)}</span>`,
   },
   {
     key: 'date_created',

@@ -20,6 +20,10 @@ async function dFetch(path: string) {
   } catch { return null }
 }
 
+function escHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
 const PAGE_SIZE = 25
 const page = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1'))
 const offset = (page - 1) * PAGE_SIZE
@@ -37,8 +41,8 @@ const forms = (listRes?.data ?? []) as FormRow[]
 const total = parseInt(countRes?.data?.[0]?.count?.id ?? '0')
 
 const columns: Column[] = [
-  { key: 'name', label: 'Nome', format: (v) => `<span style="font-weight:500;color:#111827">${String(v ?? '—')}</span>` },
-  { key: 'slug', label: 'Slug', format: (v) => `<span style="font-family:monospace;font-size:12px;color:#6b7280">${String(v ?? '—')}</span>` },
+  { key: 'name', label: 'Nome', format: (v) => `<span style="font-weight:500;color:#111827">${escHtml(String(v ?? '—'))}</span>` },
+  { key: 'slug', label: 'Slug', format: (v) => `<span style="font-family:monospace;font-size:12px;color:#6b7280">${escHtml(String(v ?? '—'))}</span>` },
   {
     key: 'fields',
     label: 'Campi',
