@@ -1,0 +1,157 @@
+---
+// src/pages/admin/coupons/[id].astro
+export const prerender = false
+
+import AdminLayout from '@/layouts/AdminLayout.astro'
+import SectionCard from '@/components/admin/SectionCard.astro'
+import type { Coupon } from '@/lib/types'
+
+const { id } = Astro.params
+if (!id) return Astro.redirect('/admin/coupons')
+
+const directusUrl = process.env.DIRECTUS_URL ?? ''
+const token = Astro.cookies.get('admin_token')?.value ?? ''
+
+async function dFetch(path: string, opts?: RequestInit) {
+  try {
+    const res = await fetch(`${directusUrl}${path}`, {
+      ...opts,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...((opts?.headers as Record<string, string>) ?? {}) },
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch { return null }
+}
+
+let saveError: string | null = null
+
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData()
+  const payload: Record<string, unknown> = {
+    code: formData.get('code'),
+    type: formData.get('type'),
+    value: parseFloat(String(formData.get('value') ?? '0')),
+    is_active: formData.get('is_active') === 'true',
+    description: formData.get('description') || null,
+    min_order_amount: formData.get('min_order_amount') ? parseFloat(String(formData.get('min_order_amount'))) : null,
+    max_uses: formData.get('max_uses') ? parseInt(String(formData.get('max_uses'))) : null,
+    expires_at: formData.get('expires_at') || null,
+  }
+  const result = await dFetch(`/items/coupons/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+  if (result) {
+    return Astro.redirect(`/admin/coupons/${id}?saved=1`)
+  } else {
+    saveError = 'Errore durante il salvataggio.'
+  }
+}
+
+const couponRes = await dFetch(`/items/coupons/${id}?fields[]=*`)
+if (!couponRes?.data) return Astro.redirect('/admin/coupons')
+
+const coupon = couponRes.data as Coupon
+const saved = Astro.url.searchParams.get('saved') === '1'
+
+function toDatetimeLocal(iso: string | null | undefined): string {
+  if (!iso) return ''
+  return new Date(iso).toISOString().slice(0, 16)
+}
+---
+
+<AdminLayout title={`Coupon: ${coupon.code}`} active="coupons">
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+    <a href="/admin/coupons" style="color:#6b7280;text-decoration:none;font-size:13px">← Coupon</a>
+    <span style="color:#d1d5db">/</span>
+    <h1 style="font-size:18px;font-weight:700;color:#111827;font-family:monospace">{coupon.code}</h1>
+    <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${
+      coupon.is_active ? 'background:#f0fdf4;color:#22c55e' : 'background:#f3f4f6;color:#6b7280'
+    }`}>{coupon.is_active ? 'Attivo' : 'Inattivo'}</span>
+  </div>
+
+  {saved && <p style="background:#f0fdf4;color:#22c55e;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">✓ Salvato con successo.</p>}
+  {saveError && <p style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">{saveError}</p>}
+
+  <form method="POST">
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <SectionCard title="Dettagli coupon">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Codice *</label>
+            <input name="code" required value={coupon.code}
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;font-family:monospace;text-transform:uppercase;color:#111827;box-sizing:border-box" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stato</label>
+            <select name="is_active"
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+              <option value="true" selected={coupon.is_active}>Attivo</option>
+              <option value="false" selected={!coupon.is_active}>Inattivo</option>
+            </select>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Tipo sconto *</label>
+            <select name="type"
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+              <option value="percent" selected={coupon.type === 'percent'}>Percentuale (%)</option>
+              <option value="fixed" selected={coupon.type === 'fixed'}>Fisso (€)</option>
+            </select>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Valore *</label>
+            <input name="value" type="number" step="0.01" min="0" required value={coupon.value}
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Ordine minimo (€)</label>
+            <input name="min_order_amount" type="number" step="0.01" min="0" value={coupon.min_order_amount ?? ''}
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Max utilizzi</label>
+            <input name="max_uses" type="number" min="0" value={coupon.max_uses ?? ''}
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          </div>
+
+          <div style="grid-column:span 2">
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Scadenza</label>
+            <input name="expires_at" type="datetime-local" value={toDatetimeLocal(coupon.expires_at)}
+              style="border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827" />
+          </div>
+
+          <div style="grid-column:span 2">
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Descrizione interna</label>
+            <textarea name="description" rows={2}
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;resize:vertical">{coupon.description ?? ''}</textarea>
+          </div>
+
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Utilizzi">
+        <p style="font-size:14px;color:#374151">
+          Utilizzato <strong>{coupon.used_count ?? 0}</strong>
+          {coupon.max_uses ? ` volte su ${coupon.max_uses} disponibili.` : ' volte (nessun limite).'}
+        </p>
+      </SectionCard>
+
+      <div style="display:flex;justify-content:flex-end">
+        <button type="submit"
+          style="background:#111827;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">
+          Salva
+        </button>
+      </div>
+
+    </div>
+  </form>
+
+</AdminLayout>
