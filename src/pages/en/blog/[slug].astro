@@ -5,7 +5,7 @@ import { getPosts, getPostBySlug, localizePost } from '@/lib/directus'
 
 export async function getStaticPaths() {
   const posts = await getPosts().catch(() => [])
-  return posts.map((post) => ({ params: { slug: post.slug } }))
+  return posts.filter((post) => post.slug != null).map((post) => ({ params: { slug: post.slug } }))
 }
 
 const { slug } = Astro.params

@@ -5,9 +5,9 @@ import { getPortfolioItems, getPortfolioItemBySlug, getDirectusImageUrl } from '
 
 export async function getStaticPaths() {
   const items = await getPortfolioItems().catch(() => [])
-  return items.map((item) => ({
-    params: { slug: item.slug },
-  }))
+  return items
+    .filter((item) => item.slug != null)
+    .map((item) => ({ params: { slug: item.slug } }))
 }
 
 const { slug } = Astro.params

@@ -9,7 +9,9 @@ import { getProducts, getProductCategories, getProductCategoryBySlug } from '@/l
 export async function getStaticPaths() {
   try {
     const categories = await getProductCategories()
-    return categories.map(cat => ({ params: { categoria: cat.slug } }))
+    return categories
+      .filter(cat => cat.slug != null)
+      .map(cat => ({ params: { categoria: cat.slug } }))
   } catch {
     return []
   }

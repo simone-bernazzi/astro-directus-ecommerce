@@ -15,7 +15,7 @@ import type { PageBlock } from '@/lib/types'
 export async function getStaticPaths() {
   const pages = await getPages().catch(() => [])
   return pages
-    .filter((p) => p.slug !== 'home')
+    .filter((p) => p.slug != null && p.slug !== 'home')
     .map((page) => ({ params: { slug: page.slug } }))
 }
 

@@ -13,7 +13,7 @@ import type { DirectusFile } from '@/lib/types'
 export async function getStaticPaths() {
   try {
     const slugs = await getProductSlugs()
-    return slugs.map(slug => ({ params: { slug } }))
+    return slugs.filter((slug): slug is string => slug != null).map(slug => ({ params: { slug } }))
   } catch {
     return []
   }

@@ -9,7 +9,9 @@ import { getProducts, getProductCategories, getProductCategoryBySlug, localizePr
 export async function getStaticPaths() {
   try {
     const categories = await getProductCategories()
-    return categories.map(cat => ({ params: { category: cat.slug } }))
+    return categories
+      .filter(cat => cat.slug != null)
+      .map(cat => ({ params: { category: cat.slug } }))
   } catch {
     return []
   }
