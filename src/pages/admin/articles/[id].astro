@@ -9,6 +9,8 @@ import type { Post } from '@/lib/types'
 const { id } = Astro.params
 if (!id) return Astro.redirect('/admin/articles')
 
+const isNew = id === 'new'
+
 const directusUrl = process.env.DIRECTUS_URL ?? ''
 const token = Astro.cookies.get('admin_token')?.value ?? ''
 
@@ -37,21 +39,30 @@ if (Astro.request.method === 'POST') {
     seo_description: formData.get('seo_description') || null,
     published_at: formData.get('published_at') || null,
   }
-  const result = await dFetch(`/items/posts/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(payload),
-  })
-  if (result) {
-    return Astro.redirect(`/admin/articles/${id}?saved=1`)
+  if (isNew) {
+    const result = await dFetch('/items/posts', { method: 'POST', body: JSON.stringify(payload) })
+    if (result?.data?.id) {
+      return Astro.redirect(`/admin/articles/${result.data.id}?saved=1`)
+    } else {
+      saveError = 'Errore durante la creazione.'
+    }
   } else {
-    saveError = 'Errore durante il salvataggio.'
+    const result = await dFetch(`/items/posts/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })
+    if (result) {
+      return Astro.redirect(`/admin/articles/${id}?saved=1`)
+    } else {
+      saveError = 'Errore durante il salvataggio.'
+    }
   }
 }
 
-const articleRes = await dFetch(`/items/posts/${id}?fields[]=*`)
-if (!articleRes?.data) return Astro.redirect('/admin/articles')
+let article: Post | null = null
+if (!isNew) {
+  const articleRes = await dFetch(`/items/posts/${id}?fields[]=*`)
+  if (!articleRes?.data) return Astro.redirect('/admin/articles')
+  article = articleRes.data as Post
+}
 
-const article = articleRes.data as Post
 const saved = Astro.url.searchParams.get('saved') === '1'
 
 function toDatetimeLocal(iso: string | null | undefined): string {
@@ -60,15 +71,15 @@ function toDatetimeLocal(iso: string | null | undefined): string {
 }
 ---
 
-<AdminLayout title={article.title} active="articles">
+<AdminLayout title={isNew ? 'Nuovo articolo' : (article?.title ?? '')} active="articles">
 
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
     <a href="/admin/articles" style="color:#6b7280;text-decoration:none;font-size:13px">← Articoli</a>
     <span style="color:#d1d5db">/</span>
-    <h1 style="font-size:18px;font-weight:700;color:#111827">{article.title}</h1>
-    <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${
-      article.status === 'published' ? 'background:#f0fdf4;color:#22c55e' : 'background:#f3f4f6;color:#6b7280'
-    }`}>{article.status === 'published' ? 'Pubblicato' : 'Bozza'}</span>
+    <h1 style="font-size:18px;font-weight:700;color:#111827">{isNew ? 'Nuovo articolo' : article?.title}</h1>
+    {!isNew && <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${
+      article?.status === 'published' ? 'background:#f0fdf4;color:#22c55e' : 'background:#f3f4f6;color:#6b7280'
+    }`}>{article?.status === 'published' ? 'Pubblicato' : 'Bozza'}</span>}
   </div>
 
   {saved && <p style="background:#f0fdf4;color:#22c55e;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">✓ Salvato con successo.</p>}
@@ -82,13 +93,13 @@ function toDatetimeLocal(iso: string | null | undefined): string {
 
           <div>
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Titolo *</label>
-            <input name="title" required value={article.title}
+            <input name="title" required value={article?.title ?? ''}
               style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
           </div>
 
           <div>
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Slug *</label>
-            <input name="slug" required value={article.slug}
+            <input name="slug" required value={article?.slug ?? ''}
               style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;font-family:monospace;color:#111827;box-sizing:border-box" />
           </div>
 
@@ -97,13 +108,13 @@ function toDatetimeLocal(iso: string | null | undefined): string {
               Body <span style="color:#9ca3af;font-weight:400;font-size:12px">(HTML accettato)</span>
             </label>
             <textarea name="content" rows={16}
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:13px;font-family:monospace;color:#111827;box-sizing:border-box;resize:vertical;line-height:1.5">{article.content ?? ''}</textarea>
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:13px;font-family:monospace;color:#111827;box-sizing:border-box;resize:vertical;line-height:1.5">{article?.content ?? ''}</textarea>
           </div>
 
           <div>
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Excerpt</label>
             <textarea name="excerpt" rows={3}
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;resize:vertical">{article.excerpt ?? ''}</textarea>
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;resize:vertical">{article?.excerpt ?? ''}</textarea>
           </div>
 
         </div>
@@ -116,14 +127,14 @@ function toDatetimeLocal(iso: string | null | undefined): string {
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stato</label>
             <select name="status"
               style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
-              <option value="published" selected={article.status === 'published'}>Pubblicato</option>
-              <option value="draft" selected={article.status === 'draft'}>Bozza</option>
+              <option value="draft" selected={!article || article.status === 'draft'}>Bozza</option>
+              <option value="published" selected={article?.status === 'published'}>Pubblicato</option>
             </select>
           </div>
 
           <div>
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Data pubblicazione</label>
-            <input name="published_at" type="datetime-local" value={toDatetimeLocal(article.published_at)}
+            <input name="published_at" type="datetime-local" value={toDatetimeLocal(article?.published_at)}
               style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
           </div>
 
@@ -134,13 +145,13 @@ function toDatetimeLocal(iso: string | null | undefined): string {
         <div style="display:flex;flex-direction:column;gap:14px">
           <div>
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">SEO Title</label>
-            <input name="seo_title" value={article.seo_title ?? ''}
+            <input name="seo_title" value={article?.seo_title ?? ''}
               style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
           </div>
           <div>
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">SEO Description</label>
             <textarea name="seo_description" rows={2}
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;resize:vertical">{article.seo_description ?? ''}</textarea>
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;resize:vertical">{article?.seo_description ?? ''}</textarea>
           </div>
         </div>
       </SectionCard>
@@ -148,7 +159,7 @@ function toDatetimeLocal(iso: string | null | undefined): string {
       <div style="display:flex;justify-content:flex-end">
         <button type="submit"
           style="background:#111827;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">
-          Salva
+          {isNew ? 'Crea articolo' : 'Salva'}
         </button>
       </div>
 

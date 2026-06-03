@@ -94,6 +94,9 @@ const columns: Column[] = [
 ---
 
 <AdminLayout title="Contatti" active="contacts">
+  <Fragment slot="topbar-actions">
+    <a href="/admin/contacts/new" style="background:#111827;color:#fff;text-decoration:none;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:500">+ Nuovo contatto</a>
+  </Fragment>
   <DataTable
     columns={columns}
     rows={contacts as unknown as Record<string, unknown>[]}

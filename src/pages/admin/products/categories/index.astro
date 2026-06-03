@@ -52,6 +52,9 @@ const columns: Column[] = [
 ---
 
 <AdminLayout title="Categorie prodotti" active="products">
+  <Fragment slot="topbar-actions">
+    <a href="/admin/products/categories/new" style="background:#111827;color:#fff;text-decoration:none;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:500">+ Nuova categoria</a>
+  </Fragment>
   <DataTable
     columns={columns}
     rows={categories as unknown as Record<string, unknown>[]}

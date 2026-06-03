@@ -9,6 +9,8 @@ import type { ShippingZone } from '@/lib/types'
 const { id } = Astro.params
 if (!id) return Astro.redirect('/admin/shipping')
 
+const isNew = id === 'new'
+
 const directusUrl = process.env.DIRECTUS_URL ?? ''
 const token = Astro.cookies.get('admin_token')?.value ?? ''
 
@@ -37,21 +39,30 @@ if (Astro.request.method === 'POST') {
     max_weight_g: formData.get('max_weight_g') ? parseInt(String(formData.get('max_weight_g'))) : null,
     is_active: formData.get('is_active') === 'true',
   }
-  const result = await dFetch(`/items/shipping_zones/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(payload),
-  })
-  if (result) {
-    return Astro.redirect(`/admin/shipping/${id}?saved=1`)
+  if (isNew) {
+    const result = await dFetch('/items/shipping_zones', { method: 'POST', body: JSON.stringify(payload) })
+    if (result?.data?.id) {
+      return Astro.redirect(`/admin/shipping/${result.data.id}?saved=1`)
+    } else {
+      saveError = 'Errore durante la creazione.'
+    }
   } else {
-    saveError = 'Errore durante il salvataggio.'
+    const result = await dFetch(`/items/shipping_zones/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })
+    if (result) {
+      return Astro.redirect(`/admin/shipping/${id}?saved=1`)
+    } else {
+      saveError = 'Errore durante il salvataggio.'
+    }
   }
 }
 
-const zoneRes = await dFetch(`/items/shipping_zones/${id}?fields[]=*`)
-if (!zoneRes?.data) return Astro.redirect('/admin/shipping')
+let zone: ShippingZone | null = null
+if (!isNew) {
+  const zoneRes = await dFetch(`/items/shipping_zones/${id}?fields[]=*`)
+  if (!zoneRes?.data) return Astro.redirect('/admin/shipping')
+  zone = zoneRes.data as ShippingZone
+}
 
-const zone = zoneRes.data as ShippingZone
 const saved = Astro.url.searchParams.get('saved') === '1'
 
 const COUNTRIES = [
@@ -87,15 +98,15 @@ const COUNTRIES = [
 ]
 ---
 
-<AdminLayout title={zone.name} active="shipping">
+<AdminLayout title={isNew ? 'Nuova zona spedizione' : (zone?.name ?? '')} active="shipping">
 
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
     <a href="/admin/shipping" style="color:#6b7280;text-decoration:none;font-size:13px">← Spedizioni</a>
     <span style="color:#d1d5db">/</span>
-    <h1 style="font-size:18px;font-weight:700;color:#111827">{zone.name}</h1>
-    <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${
-      zone.is_active ? 'background:#f0fdf4;color:#22c55e' : 'background:#f3f4f6;color:#6b7280'
-    }`}>{zone.is_active ? 'Attiva' : 'Inattiva'}</span>
+    <h1 style="font-size:18px;font-weight:700;color:#111827">{isNew ? 'Nuova zona spedizione' : zone?.name}</h1>
+    {!isNew && <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${
+      zone?.is_active ? 'background:#f0fdf4;color:#22c55e' : 'background:#f3f4f6;color:#6b7280'
+    }`}>{zone?.is_active ? 'Attiva' : 'Inattiva'}</span>}
   </div>
 
   {saved && <p style="background:#f0fdf4;color:#22c55e;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">✓ Salvato con successo.</p>}
@@ -109,7 +120,7 @@ const COUNTRIES = [
 
           <div style="grid-column:span 2">
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Nome zona *</label>
-            <input name="name" required value={zone.name}
+            <input name="name" required value={zone?.name ?? ''}
               style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
           </div>
 
@@ -117,32 +128,32 @@ const COUNTRIES = [
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stato</label>
             <select name="is_active"
               style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
-              <option value="true" selected={zone.is_active}>Attiva</option>
-              <option value="false" selected={!zone.is_active}>Inattiva</option>
+              <option value="true" selected={zone?.is_active ?? true}>Attiva</option>
+              <option value="false" selected={zone ? !zone.is_active : false}>Inattiva</option>
             </select>
           </div>
 
           <div>
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Tariffa base (€) *</label>
-            <input name="base_rate" type="number" step="0.01" min="0" required value={zone.base_rate}
+            <input name="base_rate" type="number" step="0.01" min="0" required value={zone?.base_rate ?? ''}
               style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
           </div>
 
           <div>
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Tariffa per kg (€)</label>
-            <input name="rate_per_kg" type="number" step="0.01" min="0" value={zone.rate_per_kg ?? 0}
+            <input name="rate_per_kg" type="number" step="0.01" min="0" value={zone?.rate_per_kg ?? 0}
               style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
           </div>
 
           <div>
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Spedizione gratuita da (€)</label>
-            <input name="free_shipping_threshold" type="number" step="0.01" min="0" value={zone.free_shipping_threshold ?? ''}
+            <input name="free_shipping_threshold" type="number" step="0.01" min="0" value={zone?.free_shipping_threshold ?? ''}
               style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
           </div>
 
           <div>
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Peso massimo (g)</label>
-            <input name="max_weight_g" type="number" min="0" value={zone.max_weight_g ?? ''}
+            <input name="max_weight_g" type="number" min="0" value={zone?.max_weight_g ?? ''}
               style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
           </div>
 
@@ -154,18 +165,18 @@ const COUNTRIES = [
         <select name="countries" multiple size={10}
           style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:4px;font-size:14px;color:#111827;background:#fff">
           {COUNTRIES.map(c => (
-            <option value={c.code} selected={(zone.countries ?? []).includes(c.code)}>
+            <option value={c.code} selected={(zone?.countries ?? []).includes(c.code)}>
               {c.name} ({c.code})
             </option>
           ))}
         </select>
-        <p style="font-size:12px;color:#6b7280;margin:6px 0 0">Selezionati: {(zone.countries ?? []).join(', ') || '—'}</p>
+        <p style="font-size:12px;color:#6b7280;margin:6px 0 0">Selezionati: {(zone?.countries ?? []).join(', ') || '—'}</p>
       </SectionCard>
 
       <div style="display:flex;justify-content:flex-end">
         <button type="submit"
           style="background:#111827;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">
-          Salva
+          {isNew ? 'Crea zona' : 'Salva'}
         </button>
       </div>
 

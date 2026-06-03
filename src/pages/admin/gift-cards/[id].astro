@@ -9,106 +9,218 @@ import type { GiftCard } from '@/lib/types'
 const { id } = Astro.params
 if (!id) return Astro.redirect('/admin/gift-cards')
 
+const isNew = id === 'new'
+
 const directusUrl = process.env.DIRECTUS_URL ?? ''
 const token = Astro.cookies.get('admin_token')?.value ?? ''
 
-async function dFetch(path: string) {
+async function dFetch(path: string, opts?: RequestInit) {
   try {
     const res = await fetch(`${directusUrl}${path}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      ...opts,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...((opts?.headers as Record<string, string>) ?? {}) },
     })
     if (!res.ok) return null
     return res.json()
   } catch { return null }
 }
 
-const cardRes = await dFetch(`/items/gift_cards/${id}?fields[]=*`)
-if (!cardRes?.data) return Astro.redirect('/admin/gift-cards')
+let saveError: string | null = null
 
-const card = cardRes.data as GiftCard
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData()
+  if (isNew) {
+    const initialValue = parseFloat(String(formData.get('initial_value') ?? '0'))
+    const payload = {
+      code: String(formData.get('code') ?? '').toUpperCase(),
+      initial_value: initialValue,
+      remaining_value: initialValue,
+      expires_at: formData.get('expires_at') || null,
+      is_active: formData.get('is_active') === 'true',
+    }
+    const result = await dFetch('/items/gift_cards', { method: 'POST', body: JSON.stringify(payload) })
+    if (result?.data?.id) {
+      return Astro.redirect(`/admin/gift-cards/${result.data.id}?saved=1`)
+    } else {
+      saveError = 'Errore durante la creazione.'
+    }
+  } else {
+    const payload = {
+      expires_at: formData.get('expires_at') || null,
+      is_active: formData.get('is_active') === 'true',
+    }
+    const result = await dFetch(`/items/gift_cards/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })
+    if (result) {
+      return Astro.redirect(`/admin/gift-cards/${id}?saved=1`)
+    } else {
+      saveError = 'Errore durante il salvataggio.'
+    }
+  }
+}
+
+let card: GiftCard | null = null
+if (!isNew) {
+  const cardRes = await dFetch(`/items/gift_cards/${id}?fields[]=*`)
+  if (!cardRes?.data) return Astro.redirect('/admin/gift-cards')
+  card = cardRes.data as GiftCard
+}
+
+const saved = Astro.url.searchParams.get('saved') === '1'
 
 function fmtDate(iso: string | null | undefined) {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' })
 }
 
-const isExpired = card.expires_at ? new Date(card.expires_at) < new Date() : false
-const percentUsed = card.initial_value > 0 ? Math.round((1 - card.remaining_value / card.initial_value) * 100) : 0
+function toDatetimeLocal(iso: string | null | undefined): string {
+  if (!iso) return ''
+  return new Date(iso).toISOString().slice(0, 16)
+}
+
+const isExpired = card?.expires_at ? new Date(card.expires_at) < new Date() : false
+const percentUsed = (card?.initial_value ?? 0) > 0 ? Math.round((1 - (card?.remaining_value ?? 0) / (card?.initial_value ?? 1)) * 100) : 0
 ---
 
-<AdminLayout title={`Gift card: ${card.code}`} active="gift-cards">
+<AdminLayout title={isNew ? 'Nuova gift card' : `Gift card: ${card?.code ?? ''}`} active="gift-cards">
 
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
     <a href="/admin/gift-cards" style="color:#6b7280;text-decoration:none;font-size:13px">← Gift card</a>
     <span style="color:#d1d5db">/</span>
-    <h1 style="font-size:18px;font-weight:700;color:#111827;font-family:monospace">{card.code}</h1>
-    {isExpired
+    <h1 style="font-size:18px;font-weight:700;color:#111827;font-family:monospace">{isNew ? 'Nuova gift card' : card?.code}</h1>
+    {!isNew && (isExpired
       ? <span style="padding:3px 10px;border-radius:10px;font-size:12px;background:#fef2f2;color:#dc2626">Scaduta</span>
-      : card.is_active
+      : card?.is_active
         ? <span style="padding:3px 10px;border-radius:10px;font-size:12px;background:#f0fdf4;color:#22c55e">Attiva</span>
         : <span style="padding:3px 10px;border-radius:10px;font-size:12px;background:#f3f4f6;color:#6b7280">Inattiva</span>
-    }
+    )}
   </div>
+
+  {saved && <p style="background:#f0fdf4;color:#22c55e;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">✓ Salvato con successo.</p>}
+  {saveError && <p style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">{saveError}</p>}
 
   <div style="display:flex;flex-direction:column;gap:16px">
 
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
-      <SectionCard>
-        <div style="text-align:center">
-          <div style="font-size:24px;font-weight:700;color:#111827">€{card.initial_value.toFixed(2)}</div>
-          <div style="font-size:11px;color:#6b7280;margin-top:2px">Valore iniziale</div>
-        </div>
-      </SectionCard>
-      <SectionCard>
-        <div style="text-align:center">
-          <div style={`font-size:24px;font-weight:700;${card.remaining_value === 0 ? 'color:#9ca3af' : 'color:#111827'}`}>€{card.remaining_value.toFixed(2)}</div>
-          <div style="font-size:11px;color:#6b7280;margin-top:2px">Saldo residuo</div>
-        </div>
-      </SectionCard>
-      <SectionCard>
-        <div style="text-align:center">
-          <div style="font-size:24px;font-weight:700;color:#111827">{percentUsed}%</div>
-          <div style="font-size:11px;color:#6b7280;margin-top:2px">Utilizzata</div>
-        </div>
-      </SectionCard>
-    </div>
+    {isNew && (
+      <form method="POST">
+        <SectionCard title="Nuova gift card">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
 
-    <SectionCard title="Dettagli">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px">
-        <div><span style="color:#6b7280">Scadenza:</span> {fmtDate(card.expires_at)}</div>
-        <div><span style="color:#6b7280">Stato:</span> {card.is_active ? 'Attiva' : 'Inattiva'}</div>
+            <div>
+              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Codice *</label>
+              <input name="code" required
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;font-family:monospace;text-transform:uppercase;color:#111827;box-sizing:border-box" />
+            </div>
+
+            <div>
+              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Valore iniziale (€) *</label>
+              <input name="initial_value" type="number" step="0.01" min="0" required
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+            </div>
+
+            <div>
+              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Scadenza</label>
+              <input name="expires_at" type="datetime-local"
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+            </div>
+
+            <div>
+              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stato</label>
+              <select name="is_active"
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+                <option value="true">Attiva</option>
+                <option value="false">Inattiva</option>
+              </select>
+            </div>
+
+          </div>
+        </SectionCard>
+        <div style="display:flex;justify-content:flex-end;margin-top:16px">
+          <button type="submit"
+            style="background:#111827;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">
+            Crea gift card
+          </button>
+        </div>
+      </form>
+    )}
+
+    {!isNew && card && <>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+        <SectionCard>
+          <div style="text-align:center">
+            <div style="font-size:24px;font-weight:700;color:#111827">€{card.initial_value.toFixed(2)}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px">Valore iniziale</div>
+          </div>
+        </SectionCard>
+        <SectionCard>
+          <div style="text-align:center">
+            <div style={`font-size:24px;font-weight:700;${card.remaining_value === 0 ? 'color:#9ca3af' : 'color:#111827'}`}>€{card.remaining_value.toFixed(2)}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px">Saldo residuo</div>
+          </div>
+        </SectionCard>
+        <SectionCard>
+          <div style="text-align:center">
+            <div style="font-size:24px;font-weight:700;color:#111827">{percentUsed}%</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px">Utilizzata</div>
+          </div>
+        </SectionCard>
       </div>
-    </SectionCard>
 
-    <SectionCard title={`Storico utilizzi (${card.redemptions?.length ?? 0})`}>
-      {!card.redemptions?.length
-        ? <p style="color:#9ca3af;font-size:14px">Nessun utilizzo.</p>
-        : (
-          <table style="width:100%;border-collapse:collapse;font-size:14px">
-            <thead>
-              <tr style="border-bottom:1px solid #e5e7eb">
-                <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Data</th>
-                <th style="text-align:right;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Importo</th>
-                <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Ordine</th>
-              </tr>
-            </thead>
-            <tbody>
-              {card.redemptions.map(r => (
-                <tr style="border-bottom:1px solid #f3f4f6">
-                  <td style="padding:8px;color:#6b7280">{fmtDate(r.date)}</td>
-                  <td style="padding:8px;text-align:right;color:#dc2626;font-weight:500">-€{r.amount.toFixed(2)}</td>
-                  <td style="padding:8px">
-                    <a href={`/admin/orders/${r.order_id}`} style="color:#3b82f6;font-family:monospace;font-size:12px">
-                      #{r.order_id.slice(0, 8)}
-                    </a>
-                  </td>
+      <form method="POST">
+        <SectionCard title="Impostazioni">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div>
+              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Scadenza</label>
+              <input name="expires_at" type="datetime-local" value={toDatetimeLocal(card.expires_at)}
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+            </div>
+            <div>
+              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stato</label>
+              <select name="is_active"
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+                <option value="true" selected={card.is_active}>Attiva</option>
+                <option value="false" selected={!card.is_active}>Inattiva</option>
+              </select>
+            </div>
+          </div>
+        </SectionCard>
+        <div style="display:flex;justify-content:flex-end;margin-top:16px">
+          <button type="submit"
+            style="background:#111827;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">
+            Salva
+          </button>
+        </div>
+      </form>
+
+      <SectionCard title={`Storico utilizzi (${card.redemptions?.length ?? 0})`}>
+        {!card.redemptions?.length
+          ? <p style="color:#9ca3af;font-size:14px">Nessun utilizzo.</p>
+          : (
+            <table style="width:100%;border-collapse:collapse;font-size:14px">
+              <thead>
+                <tr style="border-bottom:1px solid #e5e7eb">
+                  <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Data</th>
+                  <th style="text-align:right;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Importo</th>
+                  <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Ordine</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )
-      }
-    </SectionCard>
+              </thead>
+              <tbody>
+                {card.redemptions.map(r => (
+                  <tr style="border-bottom:1px solid #f3f4f6">
+                    <td style="padding:8px;color:#6b7280">{fmtDate(r.date)}</td>
+                    <td style="padding:8px;text-align:right;color:#dc2626;font-weight:500">-€{r.amount.toFixed(2)}</td>
+                    <td style="padding:8px">
+                      <a href={`/admin/orders/${r.order_id}`} style="color:#3b82f6;font-family:monospace;font-size:12px">
+                        #{r.order_id.slice(0, 8)}
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )
+        }
+      </SectionCard>
+    </>}
 
   </div>
 </AdminLayout>

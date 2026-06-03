@@ -9,6 +9,8 @@ import type { Page } from '@/lib/types'
 const { id } = Astro.params
 if (!id) return Astro.redirect('/admin/pages')
 
+const isNew = id === 'new'
+
 const directusUrl = process.env.DIRECTUS_URL ?? ''
 const token = Astro.cookies.get('admin_token')?.value ?? ''
 
@@ -34,50 +36,54 @@ if (Astro.request.method === 'POST') {
     seo_title: formData.get('seo_title') || null,
     seo_description: formData.get('seo_description') || null,
   }
-  const result = await dFetch(`/items/pages/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(payload),
-  })
-  if (result) {
-    return Astro.redirect(`/admin/pages/${id}?saved=1`)
+  if (isNew) {
+    const result = await dFetch('/items/pages', { method: 'POST', body: JSON.stringify(payload) })
+    if (result?.data?.id) {
+      return Astro.redirect(`/admin/pages/${result.data.id}?saved=1`)
+    } else {
+      saveError = 'Errore durante la creazione.'
+    }
   } else {
-    saveError = 'Errore durante il salvataggio.'
+    const result = await dFetch(`/items/pages/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })
+    if (result) {
+      return Astro.redirect(`/admin/pages/${id}?saved=1`)
+    } else {
+      saveError = 'Errore durante il salvataggio.'
+    }
   }
 }
 
-const [pageRes, blocksRes] = await Promise.all([
-  dFetch(`/items/pages/${id}?fields[]=id,title,slug,status,seo_title,seo_description`),
-  dFetch(`/items/pages_blocks?filter[page_id][_eq]=${id}&fields[]=id,block_type,block_id,sort&sort[]=sort`),
-])
+let page: Page | null = null
+let blocks: Array<{ id: string; block_type: string; block_id: string; sort: number }> = []
 
-if (!pageRes?.data) return Astro.redirect('/admin/pages')
-
-const page = pageRes.data as Page
-const blocks = (blocksRes?.data ?? []) as Array<{
-  id: string
-  block_type: string
-  block_id: string
-  sort: number
-}>
+if (!isNew) {
+  const [pageRes, blocksRes] = await Promise.all([
+    dFetch(`/items/pages/${id}?fields[]=id,title,slug,status,seo_title,seo_description`),
+    dFetch(`/items/pages_blocks?filter[page_id][_eq]=${id}&fields[]=id,block_type,block_id,sort&sort[]=sort`),
+  ])
+  if (!pageRes?.data) return Astro.redirect('/admin/pages')
+  page = pageRes.data as Page
+  blocks = (blocksRes?.data ?? []) as Array<{ id: string; block_type: string; block_id: string; sort: number }>
+}
 
 const saved = Astro.url.searchParams.get('saved') === '1'
 ---
 
-<AdminLayout title={page.title} active="pages">
+<AdminLayout title={isNew ? 'Nuova pagina' : (page?.title ?? '')} active="pages">
 
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
     <a href="/admin/pages" style="color:#6b7280;text-decoration:none;font-size:13px">← Pagine</a>
     <span style="color:#d1d5db">/</span>
-    <h1 style="font-size:18px;font-weight:700;color:#111827">{page.title}</h1>
-    <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${
-      page.status === 'published' ? 'background:#f0fdf4;color:#22c55e' : 'background:#f3f4f6;color:#6b7280'
-    }`}>{page.status === 'published' ? 'Pubblicata' : 'Bozza'}</span>
+    <h1 style="font-size:18px;font-weight:700;color:#111827">{isNew ? 'Nuova pagina' : page?.title}</h1>
+    {!isNew && <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${
+      page?.status === 'published' ? 'background:#f0fdf4;color:#22c55e' : 'background:#f3f4f6;color:#6b7280'
+    }`}>{page?.status === 'published' ? 'Pubblicata' : 'Bozza'}</span>}
   </div>
 
   {saved && <p style="background:#f0fdf4;color:#22c55e;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">✓ Salvato con successo.</p>}
   {saveError && <p style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">{saveError}</p>}
 
-  <div style="display:grid;grid-template-columns:320px 1fr;gap:24px;align-items:start">
+  <div style={isNew ? 'display:flex;flex-direction:column;gap:16px' : 'display:grid;grid-template-columns:320px 1fr;gap:24px;align-items:start'}>
 
     <form method="POST">
       <div style="display:flex;flex-direction:column;gap:16px">
@@ -87,13 +93,13 @@ const saved = Astro.url.searchParams.get('saved') === '1'
 
             <div>
               <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Titolo *</label>
-              <input name="title" required value={page.title}
+              <input name="title" required value={page?.title ?? ''}
                 style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
             </div>
 
             <div>
               <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Slug *</label>
-              <input name="slug" required value={page.slug}
+              <input name="slug" required value={page?.slug ?? ''}
                 style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;font-family:monospace;color:#111827;box-sizing:border-box" />
             </div>
 
@@ -101,21 +107,21 @@ const saved = Astro.url.searchParams.get('saved') === '1'
               <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stato</label>
               <select name="status"
                 style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
-                <option value="published" selected={page.status === 'published'}>Pubblicata</option>
-                <option value="draft" selected={page.status === 'draft'}>Bozza</option>
+                <option value="draft" selected={!page || page.status === 'draft'}>Bozza</option>
+                <option value="published" selected={page?.status === 'published'}>Pubblicata</option>
               </select>
             </div>
 
             <div>
               <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">SEO Title</label>
-              <input name="seo_title" value={page.seo_title ?? ''}
+              <input name="seo_title" value={page?.seo_title ?? ''}
                 style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
             </div>
 
             <div>
               <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">SEO Description</label>
               <textarea name="seo_description" rows={3}
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;resize:vertical">{page.seo_description ?? ''}</textarea>
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;resize:vertical">{page?.seo_description ?? ''}</textarea>
             </div>
 
           </div>
@@ -123,13 +129,13 @@ const saved = Astro.url.searchParams.get('saved') === '1'
 
         <button type="submit"
           style="background:#111827;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer;width:100%">
-          Salva metadata
+          {isNew ? 'Crea pagina' : 'Salva metadata'}
         </button>
 
       </div>
     </form>
 
-    <div>
+    {!isNew && <div>
       <SectionCard title={`Sezioni (${blocks.length})`}>
         <div id="blocks-list" style="display:flex;flex-direction:column;gap:8px">
           {blocks.length === 0
@@ -178,7 +184,7 @@ const saved = Astro.url.searchParams.get('saved') === '1'
           </button>
         </div>
       </SectionCard>
-    </div>
+    </div>}
 
   </div>
 

@@ -52,6 +52,9 @@ const columns: Column[] = [
 ---
 
 <AdminLayout title="Pagine" active="pages">
+  <Fragment slot="topbar-actions">
+    <a href="/admin/pages/new" style="background:#111827;color:#fff;text-decoration:none;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:500">+ Nuova pagina</a>
+  </Fragment>
   <DataTable
     columns={columns}
     rows={pages as unknown as Record<string, unknown>[]}

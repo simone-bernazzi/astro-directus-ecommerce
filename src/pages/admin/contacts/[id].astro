@@ -9,13 +9,16 @@ import type { Contact, Order, CrmInteraction, CrmTask, CustomerKpi } from '@/lib
 const { id } = Astro.params
 if (!id) return Astro.redirect('/admin/contacts')
 
+const isNew = id === 'new'
+
 const directusUrl = process.env.DIRECTUS_URL ?? ''
 const token = Astro.cookies.get('admin_token')?.value ?? ''
 
-async function dFetch(path: string) {
+async function dFetch(path: string, opts?: RequestInit) {
   try {
     const res = await fetch(`${directusUrl}${path}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      ...opts,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...((opts?.headers as Record<string, string>) ?? {}) },
     })
     if (!res.ok) return null
     return res.json()
@@ -24,23 +27,52 @@ async function dFetch(path: string) {
   }
 }
 
-const [contactRes, ordersRes, interactionsRes, tasksRes, kpiRes] = await Promise.all([
-  dFetch(`/items/contacts/${id}?fields[]=*`),
-  dFetch(`/items/orders?filter[contact_id][_eq]=${id}&fields[]=id,status,total,date_created,channel&sort[]=-date_created&limit=20`),
-  dFetch(`/items/crm_interactions?filter[contact_id][_eq]=${id}&fields[]=id,type,date,subject,body&sort[]=-date&limit=20`),
-  dFetch(`/items/crm_tasks?filter[contact_id][_eq]=${id}&fields[]=id,title,due_date,status,priority&sort[]=due_date&limit=20`),
-  dFetch(`/items/customer_kpis?filter[contact_id][_eq]=${id}&limit=1`),
-])
+let saveError: string | null = null
 
-if (!contactRes?.data) return Astro.redirect('/admin/contacts')
+if (Astro.request.method === 'POST' && isNew) {
+  const formData = await Astro.request.formData()
+  const payload = {
+    first_name: formData.get('first_name'),
+    last_name: formData.get('last_name'),
+    email: formData.get('email') || null,
+    phone: formData.get('phone') || null,
+    pipeline_stage: formData.get('pipeline_stage') ?? 'lead',
+    canale_prevalente: formData.get('canale_prevalente') ?? 'offline',
+    is_active: true,
+  }
+  const result = await dFetch('/items/contacts', { method: 'POST', body: JSON.stringify(payload) })
+  if (result?.data?.id) {
+    return Astro.redirect(`/admin/contacts/${result.data.id}`)
+  } else {
+    saveError = 'Errore durante la creazione.'
+  }
+}
 
-const contact = contactRes.data as Contact
-const orders = (ordersRes?.data ?? []) as Partial<Order>[]
-const interactions = (interactionsRes?.data ?? []) as Partial<CrmInteraction>[]
-const tasks = (tasksRes?.data ?? []) as Partial<CrmTask>[]
-const kpi = (kpiRes?.data?.[0] ?? null) as Partial<CustomerKpi> | null
+let contact: Contact | null = null
+let orders: Partial<Order>[] = []
+let interactions: Partial<CrmInteraction>[] = []
+let tasks: Partial<CrmTask>[] = []
+let kpi: Partial<CustomerKpi> | null = null
 
-const fullName = `${contact.first_name} ${contact.last_name}`
+if (!isNew) {
+  const [contactRes, ordersRes, interactionsRes, tasksRes, kpiRes] = await Promise.all([
+    dFetch(`/items/contacts/${id}?fields[]=*`),
+    dFetch(`/items/orders?filter[contact_id][_eq]=${id}&fields[]=id,status,total,date_created,channel&sort[]=-date_created&limit=20`),
+    dFetch(`/items/crm_interactions?filter[contact_id][_eq]=${id}&fields[]=id,type,date,subject,body&sort[]=-date&limit=20`),
+    dFetch(`/items/crm_tasks?filter[contact_id][_eq]=${id}&fields[]=id,title,due_date,status,priority&sort[]=due_date&limit=20`),
+    dFetch(`/items/customer_kpis?filter[contact_id][_eq]=${id}&limit=1`),
+  ])
+
+  if (!contactRes?.data) return Astro.redirect('/admin/contacts')
+
+  contact = contactRes.data as Contact
+  orders = (ordersRes?.data ?? []) as Partial<Order>[]
+  interactions = (interactionsRes?.data ?? []) as Partial<CrmInteraction>[]
+  tasks = (tasksRes?.data ?? []) as Partial<CrmTask>[]
+  kpi = (kpiRes?.data?.[0] ?? null) as Partial<CustomerKpi> | null
+}
+
+const fullName = isNew ? 'Nuovo contatto' : `${contact?.first_name} ${contact?.last_name}`
 
 const PIPELINE_LABELS: Record<string, string> = {
   lead: 'Lead', prospect: 'Prospect', cliente_attivo: 'Attivo',
@@ -68,19 +100,81 @@ function fmtDate(iso: string | null | undefined) {
 ---
 
 <AdminLayout title={fullName} active="contacts">
-  <!-- Header -->
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
     <a href="/admin/contacts" style="color:#6b7280;text-decoration:none;font-size:13px">← Contatti</a>
     <span style="color:#d1d5db">/</span>
     <h1 style="font-size:18px;font-weight:700;color:#111827">{fullName}</h1>
-    <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${
+    {!isNew && contact && <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${
       contact.pipeline_stage === 'cliente_attivo' ? 'background:#f0fdf4;color:#22c55e' :
       contact.pipeline_stage === 'lead' ? 'background:#fff7ed;color:#f97316' :
       'background:#f3f4f6;color:#6b7280'
-    }`}>{PIPELINE_LABELS[contact.pipeline_stage] ?? contact.pipeline_stage}</span>
+    }`}>{PIPELINE_LABELS[contact.pipeline_stage] ?? contact.pipeline_stage}</span>}
   </div>
 
-  <div style="display:flex;flex-direction:column;gap:16px">
+  {saveError && <p style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">{saveError}</p>}
+
+  {isNew && (
+    <form method="POST">
+      <SectionCard title="Nuovo contatto">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Nome *</label>
+            <input name="first_name" required
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Cognome *</label>
+            <input name="last_name" required
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Email</label>
+            <input name="email" type="email"
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Telefono</label>
+            <input name="phone" type="tel"
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stage pipeline</label>
+            <select name="pipeline_stage"
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+              <option value="lead">Lead</option>
+              <option value="prospect">Prospect</option>
+              <option value="cliente_attivo">Attivo</option>
+              <option value="cliente_fidelizzato">Fidelizzato</option>
+              <option value="inattivo">Inattivo</option>
+            </select>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Canale prevalente</label>
+            <select name="canale_prevalente"
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+              <option value="offline">Offline</option>
+              <option value="online">Online</option>
+            </select>
+          </div>
+
+        </div>
+      </SectionCard>
+      <div style="display:flex;justify-content:flex-end;margin-top:16px">
+        <button type="submit"
+          style="background:#111827;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">
+          Crea contatto
+        </button>
+      </div>
+    </form>
+  )}
+
+  {!isNew && contact && <div style="display:flex;flex-direction:column;gap:16px">
 
     <!-- KPI bar -->
     {kpi && (
@@ -208,5 +302,5 @@ function fmtDate(iso: string | null | undefined) {
       }
     </SectionCard>
 
-  </div>
+  </div>}
 </AdminLayout>

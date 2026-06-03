@@ -9,6 +9,8 @@ import type { ProductCategory } from '@/lib/types'
 const { id } = Astro.params
 if (!id) return Astro.redirect('/admin/products/categories')
 
+const isNew = id === 'new'
+
 const directusUrl = process.env.DIRECTUS_URL ?? ''
 const token = Astro.cookies.get('admin_token')?.value ?? ''
 
@@ -36,35 +38,42 @@ if (Astro.request.method === 'POST') {
     seo_title: formData.get('seo_title') || null,
     seo_description: formData.get('seo_description') || null,
   }
-  const result = await dFetch(`/items/product_categories/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(payload),
-  })
-  if (result) {
-    return Astro.redirect(`/admin/products/categories/${id}?saved=1`)
+  if (isNew) {
+    const result = await dFetch('/items/product_categories', { method: 'POST', body: JSON.stringify(payload) })
+    if (result?.data?.id) {
+      return Astro.redirect(`/admin/products/categories/${result.data.id}?saved=1`)
+    } else {
+      saveError = 'Errore durante la creazione.'
+    }
   } else {
-    saveError = 'Errore durante il salvataggio. Riprova.'
+    const result = await dFetch(`/items/product_categories/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })
+    if (result) {
+      return Astro.redirect(`/admin/products/categories/${id}?saved=1`)
+    } else {
+      saveError = 'Errore durante il salvataggio. Riprova.'
+    }
   }
 }
 
-const [catRes, allCatsRes] = await Promise.all([
-  dFetch(`/items/product_categories/${id}?fields[]=*`),
-  dFetch('/items/product_categories?fields[]=id,name&sort[]=sort_order&limit=100'),
-])
-
-if (!catRes?.data) return Astro.redirect('/admin/products/categories')
-
-const cat = catRes.data as ProductCategory & { parent_id: string | null }
+const allCatsRes = await dFetch('/items/product_categories?fields[]=id,name&sort[]=sort_order&limit=100')
 const allCats = (allCatsRes?.data ?? []) as Array<{ id: string; name: string }>
+
+let cat: (ProductCategory & { parent_id: string | null }) | null = null
+if (!isNew) {
+  const catRes = await dFetch(`/items/product_categories/${id}?fields[]=*`)
+  if (!catRes?.data) return Astro.redirect('/admin/products/categories')
+  cat = catRes.data as ProductCategory & { parent_id: string | null }
+}
+
 const saved = Astro.url.searchParams.get('saved') === '1'
 ---
 
-<AdminLayout title={cat.name} active="products">
+<AdminLayout title={isNew ? 'Nuova categoria' : (cat?.name ?? '')} active="products">
 
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
     <a href="/admin/products/categories" style="color:#6b7280;text-decoration:none;font-size:13px">← Categorie</a>
     <span style="color:#d1d5db">/</span>
-    <h1 style="font-size:18px;font-weight:700;color:#111827">{cat.name}</h1>
+    <h1 style="font-size:18px;font-weight:700;color:#111827">{isNew ? 'Nuova categoria' : cat?.name}</h1>
   </div>
 
   {saved && <p style="background:#f0fdf4;color:#22c55e;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">✓ Salvato con successo.</p>}
@@ -78,13 +87,13 @@ const saved = Astro.url.searchParams.get('saved') === '1'
 
           <div>
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Nome *</label>
-            <input name="name" required value={cat.name}
+            <input name="name" required value={cat?.name ?? ''}
               style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
           </div>
 
           <div>
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Slug *</label>
-            <input name="slug" required value={cat.slug}
+            <input name="slug" required value={cat?.slug ?? ''}
               style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;font-family:monospace;color:#111827;box-sizing:border-box" />
           </div>
 
@@ -94,7 +103,7 @@ const saved = Astro.url.searchParams.get('saved') === '1'
               style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;background:#fff">
               <option value="">— nessuna —</option>
               {allCats.filter(c => c.id !== id).map(c => (
-                <option value={c.id} selected={cat.parent_id === c.id}>{c.name}</option>
+                <option value={c.id} selected={cat?.parent_id === c.id}>{c.name}</option>
               ))}
             </select>
           </div>
@@ -102,12 +111,12 @@ const saved = Astro.url.searchParams.get('saved') === '1'
           <div>
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Descrizione</label>
             <textarea name="description" rows={3}
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;resize:vertical">{cat.description ?? ''}</textarea>
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;resize:vertical">{cat?.description ?? ''}</textarea>
           </div>
 
           <div>
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Ordine</label>
-            <input name="sort_order" type="number" value={cat.sort_order ?? 0}
+            <input name="sort_order" type="number" value={cat?.sort_order ?? 0}
               style="width:120px;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827" />
           </div>
 
@@ -118,13 +127,13 @@ const saved = Astro.url.searchParams.get('saved') === '1'
         <div style="display:flex;flex-direction:column;gap:14px">
           <div>
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">SEO Title</label>
-            <input name="seo_title" value={cat.seo_title ?? ''}
+            <input name="seo_title" value={cat?.seo_title ?? ''}
               style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
           </div>
           <div>
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">SEO Description</label>
             <textarea name="seo_description" rows={2}
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;resize:vertical">{cat.seo_description ?? ''}</textarea>
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;resize:vertical">{cat?.seo_description ?? ''}</textarea>
           </div>
         </div>
       </SectionCard>
@@ -132,7 +141,7 @@ const saved = Astro.url.searchParams.get('saved') === '1'
       <div style="display:flex;justify-content:flex-end">
         <button type="submit"
           style="background:#111827;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">
-          Salva
+          {isNew ? 'Crea categoria' : 'Salva'}
         </button>
       </div>
 

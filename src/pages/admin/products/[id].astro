@@ -9,6 +9,8 @@ import type { Product } from '@/lib/types'
 const { id } = Astro.params
 if (!id) return Astro.redirect('/admin/products')
 
+const isNew = id === 'new'
+
 const directusUrl = process.env.DIRECTUS_URL ?? ''
 const token = Astro.cookies.get('admin_token')?.value ?? ''
 
@@ -25,15 +27,32 @@ async function dFetch(path: string, opts?: RequestInit) {
 
 let saveError: string | null = null
 
-// Mini-form per cambio stato
 if (Astro.request.method === 'POST') {
   const formData = await Astro.request.formData()
-  const newStatus = formData.get('status')
-  if (newStatus === 'published' || newStatus === 'draft') {
-    const result = await dFetch(`/items/products/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: newStatus }),
-    })
+  const payload: Record<string, unknown> = {
+    name: formData.get('name'),
+    slug: formData.get('slug'),
+    description: formData.get('description') || null,
+    type: formData.get('type') ?? 'physical',
+    base_price: parseFloat(String(formData.get('base_price') ?? '0')),
+    compare_price: formData.get('compare_price') ? parseFloat(String(formData.get('compare_price'))) : null,
+    category_id: formData.get('category_id') || null,
+    weight_g: formData.get('weight_g') ? parseInt(String(formData.get('weight_g'))) : 0,
+    featured: formData.get('featured') === 'true',
+    status: formData.get('status') ?? 'draft',
+    seo_title: formData.get('seo_title') || null,
+    seo_description: formData.get('seo_description') || null,
+    is_active: true,
+  }
+  if (isNew) {
+    const result = await dFetch('/items/products', { method: 'POST', body: JSON.stringify(payload) })
+    if (result?.data?.id) {
+      return Astro.redirect(`/admin/products/${result.data.id}?saved=1`)
+    } else {
+      saveError = 'Errore durante la creazione.'
+    }
+  } else {
+    const result = await dFetch(`/items/products/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })
     if (result) {
       return Astro.redirect(`/admin/products/${id}?saved=1`)
     } else {
@@ -42,10 +61,16 @@ if (Astro.request.method === 'POST') {
   }
 }
 
-const productRes = await dFetch(`/items/products/${id}?fields[]=*,variants.*,category_id.name,category_id.id`)
-if (!productRes?.data) return Astro.redirect('/admin/products')
+const allCatsRes = await dFetch('/items/product_categories?fields[]=id,name&sort[]=sort_order&limit=100')
+const allCats = (allCatsRes?.data ?? []) as Array<{ id: string; name: string }>
 
-const product = productRes.data as Product & { category_id: { id: string; name: string } | null }
+let product: (Product & { category_id: { id: string; name: string } | null }) | null = null
+if (!isNew) {
+  const productRes = await dFetch(`/items/products/${id}?fields[]=*,variants.*,category_id.name,category_id.id`)
+  if (!productRes?.data) return Astro.redirect('/admin/products')
+  product = productRes.data as Product & { category_id: { id: string; name: string } | null }
+}
+
 const saved = Astro.url.searchParams.get('saved') === '1'
 
 function fmtDate(iso: string | null | undefined) {
@@ -54,104 +79,179 @@ function fmtDate(iso: string | null | undefined) {
 }
 ---
 
-<AdminLayout title={product.name} active="products">
+<AdminLayout title={isNew ? 'Nuovo prodotto' : (product?.name ?? '')} active="products">
 
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
     <a href="/admin/products" style="color:#6b7280;text-decoration:none;font-size:13px">← Prodotti</a>
     <span style="color:#d1d5db">/</span>
-    <h1 style="font-size:18px;font-weight:700;color:#111827">{product.name}</h1>
-    <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${
-      product.status === 'published' ? 'background:#f0fdf4;color:#22c55e' : 'background:#f3f4f6;color:#6b7280'
-    }`}>{product.status === 'published' ? 'Pubblicato' : 'Bozza'}</span>
+    <h1 style="font-size:18px;font-weight:700;color:#111827">{isNew ? 'Nuovo prodotto' : product?.name}</h1>
+    {!isNew && <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${
+      product?.status === 'published' ? 'background:#f0fdf4;color:#22c55e' : 'background:#f3f4f6;color:#6b7280'
+    }`}>{product?.status === 'published' ? 'Pubblicato' : 'Bozza'}</span>}
   </div>
 
-  {saved && <p style="background:#f0fdf4;color:#22c55e;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">✓ Stato aggiornato.</p>}
+  {saved && <p style="background:#f0fdf4;color:#22c55e;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">✓ Salvato con successo.</p>}
   {saveError && <p style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">{saveError}</p>}
 
-  <div style="display:flex;flex-direction:column;gap:16px">
+  <form method="POST">
+    <div style="display:flex;flex-direction:column;gap:16px">
 
-    <!-- Info principali -->
-    <SectionCard title="Informazioni prodotto">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px">
-        <div><span style="color:#6b7280">Slug:</span> <code style="font-size:12px">{product.slug}</code></div>
-        <div><span style="color:#6b7280">Tipo:</span> {product.type === 'digital' ? 'Digitale' : 'Fisico'}</div>
-        <div><span style="color:#6b7280">Prezzo base:</span> <strong>€{product.base_price.toFixed(2)}</strong></div>
-        {product.compare_price && <div><span style="color:#6b7280">Prezzo barrato:</span> €{product.compare_price.toFixed(2)}</div>}
-        <div><span style="color:#6b7280">Categoria:</span> {product.category_id?.name ?? '—'}</div>
-        <div><span style="color:#6b7280">Stripe ID:</span> <code style="font-size:11px;color:#6b7280">{product.stripe_product_id}</code></div>
-        <div><span style="color:#6b7280">Peso:</span> {product.weight_g}g</div>
-        <div><span style="color:#6b7280">In evidenza:</span> {product.featured ? 'Sì' : 'No'}</div>
-        {product.seo_title && <div style="grid-column:span 2"><span style="color:#6b7280">SEO title:</span> {product.seo_title}</div>}
-      </div>
-    </SectionCard>
+      <SectionCard title="Informazioni prodotto">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
 
-    <!-- Descrizione -->
-    {product.description && (
-      <SectionCard title="Descrizione">
-        <p style="font-size:14px;color:#374151;line-height:1.6;margin:0">{product.description}</p>
-      </SectionCard>
-    )}
-
-    <!-- Cambio stato -->
-    <SectionCard title="Pubblica / Archivia">
-      <form method="POST" style="display:flex;gap:10px;align-items:center">
-        <select name="status"
-          style="border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff">
-          <option value="published" selected={product.status === 'published'}>Pubblicato</option>
-          <option value="draft" selected={product.status === 'draft'}>Bozza</option>
-        </select>
-        <button type="submit"
-          style="background:#111827;color:#fff;border:none;padding:8px 20px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer">
-          Aggiorna stato
-        </button>
-      </form>
-    </SectionCard>
-
-    <!-- Varianti -->
-    <SectionCard title={`Varianti (${product.variants?.length ?? 0})`}>
-      {!product.variants?.length
-        ? <p style="color:#9ca3af;font-size:14px">Nessuna variante.</p>
-        : (
-          <div style="overflow-x:auto">
-            <table style="width:100%;border-collapse:collapse;font-size:14px;min-width:600px">
-              <thead>
-                <tr style="border-bottom:1px solid #e5e7eb">
-                  <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">SKU</th>
-                  <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Nome</th>
-                  <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Opzione 1</th>
-                  <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Opzione 2</th>
-                  <th style="text-align:right;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Prezzo</th>
-                  <th style="text-align:right;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Stock</th>
-                  <th style="text-align:center;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Attiva</th>
-                </tr>
-              </thead>
-              <tbody>
-                {product.variants.map(v => (
-                  <tr style="border-bottom:1px solid #f3f4f6">
-                    <td style="padding:8px;font-family:monospace;font-size:12px;color:#6b7280">{v.sku}</td>
-                    <td style="padding:8px;font-weight:500">{v.name}</td>
-                    <td style="padding:8px;color:#6b7280">{v.option_1_name ? `${v.option_1_name}: ${v.option_1_value}` : '—'}</td>
-                    <td style="padding:8px;color:#6b7280">{v.option_2_name ? `${v.option_2_name}: ${v.option_2_value}` : '—'}</td>
-                    <td style="padding:8px;text-align:right">{v.price_override != null ? `€${v.price_override.toFixed(2)}` : '—'}</td>
-                    <td style="padding:8px;text-align:right">
-                      <span style={v.stock_quantity <= v.low_stock_threshold ? 'color:#f97316;font-weight:500' : ''}>
-                        {v.stock_quantity}
-                      </span>
-                    </td>
-                    <td style="padding:8px;text-align:center">
-                      {v.is_active
-                        ? `<span style="color:#22c55e">●</span>`
-                        : `<span style="color:#d1d5db">●</span>`
-                      }
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div style="grid-column:span 2">
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Nome *</label>
+            <input name="name" required value={product?.name ?? ''}
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
           </div>
-        )
-      }
-    </SectionCard>
 
-  </div>
+          <div style="grid-column:span 2">
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Slug *</label>
+            <input name="slug" required value={product?.slug ?? ''}
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;font-family:monospace;color:#111827;box-sizing:border-box" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Prezzo base (€) *</label>
+            <input name="base_price" type="number" step="0.01" min="0" required value={product?.base_price ?? ''}
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Prezzo barrato (€)</label>
+            <input name="compare_price" type="number" step="0.01" min="0" value={product?.compare_price ?? ''}
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Categoria</label>
+            <select name="category_id"
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+              <option value="">— nessuna —</option>
+              {allCats.map(c => (
+                <option value={c.id} selected={
+                  typeof product?.category_id === 'object'
+                    ? product?.category_id?.id === c.id
+                    : product?.category_id === c.id
+                }>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Tipo</label>
+            <select name="type"
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+              <option value="physical" selected={!product || product.type === 'physical'}>Fisico</option>
+              <option value="digital" selected={product?.type === 'digital'}>Digitale</option>
+            </select>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Peso (g)</label>
+            <input name="weight_g" type="number" min="0" value={product?.weight_g ?? 0}
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stato</label>
+            <select name="status"
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+              <option value="draft" selected={!product || product.status === 'draft'}>Bozza</option>
+              <option value="published" selected={product?.status === 'published'}>Pubblicato</option>
+            </select>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">In evidenza</label>
+            <select name="featured"
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+              <option value="false" selected={!product?.featured}>No</option>
+              <option value="true" selected={product?.featured === true}>Sì</option>
+            </select>
+          </div>
+
+          <div style="grid-column:span 2">
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Descrizione</label>
+            <textarea name="description" rows={4}
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;resize:vertical">{product?.description ?? ''}</textarea>
+          </div>
+
+        </div>
+      </SectionCard>
+
+      <SectionCard title="SEO">
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">SEO Title</label>
+            <input name="seo_title" value={product?.seo_title ?? ''}
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          </div>
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">SEO Description</label>
+            <textarea name="seo_description" rows={2}
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;resize:vertical">{product?.seo_description ?? ''}</textarea>
+          </div>
+        </div>
+      </SectionCard>
+
+      <div style="display:flex;justify-content:flex-end">
+        <button type="submit"
+          style="background:#111827;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">
+          {isNew ? 'Crea prodotto' : 'Salva'}
+        </button>
+      </div>
+
+    </div>
+  </form>
+
+  {!isNew && product && (
+    <div style="margin-top:16px">
+      <SectionCard title={`Varianti (${product.variants?.length ?? 0})`}>
+        {!product.variants?.length
+          ? <p style="color:#9ca3af;font-size:14px">Nessuna variante.</p>
+          : (
+            <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;font-size:14px;min-width:600px">
+                <thead>
+                  <tr style="border-bottom:1px solid #e5e7eb">
+                    <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">SKU</th>
+                    <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Nome</th>
+                    <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Opzione 1</th>
+                    <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Opzione 2</th>
+                    <th style="text-align:right;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Prezzo</th>
+                    <th style="text-align:right;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Stock</th>
+                    <th style="text-align:center;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Attiva</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {product.variants.map(v => (
+                    <tr style="border-bottom:1px solid #f3f4f6">
+                      <td style="padding:8px;font-family:monospace;font-size:12px;color:#6b7280">{v.sku}</td>
+                      <td style="padding:8px;font-weight:500">{v.name}</td>
+                      <td style="padding:8px;color:#6b7280">{v.option_1_name ? `${v.option_1_name}: ${v.option_1_value}` : '—'}</td>
+                      <td style="padding:8px;color:#6b7280">{v.option_2_name ? `${v.option_2_name}: ${v.option_2_value}` : '—'}</td>
+                      <td style="padding:8px;text-align:right">{v.price_override != null ? `€${v.price_override.toFixed(2)}` : '—'}</td>
+                      <td style="padding:8px;text-align:right">
+                        <span style={v.stock_quantity <= v.low_stock_threshold ? 'color:#f97316;font-weight:500' : ''}>
+                          {v.stock_quantity}
+                        </span>
+                      </td>
+                      <td style="padding:8px;text-align:center">
+                        {v.is_active
+                          ? `<span style="color:#22c55e">●</span>`
+                          : `<span style="color:#d1d5db">●</span>`
+                        }
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        }
+      </SectionCard>
+    </div>
+  )}
+
 </AdminLayout>

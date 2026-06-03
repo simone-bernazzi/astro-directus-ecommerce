@@ -66,6 +66,9 @@ const columns: Column[] = [
 ---
 
 <AdminLayout title="Gift card" active="gift-cards">
+  <Fragment slot="topbar-actions">
+    <a href="/admin/gift-cards/new" style="background:#111827;color:#fff;text-decoration:none;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:500">+ Nuova gift card</a>
+  </Fragment>
   <DataTable
     columns={columns}
     rows={cards as unknown as Record<string, unknown>[]}
