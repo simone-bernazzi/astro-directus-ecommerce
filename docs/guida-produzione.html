@@ -1201,7 +1201,11 @@ Incolla il seguente contenuto:
 
     listen 80;
 }</pre>
-<span class="note">Sostituisci <code><span class="val">DEPLOY_PORT</span></code> con la stessa porta del frontend (es. <code>4322</code>). Non serve una porta separata.</span></div></li>
+<span class="note">Sostituisci <code><span class="val">DEPLOY_PORT</span></code> con la stessa porta del frontend (es. <code>4322</code>). Non serve una porta separata. Per verificare la porta in uso sul server:
+<pre style="margin-top:4px"><span class="cmd">pm2 list</span>                                          <span class="comment"># prendi l'id del processo frontend</span>
+<span class="cmd">pm2 env</span> <span class="val">&lt;id&gt;</span> | grep PORT                            <span class="comment"># mostra la variabile PORT</span>
+<span class="comment"># oppure</span>
+<span class="cmd">grep</span> PORT /var/www/<span class="val">cliente</span>/frontend/.env            <span class="comment"># leggi direttamente dal .env sul server</span></pre></span></div></li>
 
   <li><span class="check-box"></span><div>Abilita il sito, verifica la sintassi e ricarica Nginx
 <pre style="margin-top:6px"><span class="cmd">ln</span> -s /etc/nginx/sites-available/admin.<span class="val">tuodominio.it</span> /etc/nginx/sites-enabled/
