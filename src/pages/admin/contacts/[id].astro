@@ -39,7 +39,6 @@ if (Astro.request.method === 'POST') {
     canale_prevalente: formData.get('canale_prevalente') ?? 'offline',
     channel_type: formData.get('channel_type') ?? 'offline',
     is_active: formData.get('is_active') === 'true',
-    notes: formData.get('notes') || null,
   }
   if (isNew) {
     const result = await dFetch('/items/contacts', { method: 'POST', body: JSON.stringify(payload) })

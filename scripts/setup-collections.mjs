@@ -259,6 +259,107 @@ async function main() {
   await field('site_settings', 'nav_links', 'json', { is_nullable: true }, { interface: 'input-code', options: { language: 'json' } })
   await field('site_settings', 'social', 'json', { is_nullable: true }, { interface: 'input-code', options: { language: 'json' } })
 
+  // ── contacts (CRM) ───────────────────────────────────────────────────────
+  await collection('contacts', 'people', '{{first_name}} {{last_name}}')
+  await field('contacts', 'first_name', 'string', { is_nullable: false }, { interface: 'input', required: true })
+  await field('contacts', 'last_name', 'string', { is_nullable: false }, { interface: 'input', required: true })
+  await field('contacts', 'email', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('contacts', 'phone', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('contacts', 'date_of_birth', 'date', { is_nullable: true }, { interface: 'datetime' })
+  await field('contacts', 'pipeline_stage', 'string', { default_value: 'lead' }, { interface: 'select-dropdown', options: { choices: [
+    { text: 'Lead', value: 'lead' }, { text: 'Prospect', value: 'prospect' },
+    { text: 'Attivo', value: 'cliente_attivo' }, { text: 'Fidelizzato', value: 'cliente_fidelizzato' },
+    { text: 'Inattivo', value: 'inattivo' },
+  ] } })
+  await field('contacts', 'canale_prevalente', 'string', { default_value: 'offline' }, { interface: 'select-dropdown', options: { choices: [{ text: 'Offline', value: 'offline' }, { text: 'Online', value: 'online' }] } })
+  await field('contacts', 'channel_type', 'string', { default_value: 'offline' }, { interface: 'select-dropdown', options: { choices: [{ text: 'Offline', value: 'offline' }, { text: 'Online', value: 'online' }, { text: 'Entrambi', value: 'both' }] } })
+  await field('contacts', 'is_active', 'boolean', { default_value: true }, { interface: 'boolean' })
+  await field('contacts', 'stripe_customer_id', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('contacts', 'user_id', 'string', { is_nullable: true }, { interface: 'input', note: 'FK → directus_users' })
+  await field('contacts', 'shipping_addresses', 'json', { is_nullable: true }, { interface: 'input-code', options: { language: 'json' } })
+  await field('contacts', 'default_shipping_address', 'json', { is_nullable: true }, { interface: 'input-code', options: { language: 'json' } })
+  await field('contacts', 'tags', 'json', { is_nullable: true }, { interface: 'tags' })
+
+  // ── crm_interactions ─────────────────────────────────────────────────────
+  await collection('crm_interactions', 'forum', '{{type}} — {{date}}')
+  await field('crm_interactions', 'contact_id', 'integer', { is_nullable: false }, { interface: 'input', hidden: true })
+  await field('crm_interactions', 'type', 'string', { default_value: 'note' }, { interface: 'select-dropdown', options: { choices: [
+    { text: 'Telefonata', value: 'call' }, { text: 'Visita', value: 'visit' }, { text: 'Email', value: 'email' },
+    { text: 'WhatsApp', value: 'whatsapp' }, { text: 'Nota', value: 'note' }, { text: 'Altro', value: 'other' },
+  ] } })
+  await field('crm_interactions', 'date', 'dateTime', { is_nullable: false }, { interface: 'datetime' })
+  await field('crm_interactions', 'subject', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('crm_interactions', 'body', 'text', { is_nullable: true }, { interface: 'input-multiline' })
+  await field('crm_interactions', 'outcome', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('crm_interactions', 'staff_id', 'string', { is_nullable: true }, { interface: 'input' })
+
+  // ── crm_tasks ─────────────────────────────────────────────────────────────
+  await collection('crm_tasks', 'task', '{{title}}')
+  await field('crm_tasks', 'contact_id', 'integer', { is_nullable: false }, { interface: 'input', hidden: true })
+  await field('crm_tasks', 'title', 'string', { is_nullable: false }, { interface: 'input', required: true })
+  await field('crm_tasks', 'due_date', 'dateTime', { is_nullable: true }, { interface: 'datetime' })
+  await field('crm_tasks', 'status', 'string', { default_value: 'pending' }, { interface: 'select-dropdown', options: { choices: [
+    { text: 'In attesa', value: 'pending' }, { text: 'In corso', value: 'in_progress' },
+    { text: 'Completato', value: 'done' }, { text: 'Annullato', value: 'cancelled' },
+  ] } })
+  await field('crm_tasks', 'priority', 'string', { default_value: 'medium' }, { interface: 'select-dropdown', options: { choices: [
+    { text: 'Bassa', value: 'low' }, { text: 'Media', value: 'medium' }, { text: 'Alta', value: 'high' },
+  ] } })
+  await field('crm_tasks', 'notes', 'text', { is_nullable: true }, { interface: 'input-multiline' })
+
+  // ── customer_kpis ─────────────────────────────────────────────────────────
+  await collection('customer_kpis', 'analytics', '{{contact_id}}')
+  await field('customer_kpis', 'contact_id', 'integer', { is_nullable: false }, { interface: 'input', hidden: true })
+  await field('customer_kpis', 'clv', 'decimal', { numeric_precision: 10, numeric_scale: 2, default_value: 0 }, { interface: 'input' })
+  await field('customer_kpis', 'churn_score', 'decimal', { numeric_precision: 5, numeric_scale: 2, default_value: 0 }, { interface: 'input' })
+  await field('customer_kpis', 'lead_score', 'decimal', { numeric_precision: 5, numeric_scale: 2, default_value: 0 }, { interface: 'input' })
+  await field('customer_kpis', 'total_spent_online', 'decimal', { numeric_precision: 10, numeric_scale: 2, default_value: 0 }, { interface: 'input' })
+  await field('customer_kpis', 'total_spent_offline', 'decimal', { numeric_precision: 10, numeric_scale: 2, default_value: 0 }, { interface: 'input' })
+  await field('customer_kpis', 'total_orders_online', 'integer', { default_value: 0 }, { interface: 'input' })
+  await field('customer_kpis', 'total_orders_offline', 'integer', { default_value: 0 }, { interface: 'input' })
+  await field('customer_kpis', 'last_purchase_at', 'dateTime', { is_nullable: true }, { interface: 'datetime' })
+  await field('customer_kpis', 'avg_order_value', 'decimal', { numeric_precision: 10, numeric_scale: 2, default_value: 0 }, { interface: 'input' })
+  await field('customer_kpis', 'preferred_channel', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('customer_kpis', 'rfm_segment', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('customer_kpis', 'calculated_at', 'dateTime', { is_nullable: true }, { interface: 'datetime' })
+
+  // ── forms ─────────────────────────────────────────────────────────────────
+  await collection('forms', 'dynamic_form', '{{name}}')
+  await field('forms', 'name', 'string', { is_nullable: false }, { interface: 'input', required: true })
+  await field('forms', 'slug', 'string', { is_unique: true }, { interface: 'input', required: true })
+  await field('forms', 'fields', 'json', { is_nullable: true, default_value: '[]' }, { interface: 'input-code', options: { language: 'json' } })
+  await field('forms', 'success_message', 'text', { is_nullable: true }, { interface: 'input-multiline' })
+  await field('forms', 'redirect_enabled', 'boolean', { default_value: false }, { interface: 'boolean' })
+  await field('forms', 'redirect_url', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('forms', 'notification_email', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('forms', 'recaptcha_enabled', 'boolean', { default_value: false }, { interface: 'boolean' })
+  await field('forms', 'capture_ip', 'boolean', { default_value: false }, { interface: 'boolean' })
+  await field('forms', 'capture_user_agent', 'boolean', { default_value: false }, { interface: 'boolean' })
+  await field('forms', 'capture_page_url', 'boolean', { default_value: false }, { interface: 'boolean' })
+  await field('forms', 'honeypot_enabled', 'boolean', { default_value: false }, { interface: 'boolean' })
+  await field('forms', 'country_filter_enabled', 'boolean', { default_value: false }, { interface: 'boolean' })
+  await field('forms', 'allowed_countries', 'json', { is_nullable: true }, { interface: 'tags' })
+  await field('forms', 'keyword_filter_enabled', 'boolean', { default_value: false }, { interface: 'boolean' })
+  await field('forms', 'blocked_keywords', 'json', { is_nullable: true }, { interface: 'tags' })
+  await field('forms', 'is_active', 'boolean', { default_value: true }, { interface: 'boolean' })
+
+  // ── form_submissions ──────────────────────────────────────────────────────
+  await collection('form_submissions', 'inbox', '{{form_id}} — {{date_created}}')
+  await field('form_submissions', 'form_id', 'integer', { is_nullable: false }, { interface: 'input', hidden: true })
+  await field('form_submissions', 'data', 'json', { is_nullable: true }, { interface: 'input-code', options: { language: 'json' } })
+  await field('form_submissions', 'page_url', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('form_submissions', 'ip_address', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('form_submissions', 'user_agent', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('form_submissions', 'country_code', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('form_submissions', 'is_read', 'boolean', { default_value: false }, { interface: 'boolean' })
+
+  // ── pages_blocks (page builder junction) ─────────────────────────────────
+  await collection('pages_blocks', 'view_module', '{{block_type}} — {{sort}}')
+  await field('pages_blocks', 'page_id', 'integer', { is_nullable: false }, { interface: 'input', hidden: true })
+  await field('pages_blocks', 'block_type', 'string', { is_nullable: false }, { interface: 'input' })
+  await field('pages_blocks', 'block_id', 'string', { is_nullable: false }, { interface: 'input' })
+  await field('pages_blocks', 'sort', 'integer', { default_value: 0 }, { interface: 'input' })
+
   // ── Relations ─────────────────────────────────────────────────────────────
   console.log('\nCreazione relazioni FK...')
   await safe(() => client.request(createRelation({
@@ -290,6 +391,45 @@ async function main() {
     related_collection: 'categories',
     schema: {},
   })), 'relation: posts.category → categories')
+
+  await safe(() => client.request(createRelation({
+    collection: 'crm_interactions',
+    field: 'contact_id',
+    related_collection: 'contacts',
+    meta: { many_collection: 'crm_interactions', many_field: 'contact_id', one_collection: 'contacts' },
+    schema: { on_delete: 'CASCADE' },
+  })), 'relation: crm_interactions.contact_id → contacts')
+
+  await safe(() => client.request(createRelation({
+    collection: 'crm_tasks',
+    field: 'contact_id',
+    related_collection: 'contacts',
+    meta: { many_collection: 'crm_tasks', many_field: 'contact_id', one_collection: 'contacts' },
+    schema: { on_delete: 'CASCADE' },
+  })), 'relation: crm_tasks.contact_id → contacts')
+
+  await safe(() => client.request(createRelation({
+    collection: 'customer_kpis',
+    field: 'contact_id',
+    related_collection: 'contacts',
+    schema: { on_delete: 'CASCADE' },
+  })), 'relation: customer_kpis.contact_id → contacts')
+
+  await safe(() => client.request(createRelation({
+    collection: 'form_submissions',
+    field: 'form_id',
+    related_collection: 'forms',
+    meta: { many_collection: 'form_submissions', many_field: 'form_id', one_collection: 'forms' },
+    schema: { on_delete: 'CASCADE' },
+  })), 'relation: form_submissions.form_id → forms')
+
+  await safe(() => client.request(createRelation({
+    collection: 'pages_blocks',
+    field: 'page_id',
+    related_collection: 'pages',
+    meta: { many_collection: 'pages_blocks', many_field: 'page_id', one_collection: 'pages' },
+    schema: { on_delete: 'CASCADE' },
+  })), 'relation: pages_blocks.page_id → pages')
 
   console.log('\n✓ Setup completato!\n')
   console.log('Passaggi manuali rimanenti (dall\'admin Directus):')
