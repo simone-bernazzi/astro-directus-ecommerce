@@ -1,0 +1,72 @@
+---
+// src/pages/admin/shipping/index.astro
+export const prerender = false
+
+import AdminLayout from '@/layouts/AdminLayout.astro'
+import DataTable from '@/components/admin/DataTable.astro'
+import type { Column } from '@/components/admin/DataTable.astro'
+import type { ShippingZone } from '@/lib/types'
+
+const directusUrl = process.env.DIRECTUS_URL ?? ''
+const token = Astro.cookies.get('admin_token')?.value ?? ''
+
+async function dFetch(path: string) {
+  try {
+    const res = await fetch(`${directusUrl}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch { return null }
+}
+
+const PAGE_SIZE = 50
+const page = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1'))
+const offset = (page - 1) * PAGE_SIZE
+
+const [listRes, countRes] = await Promise.all([
+  dFetch(`/items/shipping_zones?fields[]=id,name,countries,base_rate,is_active&sort[]=name&limit=${PAGE_SIZE}&offset=${offset}`),
+  dFetch('/items/shipping_zones?aggregate[count]=id'),
+])
+
+type ZoneRow = Pick<ShippingZone, 'id' | 'name' | 'countries' | 'base_rate' | 'is_active'>
+
+const zones = (listRes?.data ?? []) as ZoneRow[]
+const total = parseInt(countRes?.data?.[0]?.count?.id ?? '0')
+
+const columns: Column[] = [
+  { key: 'name', label: 'Zona', format: (v) => `<span style="font-weight:500;color:#111827">${String(v ?? '—')}</span>` },
+  {
+    key: 'countries',
+    label: 'Paesi',
+    format: (v) => {
+      const countries = v as string[] | null
+      if (!countries?.length) return '<span style="color:#9ca3af">—</span>'
+      const display = countries.slice(0, 5).join(', ')
+      const extra = countries.length > 5 ? ` +${countries.length - 5}` : ''
+      return `<span style="font-family:monospace;font-size:12px;color:#6b7280">${display}${extra}</span>`
+    },
+  },
+  { key: 'base_rate', label: 'Tariffa base', format: (v) => `€${Number(v ?? 0).toFixed(2)}` },
+  {
+    key: 'is_active',
+    label: 'Stato',
+    format: (v) => v
+      ? `<span style="background:#f0fdf4;color:#22c55e;padding:2px 8px;border-radius:10px;font-size:12px">Attiva</span>`
+      : `<span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:10px;font-size:12px">Inattiva</span>`,
+  },
+]
+---
+
+<AdminLayout title="Spedizioni" active="shipping">
+  <DataTable
+    columns={columns}
+    rows={zones as unknown as Record<string, unknown>[]}
+    idField="id"
+    detailBase="/admin/shipping/"
+    page={page}
+    total={total}
+    pageSize={PAGE_SIZE}
+    emptyMessage="Nessuna zona di spedizione trovata."
+  />
+</AdminLayout>
