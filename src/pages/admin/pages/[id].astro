@@ -233,39 +233,43 @@ const saved = Astro.url.searchParams.get('saved') === '1'
 
   const SKIP_FIELDS = ['id', 'date_created', 'date_updated', 'user_created', 'user_updated']
 
+  function escHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  }
+
   function buildInput(field, value) {
-    const label = `<label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">${field.field}${field.schema?.is_nullable === false ? ' *' : ''}</label>`
+    const label = `<label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">${escHtml(field.field)}${field.schema?.is_nullable === false ? ' *' : ''}</label>`
     const inputStyle = 'width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box'
     const val = value ?? ''
 
     if (field.meta?.interface === 'select-dropdown' && field.meta?.options?.choices) {
       const options = field.meta.options.choices.map(c =>
-        `<option value="${c.value}" ${val === c.value ? 'selected' : ''}>${c.text}</option>`
+        `<option value="${escHtml(c.value)}" ${val === c.value ? 'selected' : ''}>${escHtml(c.text)}</option>`
       ).join('')
-      return `<div style="margin-bottom:14px">${label}<select name="${field.field}" style="${inputStyle};background:#fff">${options}</select></div>`
+      return `<div style="margin-bottom:14px">${label}<select name="${escHtml(field.field)}" style="${inputStyle};background:#fff">${options}</select></div>`
     }
 
     if (field.type === 'boolean') {
       return `<div style="margin-bottom:14px;display:flex;align-items:center;gap:8px">
-        <input type="checkbox" name="${field.field}" id="f_${field.field}" ${val ? 'checked' : ''} style="width:16px;height:16px">
-        <label for="f_${field.field}" style="font-size:13px;font-weight:500;color:#374151">${field.field}</label>
+        <input type="checkbox" name="${escHtml(field.field)}" id="f_${escHtml(field.field)}" ${val ? 'checked' : ''} style="width:16px;height:16px">
+        <label for="f_${escHtml(field.field)}" style="font-size:13px;font-weight:500;color:#374151">${escHtml(field.field)}</label>
       </div>`
     }
 
     if (field.type === 'text' || (field.meta?.interface === 'input-multiline')) {
-      return `<div style="margin-bottom:14px">${label}<textarea name="${field.field}" rows="4" style="${inputStyle};resize:vertical">${val}</textarea></div>`
+      return `<div style="margin-bottom:14px">${label}<textarea name="${escHtml(field.field)}" rows="4" style="${inputStyle};resize:vertical">${escHtml(String(val))}</textarea></div>`
     }
 
     if (field.type === 'integer' || field.type === 'float' || field.type === 'decimal') {
-      return `<div style="margin-bottom:14px">${label}<input type="number" name="${field.field}" value="${val}" style="${inputStyle}"></div>`
+      return `<div style="margin-bottom:14px">${label}<input type="number" name="${escHtml(field.field)}" value="${escHtml(String(val))}" style="${inputStyle}"></div>`
     }
 
     if (field.type === 'timestamp' || field.type === 'dateTime') {
       const dtVal = val ? new Date(val).toISOString().slice(0, 16) : ''
-      return `<div style="margin-bottom:14px">${label}<input type="datetime-local" name="${field.field}" value="${dtVal}" style="${inputStyle}"></div>`
+      return `<div style="margin-bottom:14px">${label}<input type="datetime-local" name="${escHtml(field.field)}" value="${escHtml(dtVal)}" style="${inputStyle}"></div>`
     }
 
-    return `<div style="margin-bottom:14px">${label}<input type="text" name="${field.field}" value="${String(val)}" style="${inputStyle}"></div>`
+    return `<div style="margin-bottom:14px">${label}<input type="text" name="${escHtml(field.field)}" value="${escHtml(String(val))}" style="${inputStyle}"></div>`
   }
 
   async function openEditDialog(blockType, blockId) {
@@ -378,9 +382,9 @@ const saved = Astro.url.searchParams.get('saved') === '1'
 
       addDialogBody.innerHTML = blockCollections.map(c => `
         <button type="button" class="add-block-type-btn"
-          data-collection="${c.collection}"
+          data-collection="${escHtml(c.collection)}"
           style="display:block;width:100%;text-align:left;border:1px solid #e5e7eb;background:#fff;padding:10px 14px;border-radius:6px;font-size:14px;color:#374151;cursor:pointer;margin-bottom:8px">
-          ${c.collection.replace('block_', '').replace(/_/g, ' ')}
+          ${escHtml(c.collection.replace('block_', '').replace(/_/g, ' '))}
         </button>
       `).join('')
 
@@ -397,11 +401,21 @@ const saved = Astro.url.searchParams.get('saved') === '1'
 
             const lastSort = [...document.querySelectorAll('.block-row')].length
 
-            await fetch(`${directusUrl}/items/pages_blocks`, {
+            const junctionRes = await fetch(`${directusUrl}/items/pages_blocks`, {
               method: 'POST',
               headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
               body: JSON.stringify({ page_id: pageId, block_type: collection, block_id: newBlock.id, sort: lastSort + 1 }),
             })
+
+            if (!junctionRes.ok) {
+              // Clean up orphan block
+              await fetch(`${directusUrl}/items/${collection}/${newBlock.id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+              }).catch(() => {})
+              alert('Errore durante la creazione del blocco.')
+              return
+            }
 
             addDialog.close()
             window.location.reload()
