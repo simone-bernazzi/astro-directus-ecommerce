@@ -22,29 +22,39 @@ async function dFetch(path: string, opts?: RequestInit) {
     })
     if (!res.ok) return null
     return res.json()
-  } catch {
-    return null
-  }
+  } catch { return null }
 }
 
 let saveError: string | null = null
 
-if (Astro.request.method === 'POST' && isNew) {
+if (Astro.request.method === 'POST') {
   const formData = await Astro.request.formData()
   const payload = {
     first_name: formData.get('first_name'),
     last_name: formData.get('last_name'),
     email: formData.get('email') || null,
     phone: formData.get('phone') || null,
+    date_of_birth: formData.get('date_of_birth') || null,
     pipeline_stage: formData.get('pipeline_stage') ?? 'lead',
     canale_prevalente: formData.get('canale_prevalente') ?? 'offline',
-    is_active: true,
+    channel_type: formData.get('channel_type') ?? 'offline',
+    is_active: formData.get('is_active') === 'true',
+    notes: formData.get('notes') || null,
   }
-  const result = await dFetch('/items/contacts', { method: 'POST', body: JSON.stringify(payload) })
-  if (result?.data?.id) {
-    return Astro.redirect(`/admin/contacts/${result.data.id}`)
+  if (isNew) {
+    const result = await dFetch('/items/contacts', { method: 'POST', body: JSON.stringify(payload) })
+    if (result?.data?.id) {
+      return Astro.redirect(`/admin/contacts/${result.data.id}?saved=1`)
+    } else {
+      saveError = 'Errore durante la creazione.'
+    }
   } else {
-    saveError = 'Errore durante la creazione.'
+    const result = await dFetch(`/items/contacts/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })
+    if (result) {
+      return Astro.redirect(`/admin/contacts/${id}?saved=1`)
+    } else {
+      saveError = 'Errore durante il salvataggio.'
+    }
   }
 }
 
@@ -62,9 +72,7 @@ if (!isNew) {
     dFetch(`/items/crm_tasks?filter[contact_id][_eq]=${id}&fields[]=id,title,due_date,status,priority&sort[]=due_date&limit=20`),
     dFetch(`/items/customer_kpis?filter[contact_id][_eq]=${id}&limit=1`),
   ])
-
   if (!contactRes?.data) return Astro.redirect('/admin/contacts')
-
   contact = contactRes.data as Contact
   orders = (ordersRes?.data ?? []) as Partial<Order>[]
   interactions = (interactionsRes?.data ?? []) as Partial<CrmInteraction>[]
@@ -72,7 +80,8 @@ if (!isNew) {
   kpi = (kpiRes?.data?.[0] ?? null) as Partial<CustomerKpi> | null
 }
 
-const fullName = isNew ? 'Nuovo contatto' : `${contact?.first_name} ${contact?.last_name}`
+const saved = Astro.url.searchParams.get('saved') === '1'
+const fullName = isNew ? 'Nuovo contatto' : `${contact?.first_name ?? ''} ${contact?.last_name ?? ''}`.trim()
 
 const PIPELINE_LABELS: Record<string, string> = {
   lead: 'Lead', prospect: 'Prospect', cliente_attivo: 'Attivo',
@@ -97,9 +106,15 @@ function fmtDate(iso: string | null | undefined) {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' })
 }
+
+function toDateInput(iso: string | null | undefined): string {
+  if (!iso) return ''
+  return iso.slice(0, 10)
+}
 ---
 
 <AdminLayout title={fullName} active="contacts">
+
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
     <a href="/admin/contacts" style="color:#6b7280;text-decoration:none;font-size:13px">← Contatti</a>
     <span style="color:#d1d5db">/</span>
@@ -111,73 +126,13 @@ function fmtDate(iso: string | null | undefined) {
     }`}>{PIPELINE_LABELS[contact.pipeline_stage] ?? contact.pipeline_stage}</span>}
   </div>
 
+  {saved && <p style="background:#f0fdf4;color:#22c55e;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">✓ Salvato con successo.</p>}
   {saveError && <p style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">{saveError}</p>}
 
-  {isNew && (
-    <form method="POST">
-      <SectionCard title="Nuovo contatto">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+  <div style="display:flex;flex-direction:column;gap:16px">
 
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Nome *</label>
-            <input name="first_name" required
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
-          </div>
-
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Cognome *</label>
-            <input name="last_name" required
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
-          </div>
-
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Email</label>
-            <input name="email" type="email"
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
-          </div>
-
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Telefono</label>
-            <input name="phone" type="tel"
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
-          </div>
-
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stage pipeline</label>
-            <select name="pipeline_stage"
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
-              <option value="lead">Lead</option>
-              <option value="prospect">Prospect</option>
-              <option value="cliente_attivo">Attivo</option>
-              <option value="cliente_fidelizzato">Fidelizzato</option>
-              <option value="inattivo">Inattivo</option>
-            </select>
-          </div>
-
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Canale prevalente</label>
-            <select name="canale_prevalente"
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
-              <option value="offline">Offline</option>
-              <option value="online">Online</option>
-            </select>
-          </div>
-
-        </div>
-      </SectionCard>
-      <div style="display:flex;justify-content:flex-end;margin-top:16px">
-        <button type="submit"
-          style="background:#111827;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">
-          Crea contatto
-        </button>
-      </div>
-    </form>
-  )}
-
-  {!isNew && contact && <div style="display:flex;flex-direction:column;gap:16px">
-
-    <!-- KPI bar -->
-    {kpi && (
+    <!-- KPI bar — edit mode only -->
+    {!isNew && kpi && (
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
         <SectionCard>
           <div style="text-align:center">
@@ -206,101 +161,183 @@ function fmtDate(iso: string | null | undefined) {
       </div>
     )}
 
-    <!-- Anagrafica -->
-    <SectionCard title="Anagrafica">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px">
-        <div><span style="color:#6b7280">Email:</span> {contact.email ?? '—'}</div>
-        <div><span style="color:#6b7280">Telefono:</span> {contact.phone ?? '—'}</div>
-        <div><span style="color:#6b7280">Data nascita:</span> {fmtDate(contact.date_of_birth)}</div>
-        <div><span style="color:#6b7280">Canale:</span> {contact.canale_prevalente}</div>
-        <div><span style="color:#6b7280">Stripe ID:</span> <code style="font-size:12px;color:#6b7280">{contact.stripe_customer_id ?? '—'}</code></div>
-        <div><span style="color:#6b7280">Attivo:</span> {contact.is_active ? 'Sì' : 'No'}</div>
-        <div><span style="color:#6b7280">Iscritto:</span> {fmtDate(contact.date_created)}</div>
+    <!-- Anagrafica form — both create and edit -->
+    <form method="POST">
+      <SectionCard title="Anagrafica">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Nome *</label>
+            <input name="first_name" required value={contact?.first_name ?? ''}
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Cognome *</label>
+            <input name="last_name" required value={contact?.last_name ?? ''}
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Email</label>
+            <input name="email" type="email" value={contact?.email ?? ''}
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Telefono</label>
+            <input name="phone" type="tel" value={contact?.phone ?? ''}
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Data di nascita</label>
+            <input name="date_of_birth" type="date" value={toDateInput(contact?.date_of_birth)}
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stage pipeline</label>
+            <select name="pipeline_stage"
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+              <option value="lead" selected={!contact || contact.pipeline_stage === 'lead'}>Lead</option>
+              <option value="prospect" selected={contact?.pipeline_stage === 'prospect'}>Prospect</option>
+              <option value="cliente_attivo" selected={contact?.pipeline_stage === 'cliente_attivo'}>Attivo</option>
+              <option value="cliente_fidelizzato" selected={contact?.pipeline_stage === 'cliente_fidelizzato'}>Fidelizzato</option>
+              <option value="inattivo" selected={contact?.pipeline_stage === 'inattivo'}>Inattivo</option>
+            </select>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Canale prevalente</label>
+            <select name="canale_prevalente"
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+              <option value="offline" selected={!contact || contact.canale_prevalente === 'offline'}>Offline</option>
+              <option value="online" selected={contact?.canale_prevalente === 'online'}>Online</option>
+            </select>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Tipo canale</label>
+            <select name="channel_type"
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+              <option value="offline" selected={!contact || contact.channel_type === 'offline'}>Offline</option>
+              <option value="online" selected={contact?.channel_type === 'online'}>Online</option>
+              <option value="both" selected={contact?.channel_type === 'both'}>Entrambi</option>
+            </select>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stato</label>
+            <select name="is_active"
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+              <option value="true" selected={contact?.is_active ?? true}>Attivo</option>
+              <option value="false" selected={contact ? !contact.is_active : false}>Inattivo</option>
+            </select>
+          </div>
+
+          {!isNew && contact?.stripe_customer_id && (
+            <div>
+              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stripe ID</label>
+              <code style="display:block;font-size:12px;color:#6b7280;padding:9px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px">{contact.stripe_customer_id}</code>
+            </div>
+          )}
+
+        </div>
+      </SectionCard>
+
+      <div style="display:flex;justify-content:flex-end;margin-top:16px">
+        <button type="submit"
+          style="background:#111827;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">
+          {isNew ? 'Crea contatto' : 'Salva'}
+        </button>
       </div>
-    </SectionCard>
+    </form>
 
-    <!-- Ordini -->
-    <SectionCard title={`Ordini (${orders.length})`}>
-      {orders.length === 0
-        ? <p style="color:#9ca3af;font-size:14px">Nessun ordine.</p>
-        : (
-          <table style="width:100%;border-collapse:collapse;font-size:14px">
-            <thead>
-              <tr style="border-bottom:1px solid #e5e7eb">
-                <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">ID</th>
-                <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Stato</th>
-                <th style="text-align:right;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Totale</th>
-                <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Data</th>
-                <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Canale</th>
-                <th style="padding:6px 8px"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map(o => (
-                <tr style="border-bottom:1px solid #f3f4f6">
-                  <td style="padding:8px;font-family:monospace;font-size:12px;color:#6b7280">{String(o.id ?? '').slice(0, 8)}…</td>
-                  <td style="padding:8px">
-                    <span style={`${ORDER_STATUS_COLORS[o.status ?? ''] ?? 'background:#f3f4f6;color:#6b7280'};padding:2px 8px;border-radius:10px;font-size:12px`}>
-                      {ORDER_STATUS_LABELS[o.status ?? ''] ?? o.status}
-                    </span>
-                  </td>
-                  <td style="padding:8px;text-align:right;font-weight:500">€{(o.total ?? 0).toFixed(2)}</td>
-                  <td style="padding:8px;color:#6b7280">{fmtDate(o.date_created)}</td>
-                  <td style="padding:8px;color:#6b7280">{o.channel ?? '—'}</td>
-                  <td style="padding:8px"><a href={`/admin/orders/${o.id}`} style="color:#9ca3af;text-decoration:none">→</a></td>
+    <!-- CRM sections — edit mode only -->
+    {!isNew && contact && <>
+
+      <SectionCard title={`Ordini (${orders.length})`}>
+        {orders.length === 0
+          ? <p style="color:#9ca3af;font-size:14px">Nessun ordine.</p>
+          : (
+            <table style="width:100%;border-collapse:collapse;font-size:14px">
+              <thead>
+                <tr style="border-bottom:1px solid #e5e7eb">
+                  <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">ID</th>
+                  <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Stato</th>
+                  <th style="text-align:right;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Totale</th>
+                  <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Data</th>
+                  <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Canale</th>
+                  <th style="padding:6px 8px"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )
-      }
-    </SectionCard>
+              </thead>
+              <tbody>
+                {orders.map(o => (
+                  <tr style="border-bottom:1px solid #f3f4f6">
+                    <td style="padding:8px;font-family:monospace;font-size:12px;color:#6b7280">{String(o.id ?? '').slice(0, 8)}…</td>
+                    <td style="padding:8px">
+                      <span style={`${ORDER_STATUS_COLORS[o.status ?? ''] ?? 'background:#f3f4f6;color:#6b7280'};padding:2px 8px;border-radius:10px;font-size:12px`}>
+                        {ORDER_STATUS_LABELS[o.status ?? ''] ?? o.status}
+                      </span>
+                    </td>
+                    <td style="padding:8px;text-align:right;font-weight:500">€{(o.total ?? 0).toFixed(2)}</td>
+                    <td style="padding:8px;color:#6b7280">{fmtDate(o.date_created)}</td>
+                    <td style="padding:8px;color:#6b7280">{o.channel ?? '—'}</td>
+                    <td style="padding:8px"><a href={`/admin/orders/${o.id}`} style="color:#9ca3af;text-decoration:none">→</a></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )
+        }
+      </SectionCard>
 
-    <!-- Note CRM (Interazioni) -->
-    <SectionCard title={`Note CRM (${interactions.length})`}>
-      {interactions.length === 0
-        ? <p style="color:#9ca3af;font-size:14px">Nessuna interazione.</p>
-        : (
-          <div style="display:flex;flex-direction:column;gap:8px">
-            {interactions.map(i => (
-              <div style="border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px">
-                <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
-                  <span style="font-size:12px;font-weight:600;color:#374151;text-transform:uppercase">{i.type}</span>
-                  <span style="color:#9ca3af;font-size:12px">{fmtDate(i.date)}</span>
-                  {i.subject && <span style="font-size:13px;color:#111827;font-weight:500">{i.subject}</span>}
+      <SectionCard title={`Note CRM (${interactions.length})`}>
+        {interactions.length === 0
+          ? <p style="color:#9ca3af;font-size:14px">Nessuna interazione.</p>
+          : (
+            <div style="display:flex;flex-direction:column;gap:8px">
+              {interactions.map(i => (
+                <div style="border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px">
+                  <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+                    <span style="font-size:12px;font-weight:600;color:#374151;text-transform:uppercase">{i.type}</span>
+                    <span style="color:#9ca3af;font-size:12px">{fmtDate(i.date)}</span>
+                    {i.subject && <span style="font-size:13px;color:#111827;font-weight:500">{i.subject}</span>}
+                  </div>
+                  <p style="font-size:13px;color:#6b7280;margin:0">{i.body}</p>
                 </div>
-                <p style="font-size:13px;color:#6b7280;margin:0">{i.body}</p>
-              </div>
-            ))}
-          </div>
-        )
-      }
-    </SectionCard>
+              ))}
+            </div>
+          )
+        }
+      </SectionCard>
 
-    <!-- Task -->
-    <SectionCard title={`Task (${tasks.length})`}>
-      {tasks.length === 0
-        ? <p style="color:#9ca3af;font-size:14px">Nessun task.</p>
-        : (
-          <div style="display:flex;flex-direction:column;gap:6px">
-            {tasks.map(t => (
-              <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6">
-                <span style={`font-size:11px;font-weight:700;${TASK_PRIORITY_COLORS[t.priority ?? ''] ?? 'color:#6b7280'}`}>
-                  {(t.priority ?? '').toUpperCase()}
-                </span>
-                <span style="flex:1;font-size:14px;color:#111827">{t.title}</span>
-                <span style="font-size:12px;color:#6b7280">{fmtDate(t.due_date)}</span>
-                <span style={`font-size:12px;padding:1px 6px;border-radius:8px;${
-                  t.status === 'done' ? 'background:#f0fdf4;color:#22c55e' :
-                  t.status === 'in_progress' ? 'background:#eff6ff;color:#3b82f6' :
-                  'background:#f3f4f6;color:#6b7280'
-                }`}>{t.status}</span>
-              </div>
-            ))}
-          </div>
-        )
-      }
-    </SectionCard>
+      <SectionCard title={`Task (${tasks.length})`}>
+        {tasks.length === 0
+          ? <p style="color:#9ca3af;font-size:14px">Nessun task.</p>
+          : (
+            <div style="display:flex;flex-direction:column;gap:6px">
+              {tasks.map(t => (
+                <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6">
+                  <span style={`font-size:11px;font-weight:700;${TASK_PRIORITY_COLORS[t.priority ?? ''] ?? 'color:#6b7280'}`}>
+                    {(t.priority ?? '').toUpperCase()}
+                  </span>
+                  <span style="flex:1;font-size:14px;color:#111827">{t.title}</span>
+                  <span style="font-size:12px;color:#6b7280">{fmtDate(t.due_date)}</span>
+                  <span style={`font-size:12px;padding:1px 6px;border-radius:8px;${
+                    t.status === 'done' ? 'background:#f0fdf4;color:#22c55e' :
+                    t.status === 'in_progress' ? 'background:#eff6ff;color:#3b82f6' :
+                    'background:#f3f4f6;color:#6b7280'
+                  }`}>{t.status}</span>
+                </div>
+              ))}
+            </div>
+          )
+        }
+      </SectionCard>
 
-  </div>}
+    </>}
+
+  </div>
 </AdminLayout>
