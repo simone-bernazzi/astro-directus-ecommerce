@@ -1152,6 +1152,68 @@ Incolla il seguente contenuto:
 0 2 * * * cd /var/www/<span class="val">cliente</span>/frontend &amp;&amp; node scripts/backup.mjs &gt;&gt; /var/log/backup-<span class="val">cliente</span>.log 2&gt;&amp;1</pre>
 <div class="callout info">Vedi <strong>Fase 7</strong> per la configurazione completa del backup (chiave admin, S3, ecc.).</div>
 
+<h3 id="sec-admin-subdomain">4.10 Admin Panel — Configurazione sottodominio</h3>
+<p>Il pannello admin è già integrato nell'app Astro sotto le route <code>/admin/*</code>, protette dal middleware di autenticazione. Non richiede un'app separata né una porta diversa — gira sullo stesso processo Node.js del sito.</p>
+<p style="margin-top:8px">Puoi accedervi in due modi:</p>
+<table style="margin-top:8px; border-collapse:collapse; font-size:12px; width:100%">
+  <tr style="background:var(--gray-100)"><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">Modalità</th><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">URL</th><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">Config extra</th></tr>
+  <tr><td style="padding:5px 8px; border:1px solid var(--gray-200)">Stesso dominio</td><td style="padding:5px 8px; border:1px solid var(--gray-200)"><code>https://<span class="val">tuodominio.it</span>/admin</code></td><td style="padding:5px 8px; border:1px solid var(--gray-200)">Nessuna — funziona subito</td></tr>
+  <tr><td style="padding:5px 8px; border:1px solid var(--gray-200)">Sottodominio dedicato</td><td style="padding:5px 8px; border:1px solid var(--gray-200)"><code>https://admin.<span class="val">tuodominio.it</span></code></td><td style="padding:5px 8px; border:1px solid var(--gray-200)">Vhost Nginx + record DNS + SSL</td></tr>
+</table>
+
+<div class="callout info" style="margin-top:16px"><strong>Come funziona il sottodominio:</strong> il vhost Nginx per <code>admin.<span class="val">tuodominio.it</span></code> fa proxy verso la stessa porta del frontend (<code>DEPLOY_PORT</code>). Nginx reindirizza <code>/</code> a <code>/admin</code> automaticamente — tutte le route <code>/admin/*</code> vengono servite dall'app Astro come se si visitasse <code><span class="val">tuodominio.it</span>/admin/*</code>.</div>
+
+<ul class="checklist" style="margin-top:16px">
+  <li><span class="check-box"></span><div>Aggiungi il record DNS A per il sottodominio admin
+<table style="margin-top:8px; border-collapse:collapse; font-size:12px; width:100%">
+  <tr style="background:var(--gray-100)"><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">Tipo</th><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">Nome</th><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">Valore</th><th style="padding:5px 8px; text-align:left; border:1px solid var(--gray-200)">TTL</th></tr>
+  <tr><td style="padding:5px 8px; border:1px solid var(--gray-200)">A</td><td style="padding:5px 8px; border:1px solid var(--gray-200)"><code>admin</code></td><td style="padding:5px 8px; border:1px solid var(--gray-200)">IP VPS (stesso del sito principale)</td><td style="padding:5px 8px; border:1px solid var(--gray-200)">300</td></tr>
+</table></div></li>
+
+  <li><span class="check-box"></span><div>Verifica la propagazione DNS
+<pre style="margin-top:6px"><span class="cmd">dig</span> +short admin.<span class="val">tuodominio.it</span>   <span class="comment"># deve restituire l'IP del VPS</span></pre></div></li>
+
+  <li><span class="check-box"></span><div>Crea il vhost Nginx per il sottodominio admin (come <strong>root</strong>)
+<pre style="margin-top:6px"><span class="cmd">nano</span> /etc/nginx/sites-available/admin.<span class="val">tuodominio.it</span></pre>
+Incolla il seguente contenuto:
+<pre style="margin-top:6px">server {
+    server_name admin.<span class="val">tuodominio.it</span>;
+
+    <span class="comment"># Redirect root → /admin</span>
+    location = / {
+        return 301 https://admin.<span class="val">tuodominio.it</span>/admin;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:<span class="val">DEPLOY_PORT</span>;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    listen 80;
+}</pre>
+<span class="note">Sostituisci <code><span class="val">DEPLOY_PORT</span></code> con la stessa porta del frontend (es. <code>4322</code>). Non serve una porta separata.</span></div></li>
+
+  <li><span class="check-box"></span><div>Abilita il sito, verifica la sintassi e ricarica Nginx
+<pre style="margin-top:6px"><span class="cmd">ln</span> -s /etc/nginx/sites-available/admin.<span class="val">tuodominio.it</span> /etc/nginx/sites-enabled/
+<span class="cmd">nginx</span> -t &amp;&amp; <span class="cmd">systemctl</span> reload nginx</pre></div></li>
+
+  <li><span class="check-box"></span><div>Rilascia il certificato SSL con Certbot
+<pre style="margin-top:6px"><span class="cmd">certbot</span> --nginx -d admin.<span class="val">tuodominio.it</span></pre>
+<span class="note">Certbot aggiorna automaticamente il vhost con la configurazione HTTPS e il redirect da HTTP.</span></div></li>
+
+  <li><span class="check-box"></span><div>Verifica l'accesso al pannello admin
+<pre style="margin-top:6px"><span class="comment"># Apri nel browser:</span>
+https://admin.<span class="val">tuodominio.it</span>/admin/login</pre>
+<span class="note">Il middleware Astro reindirizza automaticamente tutte le route <code>/admin/*</code> a <code>/admin/login</code> se non autenticato.</span></div></li>
+</ul>
+
+<div class="callout warn"><strong>Variabile ALLOWED_ORIGIN:</strong> se nel tuo <code>.env</code> hai impostato <code>ALLOWED_ORIGIN=https://<span class="val">tuodominio.it</span></code>, le richieste del pannello admin passano comunque dal server-side Astro (non sono cross-origin), quindi non richiedono modifiche. Se invece usi il sottodominio per chiamate client-side dirette a Directus, aggiungi anche <code>admin.<span class="val">tuodominio.it</span></code> nei CORS di Directus (<code>CORS_ORIGIN</code> nel <code>.env</code> di Directus).</div>
+
 </details>
 
 <!-- ═══════════════════════════════════════════════════════
