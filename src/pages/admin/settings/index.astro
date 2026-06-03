@@ -1,0 +1,145 @@
+---
+// src/pages/admin/settings/index.astro
+export const prerender = false
+
+import AdminLayout from '@/layouts/AdminLayout.astro'
+import SectionCard from '@/components/admin/SectionCard.astro'
+
+const directusUrl = process.env.DIRECTUS_URL ?? ''
+const token = Astro.cookies.get('admin_token')?.value ?? ''
+
+async function dFetch(path: string, opts?: RequestInit) {
+  try {
+    const res = await fetch(`${directusUrl}${path}`, {
+      ...opts,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...((opts?.headers as Record<string, string>) ?? {}) },
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch { return null }
+}
+
+let saveError: string | null = null
+
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData()
+  const payload = {
+    site_name: formData.get('site_name') || null,
+    footer_text: formData.get('footer_text') || null,
+    primary_color: formData.get('primary_color') || null,
+    accent_color: formData.get('accent_color') || null,
+  }
+  const result = await dFetch('/items/site_settings/1', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+  if (result) {
+    return Astro.redirect('/admin/settings?saved=1')
+  } else {
+    saveError = 'Errore durante il salvataggio.'
+  }
+}
+
+const settingsRes = await dFetch('/items/site_settings/1?fields[]=*')
+const settings = (settingsRes?.data ?? {}) as Record<string, unknown>
+const saved = Astro.url.searchParams.get('saved') === '1'
+
+const primaryColor = String(settings.primary_color ?? '#111827')
+const accentColor = String(settings.accent_color ?? '#6366f1')
+---
+
+<AdminLayout title="Impostazioni" active="settings">
+
+  <div style="margin-bottom:20px">
+    <h1 style="font-size:18px;font-weight:700;color:#111827">Impostazioni sito</h1>
+  </div>
+
+  {saved && <p style="background:#f0fdf4;color:#22c55e;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">✓ Impostazioni salvate.</p>}
+  {saveError && <p style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">{saveError}</p>}
+
+  <form method="POST">
+    <div style="display:flex;flex-direction:column;gap:16px;max-width:640px">
+
+      <SectionCard title="Informazioni negozio">
+        <div style="display:flex;flex-direction:column;gap:14px">
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Nome sito</label>
+            <input name="site_name" value={String(settings.site_name ?? '')}
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Testo footer</label>
+            <textarea name="footer_text" rows={3}
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;resize:vertical">{String(settings.footer_text ?? '')}</textarea>
+          </div>
+
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Colori brand">
+        <p style="font-size:13px;color:#6b7280;margin:0 0 16px">I colori vengono applicati come CSS custom properties (<code>--admin-primary</code>, <code>--admin-accent</code>) nel pannello admin. Aggiornati in tempo reale mentre scegli.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:8px">Colore primario</label>
+            <div style="display:flex;align-items:center;gap:10px">
+              <input type="color" id="primary-color-input" name="primary_color" value={primaryColor}
+                style="width:48px;height:48px;border:1px solid #d1d5db;border-radius:6px;padding:4px;cursor:pointer" />
+              <div>
+                <div id="primary-preview" style={`width:120px;height:32px;border-radius:6px;background:${primaryColor}`}></div>
+                <code id="primary-hex" style="font-size:12px;color:#6b7280">{primaryColor}</code>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:8px">Colore accent</label>
+            <div style="display:flex;align-items:center;gap:10px">
+              <input type="color" id="accent-color-input" name="accent_color" value={accentColor}
+                style="width:48px;height:48px;border:1px solid #d1d5db;border-radius:6px;padding:4px;cursor:pointer" />
+              <div>
+                <div id="accent-preview" style={`width:120px;height:32px;border-radius:6px;background:${accentColor}`}></div>
+                <code id="accent-hex" style="font-size:12px;color:#6b7280">{accentColor}</code>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </SectionCard>
+
+      <div style="display:flex;justify-content:flex-end">
+        <button type="submit"
+          style="background:#111827;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">
+          Salva impostazioni
+        </button>
+      </div>
+
+    </div>
+  </form>
+
+</AdminLayout>
+
+<script>
+  const primaryInput = document.getElementById('primary-color-input') as HTMLInputElement | null
+  const accentInput = document.getElementById('accent-color-input') as HTMLInputElement | null
+  const primaryPreview = document.getElementById('primary-preview')
+  const accentPreview = document.getElementById('accent-preview')
+  const primaryHex = document.getElementById('primary-hex')
+  const accentHex = document.getElementById('accent-hex')
+
+  primaryInput?.addEventListener('input', () => {
+    const color = primaryInput.value
+    if (primaryPreview) primaryPreview.style.background = color
+    if (primaryHex) primaryHex.textContent = color
+    document.documentElement.style.setProperty('--admin-primary', color)
+  })
+
+  accentInput?.addEventListener('input', () => {
+    const color = accentInput.value
+    if (accentPreview) accentPreview.style.background = color
+    if (accentHex) accentHex.textContent = color
+    document.documentElement.style.setProperty('--admin-accent', color)
+  })
+</script>
