@@ -1,0 +1,423 @@
+---
+// src/pages/admin/pages/[id].astro
+export const prerender = false
+
+import AdminLayout from '@/layouts/AdminLayout.astro'
+import SectionCard from '@/components/admin/SectionCard.astro'
+import type { Page } from '@/lib/types'
+
+const { id } = Astro.params
+if (!id) return Astro.redirect('/admin/pages')
+
+const directusUrl = process.env.DIRECTUS_URL ?? ''
+const token = Astro.cookies.get('admin_token')?.value ?? ''
+
+async function dFetch(path: string, opts?: RequestInit) {
+  try {
+    const res = await fetch(`${directusUrl}${path}`, {
+      ...opts,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...((opts?.headers as Record<string, string>) ?? {}) },
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch { return null }
+}
+
+let saveError: string | null = null
+
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData()
+  const payload = {
+    title: formData.get('title'),
+    slug: formData.get('slug'),
+    status: formData.get('status'),
+    seo_title: formData.get('seo_title') || null,
+    seo_description: formData.get('seo_description') || null,
+  }
+  const result = await dFetch(`/items/pages/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+  if (result) {
+    return Astro.redirect(`/admin/pages/${id}?saved=1`)
+  } else {
+    saveError = 'Errore durante il salvataggio.'
+  }
+}
+
+const [pageRes, blocksRes] = await Promise.all([
+  dFetch(`/items/pages/${id}?fields[]=id,title,slug,status,seo_title,seo_description`),
+  dFetch(`/items/pages_blocks?filter[page_id][_eq]=${id}&fields[]=id,block_type,block_id,sort&sort[]=sort`),
+])
+
+if (!pageRes?.data) return Astro.redirect('/admin/pages')
+
+const page = pageRes.data as Page
+const blocks = (blocksRes?.data ?? []) as Array<{
+  id: string
+  block_type: string
+  block_id: string
+  sort: number
+}>
+
+const saved = Astro.url.searchParams.get('saved') === '1'
+---
+
+<AdminLayout title={page.title} active="pages">
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+    <a href="/admin/pages" style="color:#6b7280;text-decoration:none;font-size:13px">← Pagine</a>
+    <span style="color:#d1d5db">/</span>
+    <h1 style="font-size:18px;font-weight:700;color:#111827">{page.title}</h1>
+    <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${
+      page.status === 'published' ? 'background:#f0fdf4;color:#22c55e' : 'background:#f3f4f6;color:#6b7280'
+    }`}>{page.status === 'published' ? 'Pubblicata' : 'Bozza'}</span>
+  </div>
+
+  {saved && <p style="background:#f0fdf4;color:#22c55e;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">✓ Salvato con successo.</p>}
+  {saveError && <p style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">{saveError}</p>}
+
+  <div style="display:grid;grid-template-columns:320px 1fr;gap:24px;align-items:start">
+
+    <form method="POST">
+      <div style="display:flex;flex-direction:column;gap:16px">
+
+        <SectionCard title="Info pagina">
+          <div style="display:flex;flex-direction:column;gap:12px">
+
+            <div>
+              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Titolo *</label>
+              <input name="title" required value={page.title}
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+            </div>
+
+            <div>
+              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Slug *</label>
+              <input name="slug" required value={page.slug}
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;font-family:monospace;color:#111827;box-sizing:border-box" />
+            </div>
+
+            <div>
+              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stato</label>
+              <select name="status"
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+                <option value="published" selected={page.status === 'published'}>Pubblicata</option>
+                <option value="draft" selected={page.status === 'draft'}>Bozza</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">SEO Title</label>
+              <input name="seo_title" value={page.seo_title ?? ''}
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+            </div>
+
+            <div>
+              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">SEO Description</label>
+              <textarea name="seo_description" rows={3}
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;resize:vertical">{page.seo_description ?? ''}</textarea>
+            </div>
+
+          </div>
+        </SectionCard>
+
+        <button type="submit"
+          style="background:#111827;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer;width:100%">
+          Salva metadata
+        </button>
+
+      </div>
+    </form>
+
+    <div>
+      <SectionCard title={`Sezioni (${blocks.length})`}>
+        <div id="blocks-list" style="display:flex;flex-direction:column;gap:8px">
+          {blocks.length === 0
+            ? <p style="color:#9ca3af;font-size:14px;margin:0">Nessuna sezione. Clicca "Aggiungi sezione" per iniziare.</p>
+            : blocks.map(b => (
+              <div
+                class="block-row"
+                data-junction-id={b.id}
+                data-block-type={b.block_type}
+                data-block-id={b.block_id}
+                style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border:1px solid #e5e7eb;border-radius:6px"
+              >
+                <span style="color:#9ca3af;cursor:grab;font-size:16px">⠿</span>
+                <div style="flex:1">
+                  <span style="font-size:13px;font-weight:500;color:#374151">{b.block_type.replace('block_', '').replace(/_/g, ' ')}</span>
+                  <span style="font-size:12px;color:#9ca3af;margin-left:8px">ID {b.block_id}</span>
+                </div>
+                <button
+                  type="button"
+                  class="edit-block-btn"
+                  data-block-type={b.block_type}
+                  data-block-id={b.block_id}
+                  style="border:1px solid #e5e7eb;background:#fff;padding:4px 10px;border-radius:4px;font-size:12px;cursor:pointer;color:#374151"
+                >
+                  ✏ Modifica
+                </button>
+                <button
+                  type="button"
+                  class="delete-block-btn"
+                  data-junction-id={b.id}
+                  style="border:none;background:none;padding:4px 8px;font-size:12px;cursor:pointer;color:#9ca3af"
+                >
+                  ✕
+                </button>
+              </div>
+            ))
+          }
+        </div>
+        <div style="margin-top:12px">
+          <button
+            id="add-block-btn"
+            type="button"
+            style="width:100%;border:1px dashed #d1d5db;background:#fafafa;padding:10px;border-radius:6px;font-size:13px;color:#6b7280;cursor:pointer"
+          >
+            + Aggiungi sezione
+          </button>
+        </div>
+      </SectionCard>
+    </div>
+
+  </div>
+
+</AdminLayout>
+
+<dialog id="block-edit-dialog" style="border:none;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,0.15);padding:0;max-width:560px;width:90vw;max-height:80vh;overflow:hidden">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #e5e7eb;background:#f9fafb">
+    <span id="dialog-title" style="font-size:14px;font-weight:600;color:#111827;text-transform:capitalize"></span>
+    <button id="dialog-close" type="button" style="border:none;background:none;font-size:18px;cursor:pointer;color:#6b7280;line-height:1">×</button>
+  </div>
+  <div id="dialog-body" style="padding:20px;overflow-y:auto;max-height:calc(80vh - 120px)">
+    <p style="color:#9ca3af;font-size:14px">Caricamento campi…</p>
+  </div>
+  <div style="padding:14px 20px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:10px">
+    <button id="dialog-cancel" type="button"
+      style="border:1px solid #e5e7eb;background:#fff;padding:8px 20px;border-radius:6px;font-size:13px;cursor:pointer;color:#374151">
+      Annulla
+    </button>
+    <button id="dialog-save" type="button"
+      style="background:#111827;color:#fff;border:none;padding:8px 20px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer">
+      Salva
+    </button>
+  </div>
+</dialog>
+
+<dialog id="add-block-dialog" style="border:none;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,0.15);padding:0;max-width:480px;width:90vw">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #e5e7eb;background:#f9fafb">
+    <span style="font-size:14px;font-weight:600;color:#111827">Aggiungi sezione</span>
+    <button id="add-dialog-close" type="button" style="border:none;background:none;font-size:18px;cursor:pointer;color:#6b7280;line-height:1">×</button>
+  </div>
+  <div id="add-dialog-body" style="padding:20px">
+    <p style="color:#9ca3af;font-size:14px">Caricamento tipi disponibili…</p>
+  </div>
+  <div style="padding:14px 20px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end">
+    <button id="add-dialog-cancel" type="button"
+      style="border:1px solid #e5e7eb;background:#fff;padding:8px 20px;border-radius:6px;font-size:13px;cursor:pointer;color:#374151">
+      Annulla
+    </button>
+  </div>
+</dialog>
+
+<script define:vars={{ pageId: id, directusUrl, token }}>
+  const editDialog = document.getElementById('block-edit-dialog')
+  const dialogTitle = document.getElementById('dialog-title')
+  const dialogBody = document.getElementById('dialog-body')
+  const dialogSave = document.getElementById('dialog-save')
+  const dialogClose = document.getElementById('dialog-close')
+  const dialogCancel = document.getElementById('dialog-cancel')
+
+  let currentBlockType = ''
+  let currentBlockId = ''
+
+  const SKIP_FIELDS = ['id', 'date_created', 'date_updated', 'user_created', 'user_updated']
+
+  function buildInput(field, value) {
+    const label = `<label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">${field.field}${field.schema?.is_nullable === false ? ' *' : ''}</label>`
+    const inputStyle = 'width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box'
+    const val = value ?? ''
+
+    if (field.meta?.interface === 'select-dropdown' && field.meta?.options?.choices) {
+      const options = field.meta.options.choices.map(c =>
+        `<option value="${c.value}" ${val === c.value ? 'selected' : ''}>${c.text}</option>`
+      ).join('')
+      return `<div style="margin-bottom:14px">${label}<select name="${field.field}" style="${inputStyle};background:#fff">${options}</select></div>`
+    }
+
+    if (field.type === 'boolean') {
+      return `<div style="margin-bottom:14px;display:flex;align-items:center;gap:8px">
+        <input type="checkbox" name="${field.field}" id="f_${field.field}" ${val ? 'checked' : ''} style="width:16px;height:16px">
+        <label for="f_${field.field}" style="font-size:13px;font-weight:500;color:#374151">${field.field}</label>
+      </div>`
+    }
+
+    if (field.type === 'text' || (field.meta?.interface === 'input-multiline')) {
+      return `<div style="margin-bottom:14px">${label}<textarea name="${field.field}" rows="4" style="${inputStyle};resize:vertical">${val}</textarea></div>`
+    }
+
+    if (field.type === 'integer' || field.type === 'float' || field.type === 'decimal') {
+      return `<div style="margin-bottom:14px">${label}<input type="number" name="${field.field}" value="${val}" style="${inputStyle}"></div>`
+    }
+
+    if (field.type === 'timestamp' || field.type === 'dateTime') {
+      const dtVal = val ? new Date(val).toISOString().slice(0, 16) : ''
+      return `<div style="margin-bottom:14px">${label}<input type="datetime-local" name="${field.field}" value="${dtVal}" style="${inputStyle}"></div>`
+    }
+
+    return `<div style="margin-bottom:14px">${label}<input type="text" name="${field.field}" value="${String(val)}" style="${inputStyle}"></div>`
+  }
+
+  async function openEditDialog(blockType, blockId) {
+    currentBlockType = blockType
+    currentBlockId = blockId
+    dialogTitle.textContent = blockType.replace('block_', '').replace(/_/g, ' ')
+    dialogBody.innerHTML = '<p style="color:#9ca3af;font-size:14px">Caricamento campi…</p>'
+    editDialog.showModal()
+
+    try {
+      const [fieldsRes, dataRes] = await Promise.all([
+        fetch(`${directusUrl}/fields/${blockType}`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${directusUrl}/items/${blockType}/${blockId}?fields[]=*`, { headers: { Authorization: `Bearer ${token}` } }),
+      ])
+      const { data: fields } = await fieldsRes.json()
+      const { data: blockData } = await dataRes.json()
+
+      const visibleFields = fields.filter(f => !SKIP_FIELDS.includes(f.field) && f.meta?.hidden !== true)
+
+      if (!visibleFields.length) {
+        dialogBody.innerHTML = '<p style="color:#9ca3af;font-size:14px">Nessun campo modificabile.</p>'
+        return
+      }
+
+      dialogBody.innerHTML = visibleFields.map(f => buildInput(f, blockData[f.field])).join('')
+    } catch (e) {
+      dialogBody.innerHTML = '<p style="color:#dc2626;font-size:14px">Errore caricamento campi.</p>'
+    }
+  }
+
+  async function saveBlock() {
+    const inputs = dialogBody.querySelectorAll('input, textarea, select')
+    const payload = {}
+    inputs.forEach(input => {
+      if (input.type === 'checkbox') {
+        payload[input.name] = input.checked
+      } else {
+        payload[input.name] = input.value || null
+      }
+    })
+
+    dialogSave.disabled = true
+    dialogSave.textContent = 'Salvataggio…'
+
+    try {
+      const res = await fetch(`${directusUrl}/items/${currentBlockType}/${currentBlockId}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (res.ok) {
+        editDialog.close()
+      } else {
+        alert('Errore durante il salvataggio.')
+      }
+    } catch {
+      alert('Errore di rete.')
+    } finally {
+      dialogSave.disabled = false
+      dialogSave.textContent = 'Salva'
+    }
+  }
+
+  async function deleteBlock(junctionId) {
+    if (!confirm('Rimuovere questa sezione dalla pagina?')) return
+    try {
+      await fetch(`${directusUrl}/items/pages_blocks/${junctionId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      window.location.reload()
+    } catch {
+      alert('Errore durante l\'eliminazione.')
+    }
+  }
+
+  document.querySelectorAll('.edit-block-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openEditDialog(btn.dataset.blockType, btn.dataset.blockId)
+    })
+  })
+
+  document.querySelectorAll('.delete-block-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteBlock(btn.dataset.junctionId))
+  })
+
+  dialogSave?.addEventListener('click', saveBlock)
+  dialogClose?.addEventListener('click', () => editDialog.close())
+  dialogCancel?.addEventListener('click', () => editDialog.close())
+
+  const addBlockBtn = document.getElementById('add-block-btn')
+  const addDialog = document.getElementById('add-block-dialog')
+  const addDialogBody = document.getElementById('add-dialog-body')
+  const addDialogClose = document.getElementById('add-dialog-close')
+  const addDialogCancel = document.getElementById('add-dialog-cancel')
+
+  addBlockBtn?.addEventListener('click', async () => {
+    addDialogBody.innerHTML = '<p style="color:#9ca3af;font-size:14px">Caricamento…</p>'
+    addDialog.showModal()
+
+    try {
+      const res = await fetch(`${directusUrl}/collections`, { headers: { Authorization: `Bearer ${token}` } })
+      const { data: collections } = await res.json()
+      const blockCollections = collections.filter(c => c.collection.startsWith('block_'))
+
+      if (!blockCollections.length) {
+        addDialogBody.innerHTML = '<p style="color:#9ca3af;font-size:14px">Nessun tipo di blocco disponibile. Crea prima una collection con prefisso <code>block_</code> in Directus.</p>'
+        return
+      }
+
+      addDialogBody.innerHTML = blockCollections.map(c => `
+        <button type="button" class="add-block-type-btn"
+          data-collection="${c.collection}"
+          style="display:block;width:100%;text-align:left;border:1px solid #e5e7eb;background:#fff;padding:10px 14px;border-radius:6px;font-size:14px;color:#374151;cursor:pointer;margin-bottom:8px">
+          ${c.collection.replace('block_', '').replace(/_/g, ' ')}
+        </button>
+      `).join('')
+
+      document.querySelectorAll('.add-block-type-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const collection = btn.dataset.collection
+          try {
+            const blockRes = await fetch(`${directusUrl}/items/${collection}`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({}),
+            })
+            const { data: newBlock } = await blockRes.json()
+
+            const lastSort = [...document.querySelectorAll('.block-row')].length
+
+            await fetch(`${directusUrl}/items/pages_blocks`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ page_id: pageId, block_type: collection, block_id: newBlock.id, sort: lastSort + 1 }),
+            })
+
+            addDialog.close()
+            window.location.reload()
+          } catch {
+            alert('Errore durante la creazione del blocco.')
+          }
+        })
+      })
+    } catch {
+      addDialogBody.innerHTML = '<p style="color:#dc2626;font-size:14px">Errore caricamento collection.</p>'
+    }
+  })
+
+  addDialogClose?.addEventListener('click', () => addDialog.close())
+  addDialogCancel?.addEventListener('click', () => addDialog.close())
+
+  editDialog?.addEventListener('click', e => { if (e.target === editDialog) editDialog.close() })
+  addDialog?.addEventListener('click', e => { if (e.target === addDialog) addDialog.close() })
+</script>
