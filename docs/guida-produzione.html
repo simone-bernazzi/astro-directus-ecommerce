@@ -1208,10 +1208,20 @@ Incolla il seguente contenuto:
 <pre style="margin-top:6px"><span class="cmd">certbot</span> --nginx -d admin.<span class="val">tuodominio.it</span></pre>
 <span class="note">Certbot aggiorna automaticamente il vhost con la configurazione HTTPS e il redirect da HTTP.</span></div></li>
 
+  <li><span class="check-box"></span><div>Copia il file <code>.env</code> sul server <em>(operazione una-tantum — il deploy script non lo trasferisce automaticamente)</em>
+<pre style="margin-top:6px"><span class="comment"># Dal Mac, nella cartella del progetto</span>
+<span class="cmd">rsync</span> -avz .env deploy@<span class="val">ip-server</span>:/var/www/<span class="val">cliente</span>/frontend/.env</pre>
+<span class="note">Il file <code>.env</code> contiene <code>DIRECTUS_URL</code> e le altre variabili necessarie all'app. Senza di esso il pannello admin risponde con errori di configurazione al login. Va copiato una volta; i deploy successivi con <code>npm run deploy</code> non lo sovrascrivono.</span></div></li>
+
+  <li><span class="check-box"></span><div>Deploya il build aggiornato
+<pre style="margin-top:6px"><span class="comment"># Dal Mac, nella cartella del progetto</span>
+<span class="cmd">npm</span> run deploy</pre>
+<span class="note">Fa build → rsync <code>dist/</code> → npm install → pm2 restart. Necessario per portare sul server il codice del pannello admin (le route <code>/admin/*</code> aggiunte di recente).</span></div></li>
+
   <li><span class="check-box"></span><div>Verifica l'accesso al pannello admin
 <pre style="margin-top:6px"><span class="comment"># Apri nel browser:</span>
 https://admin.<span class="val">tuodominio.it</span>/admin/login</pre>
-<span class="note">Il middleware Astro reindirizza automaticamente tutte le route <code>/admin/*</code> a <code>/admin/login</code> se non autenticato.</span></div></li>
+<span class="note">Il middleware Astro reindirizza automaticamente tutte le route <code>/admin/*</code> a <code>/admin/login</code> se non autenticato. Accedi con le credenziali dell'account Directus.</span></div></li>
 </ul>
 
 <div class="callout warn"><strong>Variabile ALLOWED_ORIGIN:</strong> se nel tuo <code>.env</code> hai impostato <code>ALLOWED_ORIGIN=https://<span class="val">tuodominio.it</span></code>, le richieste del pannello admin passano comunque dal server-side Astro (non sono cross-origin), quindi non richiedono modifiche. Se invece usi il sottodominio per chiamate client-side dirette a Directus, aggiungi anche <code>admin.<span class="val">tuodominio.it</span></code> nei CORS di Directus (<code>CORS_ORIGIN</code> nel <code>.env</code> di Directus).</div>
