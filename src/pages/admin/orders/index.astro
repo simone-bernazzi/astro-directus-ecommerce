@@ -27,12 +27,12 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
   pending: 'In attesa', paid: 'Pagato', shipped: 'Spedito',
   delivered: 'Consegnato', refunded: 'Rimborsato',
 }
-const ORDER_STATUS_COLORS: Record<string, string> = {
-  pending: 'background:#fef9c3;color:#ca8a04',
-  paid: 'background:#eff6ff;color:#3b82f6',
-  shipped: 'background:#fdf4ff;color:#a855f7',
-  delivered: 'background:#f0fdf4;color:#22c55e',
-  refunded: 'background:#f3f4f6;color:#6b7280',
+const ORDER_STATUS_BADGE: Record<string, string> = {
+  pending: 'badge-warning',
+  paid: 'badge-info',
+  shipped: 'badge-info',
+  delivered: 'badge-success',
+  refunded: 'badge-neutral',
 }
 
 const [listRes, countRes] = await Promise.all([
@@ -58,7 +58,7 @@ const columns: Column[] = [
   {
     key: 'id',
     label: 'ID',
-    format: (v) => `<span style="font-family:monospace;font-size:12px;color:#6b7280">#${String(v).slice(0, 8)}</span>`,
+    format: (v) => `<span style="font-family:monospace;font-size:12px;color:var(--c-ink-muted)">#${String(v).slice(0, 8)}</span>`,
   },
   { key: 'customer_name', label: 'Cliente', format: (v) => `<span style="font-weight:500">${String(v ?? '—')}</span>` },
   { key: 'customer_email', label: 'Email' },
@@ -72,8 +72,8 @@ const columns: Column[] = [
     label: 'Stato',
     format: (v) => {
       const s = String(v ?? '')
-      const style = ORDER_STATUS_COLORS[s] ?? 'background:#f3f4f6;color:#6b7280'
-      return `<span style="${style};padding:2px 8px;border-radius:10px;font-size:12px">${ORDER_STATUS_LABELS[s] ?? s}</span>`
+      const cls = ORDER_STATUS_BADGE[s] ?? 'badge-neutral'
+      return `<span class="badge ${cls}">${ORDER_STATUS_LABELS[s] ?? s}</span>`
     },
   },
   {
@@ -87,7 +87,7 @@ const columns: Column[] = [
 
 <AdminLayout title="Ordini" active="orders">
   <Fragment slot="topbar-actions">
-    <a href="/admin/orders/new" style="background:#111827;color:#fff;text-decoration:none;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:500">+ Nuovo ordine offline</a>
+    <a href="/admin/orders/new" class="btn btn-primary">+ Nuovo ordine offline</a>
   </Fragment>
   <DataTable
     columns={columns}

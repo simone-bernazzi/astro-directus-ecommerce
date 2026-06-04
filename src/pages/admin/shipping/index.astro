@@ -35,16 +35,16 @@ const zones = (listRes?.data ?? []) as ZoneRow[]
 const total = parseInt(countRes?.data?.[0]?.count?.id ?? '0')
 
 const columns: Column[] = [
-  { key: 'name', label: 'Zona', format: (v) => `<span style="font-weight:500;color:#111827">${String(v ?? '—')}</span>` },
+  { key: 'name', label: 'Zona', format: (v) => `<span style="font-weight:500">${String(v ?? '—')}</span>` },
   {
     key: 'countries',
     label: 'Paesi',
     format: (v) => {
       const countries = v as string[] | null
-      if (!countries?.length) return '<span style="color:#9ca3af">—</span>'
+      if (!countries?.length) return '<span style="color:var(--c-border-2)">—</span>'
       const display = countries.slice(0, 5).join(', ')
       const extra = countries.length > 5 ? ` +${countries.length - 5}` : ''
-      return `<span style="font-family:monospace;font-size:12px;color:#6b7280">${display}${extra}</span>`
+      return `<span style="font-family:monospace;font-size:12px;color:var(--c-ink-muted)">${display}${extra}</span>`
     },
   },
   { key: 'base_rate', label: 'Tariffa base', format: (v) => `€${Number(v ?? 0).toFixed(2)}` },
@@ -52,15 +52,15 @@ const columns: Column[] = [
     key: 'is_active',
     label: 'Stato',
     format: (v) => v
-      ? `<span style="background:#f0fdf4;color:#22c55e;padding:2px 8px;border-radius:10px;font-size:12px">Attiva</span>`
-      : `<span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:10px;font-size:12px">Inattiva</span>`,
+      ? `<span class="badge badge-success">Attiva</span>`
+      : `<span class="badge badge-neutral">Inattiva</span>`,
   },
 ]
 ---
 
 <AdminLayout title="Spedizioni" active="shipping">
   <Fragment slot="topbar-actions">
-    <a href="/admin/shipping/new" style="background:#111827;color:#fff;text-decoration:none;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:500">+ Nuova zona</a>
+    <a href="/admin/shipping/new" class="btn btn-primary btn-sm">+ Nuova zona</a>
   </Fragment>
   <DataTable
     columns={columns}

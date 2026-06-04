@@ -35,14 +35,14 @@ const cards = (listRes?.data ?? []) as GiftCardRow[]
 const total = parseInt(countRes?.data?.[0]?.count?.id ?? '0')
 
 const columns: Column[] = [
-  { key: 'code', label: 'Codice', format: (v) => `<span style="font-family:monospace;font-weight:600;color:#111827">${String(v ?? '—')}</span>` },
+  { key: 'code', label: 'Codice', format: (v) => `<span style="font-family:monospace;font-weight:600">${String(v ?? '—')}</span>` },
   { key: 'initial_value', label: 'Valore iniziale', format: (v) => `€${Number(v ?? 0).toFixed(2)}` },
   {
     key: 'remaining_value',
     label: 'Saldo residuo',
     format: (v) => {
       const n = Number(v ?? 0)
-      return `<span style="font-weight:500;${n === 0 ? 'color:#9ca3af' : 'color:#111827'}">€${n.toFixed(2)}</span>`
+      return `<span style="font-weight:500;${n === 0 ? 'color:var(--c-ink-subtle)' : ''}">€${n.toFixed(2)}</span>`
     },
   },
   {
@@ -52,22 +52,22 @@ const columns: Column[] = [
       if (!v) return '—'
       const d = new Date(String(v))
       const expired = d < new Date()
-      return `<span style="${expired ? 'color:#dc2626' : 'color:#6b7280'}">${d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>`
+      return `<span style="${expired ? 'color:var(--c-danger)' : 'color:var(--c-ink-muted)'}">${d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>`
     },
   },
   {
     key: 'is_active',
     label: 'Stato',
     format: (v) => v
-      ? `<span style="background:#f0fdf4;color:#22c55e;padding:2px 8px;border-radius:10px;font-size:12px">Attiva</span>`
-      : `<span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:10px;font-size:12px">Inattiva</span>`,
+      ? `<span class="badge badge-success">Attiva</span>`
+      : `<span class="badge badge-neutral">Inattiva</span>`,
   },
 ]
 ---
 
 <AdminLayout title="Gift card" active="gift-cards">
   <Fragment slot="topbar-actions">
-    <a href="/admin/gift-cards/new" style="background:#111827;color:#fff;text-decoration:none;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:500">+ Nuova gift card</a>
+    <a href="/admin/gift-cards/new" class="btn btn-primary btn-sm">+ Nuova gift card</a>
   </Fragment>
   <DataTable
     columns={columns}

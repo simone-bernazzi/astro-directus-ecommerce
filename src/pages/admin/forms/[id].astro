@@ -1,5 +1,4 @@
 ---
-// src/pages/admin/forms/[id].astro
 export const prerender = false
 
 import AdminLayout from '@/layouts/AdminLayout.astro'
@@ -88,7 +87,7 @@ const subColumns: Column[] = [
   {
     key: 'data',
     label: 'Anteprima',
-    format: (v) => `<span style="color:#374151;font-size:13px">${extractPreview(v)}</span>`,
+    format: (v) => `<span style="color:var(--c-ink);font-size:13px">${extractPreview(v)}</span>`,
   },
   {
     key: 'date_created',
@@ -99,55 +98,55 @@ const subColumns: Column[] = [
     key: 'is_read',
     label: 'Stato',
     format: (v) => v
-      ? `<span style="background:#f0fdf4;color:#22c55e;padding:2px 8px;border-radius:10px;font-size:12px">Letto</span>`
-      : `<span style="background:#fef9c3;color:#ca8a04;padding:2px 8px;border-radius:10px;font-size:12px">Nuovo</span>`,
+      ? `<span class="badge badge-neutral">Letto</span>`
+      : `<span class="badge badge-warning">Nuovo</span>`,
   },
 ]
 ---
 
 <AdminLayout title={isNew ? 'Nuovo form' : (form?.name ?? '')} active="forms">
 
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
-    <a href="/admin/forms" style="color:#6b7280;text-decoration:none;font-size:13px">← Form</a>
-    <span style="color:#d1d5db">/</span>
-    <h1 style="font-size:18px;font-weight:700;color:#111827">{isNew ? 'Nuovo form' : form?.name}</h1>
-    {!isNew && <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${
-      form?.is_active ? 'background:#f0fdf4;color:#22c55e' : 'background:#f3f4f6;color:#6b7280'
-    }`}>{form?.is_active ? 'Attivo' : 'Inattivo'}</span>}
+  <div class="page-header">
+    <div class="breadcrumb-row">
+      <a href="/admin/forms" class="breadcrumb-back">← Form</a>
+      <span class="breadcrumb-sep" aria-hidden="true">/</span>
+      <h1 class="page-title" style="font-size:18px">{isNew ? 'Nuovo form' : form?.name}</h1>
+      {!isNew && (
+        <span class:list={['badge', form?.is_active ? 'badge-success' : 'badge-neutral']}>
+          {form?.is_active ? 'Attivo' : 'Inattivo'}
+        </span>
+      )}
+    </div>
   </div>
 
-  {saved && <p style="background:#f0fdf4;color:#22c55e;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">✓ Salvato con successo.</p>}
-  {saveError && <p style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">{saveError}</p>}
+  {saved && <div class="alert alert-success" style="margin-bottom:16px">Salvato con successo.</div>}
+  {saveError && <div class="alert alert-danger" style="margin-bottom:16px">{saveError}</div>}
 
-  <div style="display:flex;flex-direction:column;gap:16px">
+  <div class="stack stack-4">
 
     {isNew && (
       <form method="POST">
         <SectionCard title="Nuovo form">
-          <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="stack stack-4">
 
-            <div>
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Nome *</label>
-              <input name="name" required
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+            <div class="field">
+              <label class="field-label" for="form_name">Nome <span class="required">*</span></label>
+              <input id="form_name" class="field-input" name="name" required />
             </div>
 
-            <div>
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Slug *</label>
-              <input name="slug" required
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;font-family:monospace;color:#111827;box-sizing:border-box" />
+            <div class="field">
+              <label class="field-label" for="form_slug">Slug <span class="required">*</span></label>
+              <input id="form_slug" class="field-input" name="slug" required style="font-family:monospace" />
             </div>
 
-            <div>
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Email di notifica</label>
-              <input name="notification_email" type="email"
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+            <div class="field">
+              <label class="field-label" for="form_email">Email di notifica</label>
+              <input id="form_email" class="field-input" name="notification_email" type="email" />
             </div>
 
-            <div>
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stato</label>
-              <select name="is_active"
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+            <div class="field">
+              <label class="field-label" for="form_active">Stato</label>
+              <select id="form_active" class="field-select" name="is_active">
                 <option value="true">Attivo</option>
                 <option value="false">Inattivo</option>
               </select>
@@ -155,55 +154,141 @@ const subColumns: Column[] = [
 
           </div>
         </SectionCard>
-        <div style="display:flex;justify-content:flex-end;margin-top:16px">
-          <button type="submit"
-            style="background:#111827;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">
-            Crea form
-          </button>
+        <div class="form-actions" style="margin-top:16px">
+          <button type="submit" class="btn btn-primary">Crea form</button>
         </div>
       </form>
     )}
 
-    {!isNew && form && <>
-      <SectionCard title="Configurazione">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px">
-          <div><span style="color:#6b7280">Slug:</span> <code style="font-size:12px">{form.slug}</code></div>
-          <div><span style="color:#6b7280">Campi:</span> {form.fields?.length ?? 0}</div>
-          <div><span style="color:#6b7280">Notifica email:</span> {form.notification_email ?? '—'}</div>
-          <div><span style="color:#6b7280">Redirect:</span> {form.redirect_enabled ? (form.redirect_url ?? '—') : 'No'}</div>
-          <div><span style="color:#6b7280">reCAPTCHA:</span> {form.recaptcha_enabled ? 'Sì' : 'No'}</div>
-          <div><span style="color:#6b7280">Honeypot:</span> {form.honeypot_enabled ? 'Sì' : 'No'}</div>
-        </div>
-      </SectionCard>
-
-      {form.fields && form.fields.length > 0 && (
-        <SectionCard title="Campi form">
-          <div style="display:flex;flex-direction:column;gap:6px">
-            {form.fields.map((f) => (
-              <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f3f4f6;font-size:13px">
-                <span style="font-family:monospace;color:#6b7280;font-size:12px;min-width:120px">{f.name}</span>
-                <span style="color:#374151;font-weight:500">{f.label}</span>
-                <span style="background:#f3f4f6;color:#6b7280;padding:1px 6px;border-radius:4px;font-size:11px">{f.type}</span>
-                {f.required && <span style="color:#dc2626;font-size:11px">*</span>}
-              </div>
-            ))}
+    {!isNew && form && (
+      <>
+        <SectionCard title="Configurazione">
+          <div class="config-grid">
+            <div class="config-row">
+              <span class="config-label">Slug</span>
+              <code style="font-size:12px;color:var(--c-ink)">{form.slug}</code>
+            </div>
+            <div class="config-row">
+              <span class="config-label">Campi</span>
+              <span>{form.fields?.length ?? 0}</span>
+            </div>
+            <div class="config-row">
+              <span class="config-label">Notifica email</span>
+              <span>{form.notification_email ?? '—'}</span>
+            </div>
+            <div class="config-row">
+              <span class="config-label">Redirect</span>
+              <span>{form.redirect_enabled ? (form.redirect_url ?? '—') : 'No'}</span>
+            </div>
+            <div class="config-row">
+              <span class="config-label">reCAPTCHA</span>
+              <span>{form.recaptcha_enabled ? 'Sì' : 'No'}</span>
+            </div>
+            <div class="config-row">
+              <span class="config-label">Honeypot</span>
+              <span>{form.honeypot_enabled ? 'Sì' : 'No'}</span>
+            </div>
           </div>
         </SectionCard>
-      )}
 
-      <SectionCard title={`Submissions (${subTotal})`}>
-        <DataTable
-          columns={subColumns}
-          rows={submissions as unknown as Record<string, unknown>[]}
-          idField="id"
-          detailBase="/admin/contact-submissions/"
-          page={subPage}
-          total={subTotal}
-          pageSize={SUB_PAGE_SIZE}
-          emptyMessage="Nessuna submission."
-        />
-      </SectionCard>
-    </>}
+        {form.fields && form.fields.length > 0 && (
+          <SectionCard title="Campi form">
+            <div class="fields-list">
+              {form.fields.map((f) => (
+                <div class="field-row">
+                  <span class="field-row-name">{f.name}</span>
+                  <span class="field-row-label">{f.label}</span>
+                  <span class="badge badge-neutral" style="font-size:11px">{f.type}</span>
+                  {f.required && <span style="color:var(--c-danger);font-size:12px;font-weight:600">*</span>}
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        )}
+
+        <SectionCard title={`Submissions (${subTotal})`}>
+          <DataTable
+            columns={subColumns}
+            rows={submissions as unknown as Record<string, unknown>[]}
+            idField="id"
+            detailBase="/admin/contact-submissions/"
+            page={subPage}
+            total={subTotal}
+            pageSize={SUB_PAGE_SIZE}
+            emptyMessage="Nessuna submission."
+          />
+        </SectionCard>
+      </>
+    )}
 
   </div>
+
 </AdminLayout>
+
+<style>
+  .breadcrumb-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .breadcrumb-back {
+    font-size: 13px;
+    color: var(--c-ink-muted);
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+  .breadcrumb-back:hover { color: var(--c-ink); }
+  .breadcrumb-sep { color: var(--c-border-2); font-size: 16px; }
+  .form-actions { display: flex; justify-content: flex-end; }
+  .required { color: var(--c-danger); }
+
+  .config-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 16px;
+    font-size: 14px;
+  }
+
+  .config-row {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+
+  .config-label {
+    color: var(--c-ink-muted);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .fields-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .field-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--c-border);
+    font-size: 13px;
+  }
+
+  .field-row:last-child { border-bottom: none; }
+
+  .field-row-name {
+    font-family: monospace;
+    color: var(--c-ink-muted);
+    font-size: 12px;
+    min-width: 120px;
+  }
+
+  .field-row-label {
+    color: var(--c-ink);
+    font-weight: 500;
+    flex: 1;
+  }
+</style>

@@ -1,12 +1,10 @@
 ---
-// src/pages/admin/login.astro — standalone email+password login
 export const prerender = false
+import '../../styles/admin.css'
 
 import type { AstroGlobal } from 'astro'
-
 const { cookies, redirect, url } = Astro as AstroGlobal
 
-// Server-side: if already authenticated, redirect immediately
 if (cookies.get('admin_token')?.value) {
   const dest = url.searchParams.get('redirect') || '/admin'
   return redirect(dest)
@@ -18,146 +16,61 @@ if (cookies.get('admin_token')?.value) {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Admin — Accesso</title>
-    <style>
-      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        background: #f3f4f6;
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 1rem;
-        color: #111827;
-      }
-
-      .card {
-        background: #ffffff;
-        border-radius: 12px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 4px 16px rgba(0,0,0,0.06);
-        padding: 2.5rem 2rem;
-        width: 100%;
-        max-width: 380px;
-      }
-
-      h1 {
-        font-size: 1.25rem;
-        font-weight: 700;
-        margin-bottom: 1.75rem;
-        color: #111827;
-      }
-
-      .field {
-        margin-bottom: 1rem;
-      }
-
-      label {
-        display: block;
-        font-size: 0.875rem;
-        font-weight: 500;
-        margin-bottom: 0.375rem;
-        color: #374151;
-      }
-
-      input[type="email"],
-      input[type="password"] {
-        width: 100%;
-        padding: 0.625rem 0.75rem;
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        font-size: 0.9375rem;
-        color: #111827;
-        background: #fff;
-        outline: none;
-        transition: border-color 0.15s, box-shadow 0.15s;
-        appearance: none;
-      }
-
-      input[type="email"]:focus,
-      input[type="password"]:focus {
-        border-color: #111827;
-        box-shadow: 0 0 0 3px rgba(17,24,39,0.1);
-      }
-
-      .error {
-        display: none;
-        font-size: 0.8125rem;
-        color: #dc2626;
-        margin-bottom: 0.75rem;
-        padding: 0.5rem 0.75rem;
-        background: #fef2f2;
-        border: 1px solid #fecaca;
-        border-radius: 6px;
-      }
-
-      .error.visible {
-        display: block;
-      }
-
-      button[type="submit"] {
-        width: 100%;
-        padding: 0.6875rem 1rem;
-        background: #111827;
-        color: #ffffff;
-        border: none;
-        border-radius: 8px;
-        font-size: 0.9375rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: opacity 0.15s;
-        margin-top: 0.5rem;
-      }
-
-      button[type="submit"]:hover:not(:disabled) {
-        opacity: 0.85;
-      }
-
-      button[type="submit"]:disabled {
-        opacity: 0.55;
-        cursor: not-allowed;
-      }
-    </style>
+    <title>Accesso — Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>
-    <div class="card">
-      <h1>Accesso admin</h1>
-
-      <form id="login-form" novalidate>
-        <input type="hidden" id="redirect-field" name="redirect" value="" />
-
-        <div class="field">
-          <label for="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            name="email"
-            required
-            autocomplete="username"
-            placeholder="admin@example.com"
-          />
+    <div class="login-screen">
+      <div class="login-card">
+        <!-- Brand -->
+        <div class="login-brand">
+          <span class="brand-monogram" aria-hidden="true">OM</span>
+          <div class="brand-text">
+            <span class="brand-name">Ottica Marangon</span>
+            <span class="brand-sub">Pannello amministrativo</span>
+          </div>
         </div>
 
-        <div class="field">
-          <label for="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            name="password"
-            required
-            autocomplete="current-password"
-          />
-        </div>
+        <form id="login-form" novalidate>
+          <input type="hidden" id="redirect-field" name="redirect" value="" />
 
-        <p id="error-msg" class="error" role="alert" aria-live="polite"></p>
+          <div class="field">
+            <label class="field-label" for="email">Email</label>
+            <input
+              class="field-input"
+              id="email"
+              type="email"
+              name="email"
+              required
+              autocomplete="username"
+              placeholder="amministratore@otticamarangon.it"
+            />
+          </div>
 
-        <button type="submit" id="submit-btn">Accedi</button>
-      </form>
+          <div class="field">
+            <label class="field-label" for="password">Password</label>
+            <input
+              class="field-input"
+              id="password"
+              type="password"
+              name="password"
+              required
+              autocomplete="current-password"
+            />
+          </div>
+
+          <p id="error-msg" class="login-error" role="alert" aria-live="polite" hidden></p>
+
+          <button type="submit" id="submit-btn" class="btn btn-primary" style="width:100%;margin-top:8px">
+            Accedi
+          </button>
+        </form>
+      </div>
     </div>
 
     <script>
-      // Read the redirect param from the URL without causing a flash
       const params = new URLSearchParams(window.location.search)
       const redirectTo = params.get('redirect') || '/admin'
       ;(document.getElementById('redirect-field') as HTMLInputElement).value = redirectTo
@@ -168,11 +81,11 @@ if (cookies.get('admin_token')?.value) {
 
       function showError(msg: string) {
         errorEl.textContent = msg
-        errorEl.classList.add('visible')
+        errorEl.hidden = false
       }
 
       function clearError() {
-        errorEl.classList.remove('visible')
+        errorEl.hidden = true
         errorEl.textContent = ''
       }
 
@@ -184,7 +97,7 @@ if (cookies.get('admin_token')?.value) {
         const password = (document.getElementById('password') as HTMLInputElement).value
 
         if (!email || !password) {
-          showError('Compila email e password.')
+          showError('Inserisci email e password.')
           return
         }
 
@@ -215,3 +128,95 @@ if (cookies.get('admin_token')?.value) {
     </script>
   </body>
 </html>
+
+<style>
+  :root {
+    --admin-accent: oklch(0.528 0.214 264);
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--c-bg);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    color: var(--c-ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .login-screen {
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .login-card {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-xl);
+    padding: 36px 32px;
+    box-shadow: var(--shadow-md);
+  }
+
+  .login-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .brand-monogram {
+    width: 40px;
+    height: 40px;
+    background: var(--admin-accent);
+    color: #fff;
+    border-radius: var(--r-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    flex-shrink: 0;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .brand-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .brand-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--c-ink);
+    line-height: 1.2;
+  }
+
+  .brand-sub {
+    font-size: 12px;
+    color: var(--c-ink-muted);
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .login-error {
+    font-size: 13px;
+    color: var(--c-danger);
+    background: var(--c-danger-bg);
+    border: 1px solid color-mix(in oklch, var(--c-danger) 25%, transparent);
+    border-radius: var(--r-md);
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    line-height: 1.4;
+  }
+
+  /* btn classes come from admin.css */
+</style>

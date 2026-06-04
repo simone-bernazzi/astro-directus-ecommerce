@@ -1,21 +1,21 @@
 ---
-// src/pages/admin/index.astro — protected admin dashboard
 export const prerender = false
-
 import AdminLayout from '@/layouts/AdminLayout.astro'
 
-const directusUrl = import.meta.env.DIRECTUS_URL ?? process.env.DIRECTUS_URL ?? ''
+const directusUrl = process.env.DIRECTUS_URL ?? ''
 const directusToken = Astro.cookies.get('admin_token')?.value ?? ''
 
 type OrderRow = { id: string; status: string; customer_email: string; total: number; date_created: string }
 type VariantRow = { id: string; sku: string; name: string; stock_quantity: number; product_id: { name: string } }
 
 async function dFetch(path: string) {
-  const res = await fetch(`${directusUrl}${path}`, {
-    headers: { Authorization: `Bearer ${directusToken}` },
-  })
-  if (!res.ok) return null
-  return res.json()
+  try {
+    const res = await fetch(`${directusUrl}${path}`, {
+      headers: { Authorization: `Bearer ${directusToken}` },
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch { return null }
 }
 
 const lowStockThreshold = parseInt(process.env.ADMIN_LOW_STOCK_THRESHOLD ?? '5')
@@ -28,85 +28,86 @@ const [ordersAgg, revenueAgg, recentOrdersRes, lowStockRes, pendingOrdersRes] = 
   dFetch('/items/orders?aggregate[count]=id&filter[status][_eq]=paid'),
 ])
 
-const totalOrders = (ordersAgg?.data?.[0]?.count?.id ?? 0) as number
+const totalOrders  = (ordersAgg?.data?.[0]?.count?.id ?? 0) as number
 const totalRevenue = parseFloat(revenueAgg?.data?.[0]?.sum?.total ?? '0')
 const recentOrders = (recentOrdersRes?.data ?? []) as OrderRow[]
-const lowStock = (lowStockRes?.data ?? []) as VariantRow[]
+const lowStock     = (lowStockRes?.data ?? []) as VariantRow[]
 const pendingCount = (pendingOrdersRes?.data?.[0]?.count?.id ?? 0) as number
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'In attesa', paid: 'Pagato', shipped: 'Spedito',
   delivered: 'Consegnato', refunded: 'Rimborsato',
 }
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  paid: 'bg-blue-100 text-blue-800',
-  shipped: 'bg-purple-100 text-purple-800',
-  delivered: 'bg-green-100 text-green-800',
-  refunded: 'bg-gray-100 text-gray-700',
+
+function statusBadgeClass(s: string) {
+  return { pending: 'badge-warning', paid: 'badge-info', shipped: 'badge-info',
+    delivered: 'badge-success', refunded: 'badge-neutral' }[s] ?? 'badge-neutral'
 }
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+  return new Date(iso).toLocaleString('it-IT', {
+    day: '2-digit', month: '2-digit', year: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  })
+}
+
+function fmtCurrency(n: number) {
+  return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(n)
 }
 ---
 
 <AdminLayout title="Dashboard" active="dashboard">
 
   <!-- KPI cards -->
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-    <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
-      <p class="text-xs text-[var(--color-muted)] uppercase font-medium mb-1">Ordini totali</p>
-      <p class="text-3xl font-bold">{totalOrders}</p>
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <p class="kpi-label">Ordini totali</p>
+      <p class="kpi-value">{totalOrders}</p>
     </div>
-    <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
-      <p class="text-xs text-[var(--color-muted)] uppercase font-medium mb-1">Fatturato</p>
-      <p class="text-3xl font-bold">€{totalRevenue.toFixed(2)}</p>
+    <div class="kpi-card">
+      <p class="kpi-label">Fatturato incassato</p>
+      <p class="kpi-value">{fmtCurrency(totalRevenue)}</p>
     </div>
-    <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
-      <p class="text-xs text-[var(--color-muted)] uppercase font-medium mb-1">Da processare</p>
-      <p class="text-3xl font-bold {pendingCount > 0 ? 'text-blue-600' : ''}">{pendingCount}</p>
+    <div class="kpi-card">
+      <p class="kpi-label">Da processare</p>
+      <p class="kpi-value" class:list={[pendingCount > 0 && 'kpi-value--alert']}>{pendingCount}</p>
     </div>
-    <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
-      <p class="text-xs text-[var(--color-muted)] uppercase font-medium mb-1">Stock in esaurim.</p>
-      <p class="text-3xl font-bold {lowStock.length > 0 ? 'text-red-600' : ''}">{lowStock.length}</p>
+    <div class="kpi-card">
+      <p class="kpi-label">Stock in esaurimento</p>
+      <p class="kpi-value" class:list={[lowStock.length > 0 && 'kpi-value--danger']}>{lowStock.length}</p>
     </div>
   </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="dash-grid">
 
     <!-- Recent orders -->
-    <div class="lg:col-span-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg overflow-hidden">
-      <div class="px-6 py-4 border-b border-[var(--color-border)] flex items-center justify-between">
-        <h2 class="font-semibold">Ultimi ordini</h2>
-        <a href="/admin/orders" class="text-xs text-[var(--color-muted)] hover:text-[var(--color-brand)]">Vedi tutti →</a>
+    <div class="panel" style="padding:0;overflow:hidden">
+      <div class="panel-head">
+        <span class="panel-head-title">Ultimi ordini</span>
+        <a href="/admin/orders" class="panel-head-link">Vedi tutti</a>
       </div>
       {recentOrders.length === 0
-        ? <p class="p-6 text-[var(--color-muted)] text-sm">Nessun ordine.</p>
+        ? <p class="empty-row">Nessun ordine.</p>
         : (
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
+          <div class="table-wrap" style="border:none;border-radius:0">
+            <table class="data-table" style="white-space:nowrap">
               <thead>
-                <tr class="border-b border-[var(--color-border)]">
-                  <th class="text-left px-6 py-3 text-xs font-medium text-[var(--color-muted)] uppercase">ID</th>
-                  <th class="text-left px-6 py-3 text-xs font-medium text-[var(--color-muted)] uppercase">Stato</th>
-                  <th class="text-left px-6 py-3 text-xs font-medium text-[var(--color-muted)] uppercase">Cliente</th>
-                  <th class="text-right px-6 py-3 text-xs font-medium text-[var(--color-muted)] uppercase">Totale</th>
-                  <th class="text-right px-6 py-3 text-xs font-medium text-[var(--color-muted)] uppercase">Data</th>
+                <tr>
+                  <th>ID</th>
+                  <th>Stato</th>
+                  <th>Cliente</th>
+                  <th style="text-align:right">Totale</th>
+                  <th style="text-align:right">Data</th>
                 </tr>
               </thead>
               <tbody>
                 {recentOrders.map(o => (
-                  <tr class="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-bg)] transition-colors">
-                    <td class="px-6 py-3 font-mono text-xs text-[var(--color-muted)]">{o.id.slice(0, 8)}…</td>
-                    <td class="px-6 py-3">
-                      <span class:list={['inline-block px-2 py-0.5 text-xs font-medium rounded-full', STATUS_COLORS[o.status] ?? 'bg-gray-100 text-gray-700']}>
-                        {STATUS_LABELS[o.status] ?? o.status}
-                      </span>
-                    </td>
-                    <td class="px-6 py-3 truncate max-w-[160px]">{o.customer_email}</td>
-                    <td class="px-6 py-3 text-right font-medium">€{o.total?.toFixed(2)}</td>
-                    <td class="px-6 py-3 text-right text-[var(--color-muted)] whitespace-nowrap">{fmtDate(o.date_created)}</td>
+                  <tr>
+                    <td style="font-family:monospace;font-size:12px;color:var(--c-ink-muted)">{o.id.slice(0, 8)}…</td>
+                    <td><span class:list={['badge', statusBadgeClass(o.status)]}>{STATUS_LABELS[o.status] ?? o.status}</span></td>
+                    <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis">{o.customer_email}</td>
+                    <td style="text-align:right;font-weight:500">{fmtCurrency(o.total ?? 0)}</td>
+                    <td style="text-align:right;color:var(--c-ink-muted);font-size:12px">{fmtDate(o.date_created)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -117,24 +118,24 @@ function fmtDate(iso: string) {
     </div>
 
     <!-- Right column -->
-    <div class="space-y-6">
+    <div class="dash-sidebar">
 
-      <!-- Low stock alerts -->
-      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg overflow-hidden">
-        <div class="px-5 py-4 border-b border-[var(--color-border)]">
-          <h2 class="font-semibold">Stock in esaurimento <span class="text-xs text-[var(--color-muted)] ml-1">(≤{lowStockThreshold})</span></h2>
+      <!-- Low stock -->
+      <div class="panel" style="padding:0;overflow:hidden">
+        <div class="panel-head">
+          <span class="panel-head-title">Stock in esaurimento <span style="font-weight:400;color:var(--c-ink-muted)">(≤{lowStockThreshold})</span></span>
         </div>
         {lowStock.length === 0
-          ? <p class="px-5 py-4 text-[var(--color-muted)] text-sm">Nessuna variante in esaurimento.</p>
+          ? <p class="empty-row">Nessuna variante in esaurimento.</p>
           : (
-            <ul class="divide-y divide-[var(--color-border)]">
+            <ul class="stock-list">
               {lowStock.map(v => (
-                <li class="px-5 py-3 flex items-center justify-between gap-3">
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium truncate">{v.product_id?.name ?? '—'}</p>
-                    <p class="text-xs text-[var(--color-muted)]">{v.name} · {v.sku}</p>
+                <li class="stock-item">
+                  <div class="stock-info">
+                    <p class="stock-name">{v.product_id?.name ?? '—'}</p>
+                    <p class="stock-sku">{v.name} · {v.sku}</p>
                   </div>
-                  <span class:list={['shrink-0 text-sm font-bold tabular-nums', v.stock_quantity === 0 ? 'text-red-600' : 'text-orange-500']}>
+                  <span class:list={['badge', v.stock_quantity === 0 ? 'badge-danger' : 'badge-warning']}>
                     {v.stock_quantity}
                   </span>
                 </li>
@@ -144,17 +145,14 @@ function fmtDate(iso: string) {
         }
       </div>
 
-      <!-- Backup -->
-      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
-        <h2 class="font-semibold mb-3">Backup</h2>
-        <p class="text-sm text-[var(--color-muted)] mb-4">Esegui un backup manuale dei dati Directus.</p>
-        <button
-          id="trigger-backup"
-          class="w-full py-2 bg-[var(--color-brand)] text-white text-sm font-medium rounded-md hover:opacity-90 transition-opacity"
-        >
-          Avvia backup
-        </button>
-        <p id="backup-msg" class="hidden text-xs mt-2 text-center"></p>
+      <!-- Quick links -->
+      <div class="panel">
+        <p class="panel-title">Accesso rapido</p>
+        <div class="quick-links">
+          <a href="/admin/contacts/new" class="btn btn-secondary" style="justify-content:flex-start">+ Nuovo contatto</a>
+          <a href="/admin/orders/new" class="btn btn-secondary" style="justify-content:flex-start">+ Ordine offline</a>
+          <a href="/admin/products/new" class="btn btn-secondary" style="justify-content:flex-start">+ Nuovo prodotto</a>
+        </div>
       </div>
 
     </div>
@@ -162,27 +160,124 @@ function fmtDate(iso: string) {
 
 </AdminLayout>
 
-<script>
-  document.getElementById('trigger-backup')?.addEventListener('click', async () => {
-    const btn = document.getElementById('trigger-backup') as HTMLButtonElement
-    const msg = document.getElementById('backup-msg')!
-    btn.disabled = true
-    btn.textContent = 'Backup in corso…'
+<style>
+  /* KPI grid */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
 
-    try {
-      const res = await fetch('/api/admin/backup', {
-        method: 'POST',
-        headers: { 'x-admin-key': '' },
-      })
-      msg.textContent = res.ok ? '✓ Backup completato.' : 'Errore durante il backup.'
-      msg.className = res.ok ? 'text-xs mt-2 text-center text-green-600' : 'text-xs mt-2 text-center text-red-600'
-    } catch {
-      msg.textContent = 'Errore di rete.'
-      msg.className = 'text-xs mt-2 text-center text-red-600'
-    }
+  @media (min-width: 900px) {
+    .kpi-grid { grid-template-columns: repeat(4, 1fr); }
+  }
 
-    msg.classList.remove('hidden')
-    btn.disabled = false
-    btn.textContent = 'Avvia backup'
-  })
-</script>
+  .kpi-card {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-lg);
+    padding: 20px;
+  }
+
+  .kpi-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--c-ink-muted);
+    margin-bottom: 8px;
+  }
+
+  .kpi-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--c-ink);
+    line-height: 1;
+  }
+
+  .kpi-value--alert { color: var(--c-info); }
+  .kpi-value--danger { color: var(--c-danger); }
+
+  /* Dashboard grid */
+  .dash-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  @media (min-width: 1024px) {
+    .dash-grid { grid-template-columns: 1fr 320px; }
+  }
+
+  .dash-sidebar { display: flex; flex-direction: column; gap: 20px; }
+
+  /* Panel head */
+  .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--c-border);
+    background: var(--c-surface-2);
+  }
+
+  .panel-head-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--c-ink);
+  }
+
+  .panel-head-link {
+    font-size: 12px;
+    color: var(--admin-accent);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .panel-head-link:hover { text-decoration: underline; }
+
+  .empty-row {
+    padding: 24px 20px;
+    font-size: 13px;
+    color: var(--c-ink-muted);
+  }
+
+  /* Stock list */
+  .stock-list {
+    list-style: none;
+  }
+
+  .stock-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--c-border);
+  }
+
+  .stock-item:last-child { border-bottom: none; }
+
+  .stock-info { min-width: 0; }
+
+  .stock-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--c-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .stock-sku {
+    font-size: 11px;
+    color: var(--c-ink-muted);
+    margin-top: 2px;
+  }
+
+  /* Quick links */
+  .quick-links {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+</style>

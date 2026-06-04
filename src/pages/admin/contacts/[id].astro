@@ -1,5 +1,4 @@
 ---
-// src/pages/admin/contacts/[id].astro
 export const prerender = false
 
 import AdminLayout from '@/layouts/AdminLayout.astro'
@@ -18,7 +17,11 @@ async function dFetch(path: string, opts?: RequestInit) {
   try {
     const res = await fetch(`${directusUrl}${path}`, {
       ...opts,
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...((opts?.headers as Record<string, string>) ?? {}) },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        ...((opts?.headers as Record<string, string>) ?? {}),
+      },
     })
     if (!res.ok) return null
     return res.json()
@@ -63,31 +66,36 @@ if (Astro.request.method === 'POST') {
   }
 
   if (action === 'add_interaction') {
-    const payload = {
-      contact_id: id,
-      type: formData.get('type') ?? 'note',
-      date: formData.get('date') || new Date().toISOString(),
-      subject: formData.get('subject') || null,
-      body: formData.get('body') || null,
-      outcome: formData.get('outcome') || null,
-    }
-    await dFetch('/items/crm_interactions', { method: 'POST', body: JSON.stringify(payload) })
+    await dFetch('/items/crm_interactions', {
+      method: 'POST',
+      body: JSON.stringify({
+        contact_id: id,
+        type: formData.get('type') ?? 'note',
+        date: formData.get('date') || new Date().toISOString(),
+        subject: formData.get('subject') || null,
+        body: formData.get('body') || null,
+        outcome: formData.get('outcome') || null,
+      }),
+    })
     return Astro.redirect(`/admin/contacts/${id}#crm`)
   }
 
   if (action === 'add_task') {
-    const payload = {
-      contact_id: id,
-      title: formData.get('title'),
-      due_date: formData.get('due_date') || null,
-      status: formData.get('status') ?? 'todo',
-      priority: formData.get('priority') ?? 'medium',
-      notes: formData.get('notes') || null,
-    }
-    await dFetch('/items/crm_tasks', { method: 'POST', body: JSON.stringify(payload) })
+    await dFetch('/items/crm_tasks', {
+      method: 'POST',
+      body: JSON.stringify({
+        contact_id: id,
+        title: formData.get('title'),
+        due_date: formData.get('due_date') || null,
+        status: formData.get('status') ?? 'todo',
+        priority: formData.get('priority') ?? 'medium',
+        notes: formData.get('notes') || null,
+      }),
+    })
     return Astro.redirect(`/admin/contacts/${id}#tasks`)
   }
 
+  // Default: save contact
   const payload = {
     first_name: formData.get('first_name'),
     last_name: formData.get('last_name'),
@@ -101,18 +109,12 @@ if (Astro.request.method === 'POST') {
   }
   if (isNew) {
     const result = await dFetch('/items/contacts', { method: 'POST', body: JSON.stringify(payload) })
-    if (result?.data?.id) {
-      return Astro.redirect(`/admin/contacts/${result.data.id}?saved=1`)
-    } else {
-      saveError = 'Errore durante la creazione.'
-    }
+    if (result?.data?.id) return Astro.redirect(`/admin/contacts/${result.data.id}?saved=1`)
+    saveError = 'Errore durante la creazione.'
   } else {
     const result = await dFetch(`/items/contacts/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })
-    if (result) {
-      return Astro.redirect(`/admin/contacts/${id}?saved=1`)
-    } else {
-      saveError = 'Errore durante il salvataggio.'
-    }
+    if (result) return Astro.redirect(`/admin/contacts/${id}?saved=1`)
+    saveError = 'Errore durante il salvataggio.'
   }
 }
 
@@ -155,19 +157,29 @@ const PIPELINE_LABELS: Record<string, string> = {
   lead: 'Lead', prospect: 'Prospect', cliente_attivo: 'Attivo',
   cliente_fidelizzato: 'Fidelizzato', inattivo: 'Inattivo',
 }
+const PIPELINE_BADGE: Record<string, string> = {
+  lead: 'badge-warning', prospect: 'badge-warning',
+  cliente_attivo: 'badge-success', cliente_fidelizzato: 'badge-success', inattivo: 'badge-neutral',
+}
 const ORDER_STATUS_LABELS: Record<string, string> = {
   pending: 'In attesa', paid: 'Pagato', shipped: 'Spedito',
   delivered: 'Consegnato', refunded: 'Rimborsato',
 }
-const ORDER_STATUS_COLORS: Record<string, string> = {
-  pending: 'background:#fef9c3;color:#ca8a04',
-  paid: 'background:#eff6ff;color:#3b82f6',
-  shipped: 'background:#fdf4ff;color:#a855f7',
-  delivered: 'background:#f0fdf4;color:#22c55e',
-  refunded: 'background:#f3f4f6;color:#6b7280',
+const ORDER_STATUS_BADGE: Record<string, string> = {
+  pending: 'badge-warning', paid: 'badge-info', shipped: 'badge-info',
+  delivered: 'badge-success', refunded: 'badge-neutral',
 }
-const TASK_PRIORITY_COLORS: Record<string, string> = {
-  high: 'color:#dc2626', medium: 'color:#f97316', low: 'color:#6b7280',
+const TASK_PRIORITY_BADGE: Record<string, string> = {
+  high: 'badge-danger', medium: 'badge-warning', low: 'badge-neutral',
+}
+const TASK_STATUS_BADGE: Record<string, string> = {
+  done: 'badge-success', in_progress: 'badge-info', todo: 'badge-neutral',
+}
+const TASK_STATUS_LABELS: Record<string, string> = {
+  todo: 'Da fare', in_progress: 'In corso', done: 'Fatto',
+}
+const PRIORITY_LABELS: Record<string, string> = {
+  low: 'Bassa', medium: 'Media', high: 'Alta',
 }
 
 function fmtDate(iso: string | null | undefined) {
@@ -179,357 +191,588 @@ function toDateInput(iso: string | null | undefined): string {
   if (!iso) return ''
   return iso.slice(0, 10)
 }
+
+function fmtCurrency(n: number) {
+  return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(n)
+}
 ---
 
 <AdminLayout title={fullName} active="contacts">
 
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
-    <a href="/admin/contacts" style="color:#6b7280;text-decoration:none;font-size:13px">← Contatti</a>
-    <span style="color:#d1d5db">/</span>
-    <h1 style="font-size:18px;font-weight:700;color:#111827">{fullName}</h1>
-    {!isNew && contact && <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${
-      contact.pipeline_stage === 'cliente_attivo' ? 'background:#f0fdf4;color:#22c55e' :
-      contact.pipeline_stage === 'lead' ? 'background:#fff7ed;color:#f97316' :
-      'background:#f3f4f6;color:#6b7280'
-    }`}>{PIPELINE_LABELS[contact.pipeline_stage] ?? contact.pipeline_stage}</span>}
+  <!-- Breadcrumb + title -->
+  <div class="page-header">
+    <div class="breadcrumb-row">
+      <a href="/admin/contacts" class="breadcrumb-back">← Contatti</a>
+      <span class="breadcrumb-sep" aria-hidden="true">/</span>
+      <h1 class="page-title" style="font-size:18px">{fullName}</h1>
+      {!isNew && contact && (
+        <span class:list={['badge', PIPELINE_BADGE[contact.pipeline_stage] ?? 'badge-neutral']}>
+          {PIPELINE_LABELS[contact.pipeline_stage] ?? contact.pipeline_stage}
+        </span>
+      )}
+    </div>
   </div>
 
-  {saved && <p style="background:#f0fdf4;color:#22c55e;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">✓ Salvato con successo.</p>}
-  {saveError && <p style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">{saveError}</p>}
+  {saved && (
+    <div class="alert alert-success" style="margin-bottom:16px">
+      Salvato con successo.
+    </div>
+  )}
+  {saveError && (
+    <div class="alert alert-danger" style="margin-bottom:16px">
+      {saveError}
+    </div>
+  )}
 
-  <div style="display:flex;flex-direction:column;gap:16px">
+  <div class="stack stack-4">
 
-    <!-- KPI bar — edit mode only -->
+    <!-- KPI bar -->
     {!isNew && kpi && (
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
-        <SectionCard>
-          <div style="text-align:center">
-            <div style="font-size:22px;font-weight:700;color:#111827">€{(kpi.clv ?? 0).toFixed(0)}</div>
-            <div style="font-size:11px;color:#6b7280;margin-top:2px">Valore cliente</div>
-          </div>
-        </SectionCard>
-        <SectionCard>
-          <div style="text-align:center">
-            <div style="font-size:22px;font-weight:700;color:#111827">{(kpi.total_orders_online ?? 0) + (kpi.total_orders_offline ?? 0)}</div>
-            <div style="font-size:11px;color:#6b7280;margin-top:2px">Ordini totali</div>
-          </div>
-        </SectionCard>
-        <SectionCard>
-          <div style="text-align:center">
-            <div style="font-size:22px;font-weight:700;color:#111827">€{((kpi.total_spent_online ?? 0) + (kpi.total_spent_offline ?? 0)).toFixed(0)}</div>
-            <div style="font-size:11px;color:#6b7280;margin-top:2px">Totale speso</div>
-          </div>
-        </SectionCard>
-        <SectionCard>
-          <div style="text-align:center">
-            <div style="font-size:22px;font-weight:700;color:#111827">{fmtDate(kpi.last_purchase_at)}</div>
-            <div style="font-size:11px;color:#6b7280;margin-top:2px">Ultimo acquisto</div>
-          </div>
-        </SectionCard>
+      <div class="kpi-bar">
+        <div class="kpi-item">
+          <span class="kpi-val">{fmtCurrency(kpi.clv ?? 0)}</span>
+          <span class="kpi-lbl">Valore cliente</span>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-val">{(kpi.total_orders_online ?? 0) + (kpi.total_orders_offline ?? 0)}</span>
+          <span class="kpi-lbl">Ordini totali</span>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-val">{fmtCurrency((kpi.total_spent_online ?? 0) + (kpi.total_spent_offline ?? 0))}</span>
+          <span class="kpi-lbl">Totale speso</span>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-val">{fmtDate(kpi.last_purchase_at)}</span>
+          <span class="kpi-lbl">Ultimo acquisto</span>
+        </div>
       </div>
     )}
 
-    <!-- Anagrafica form — both create and edit -->
+    <!-- Anagrafica -->
     <form method="POST">
       <SectionCard title="Anagrafica">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="form-grid">
 
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Nome *</label>
-            <input name="first_name" required value={contact?.first_name ?? ''}
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          <div class="field">
+            <label class="field-label" for="first_name">Nome <span class="required">*</span></label>
+            <input id="first_name" class="field-input" name="first_name" required value={contact?.first_name ?? ''} />
           </div>
 
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Cognome *</label>
-            <input name="last_name" required value={contact?.last_name ?? ''}
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          <div class="field">
+            <label class="field-label" for="last_name">Cognome <span class="required">*</span></label>
+            <input id="last_name" class="field-input" name="last_name" required value={contact?.last_name ?? ''} />
           </div>
 
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Email</label>
-            <input name="email" type="email" value={contact?.email ?? ''}
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          <div class="field">
+            <label class="field-label" for="email">Email</label>
+            <input id="email" class="field-input" name="email" type="email" value={contact?.email ?? ''} />
           </div>
 
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Telefono</label>
-            <input name="phone" type="tel" value={contact?.phone ?? ''}
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          <div class="field">
+            <label class="field-label" for="phone">Telefono</label>
+            <input id="phone" class="field-input" name="phone" type="tel" value={contact?.phone ?? ''} />
           </div>
 
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Data di nascita</label>
-            <input name="date_of_birth" type="date" value={toDateInput(contact?.date_of_birth)}
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          <div class="field">
+            <label class="field-label" for="date_of_birth">Data di nascita</label>
+            <input id="date_of_birth" class="field-input" name="date_of_birth" type="date" value={toDateInput(contact?.date_of_birth)} />
           </div>
 
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stage pipeline</label>
-            <select name="pipeline_stage"
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
-              <option value="lead" selected={!contact || contact.pipeline_stage === 'lead'}>Lead</option>
-              <option value="prospect" selected={contact?.pipeline_stage === 'prospect'}>Prospect</option>
-              <option value="cliente_attivo" selected={contact?.pipeline_stage === 'cliente_attivo'}>Attivo</option>
+          <div class="field">
+            <label class="field-label" for="pipeline_stage">Stage pipeline</label>
+            <select id="pipeline_stage" class="field-select" name="pipeline_stage">
+              <option value="lead"               selected={!contact || contact.pipeline_stage === 'lead'}>Lead</option>
+              <option value="prospect"           selected={contact?.pipeline_stage === 'prospect'}>Prospect</option>
+              <option value="cliente_attivo"     selected={contact?.pipeline_stage === 'cliente_attivo'}>Attivo</option>
               <option value="cliente_fidelizzato" selected={contact?.pipeline_stage === 'cliente_fidelizzato'}>Fidelizzato</option>
-              <option value="inattivo" selected={contact?.pipeline_stage === 'inattivo'}>Inattivo</option>
+              <option value="inattivo"           selected={contact?.pipeline_stage === 'inattivo'}>Inattivo</option>
             </select>
           </div>
 
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Canale prevalente</label>
-            <select name="canale_prevalente"
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+          <div class="field">
+            <label class="field-label" for="canale_prevalente">Canale prevalente</label>
+            <select id="canale_prevalente" class="field-select" name="canale_prevalente">
               <option value="offline" selected={!contact || contact.canale_prevalente === 'offline'}>Offline</option>
-              <option value="online" selected={contact?.canale_prevalente === 'online'}>Online</option>
+              <option value="online"  selected={contact?.canale_prevalente === 'online'}>Online</option>
             </select>
           </div>
 
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Tipo canale</label>
-            <select name="channel_type"
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+          <div class="field">
+            <label class="field-label" for="channel_type">Tipo canale</label>
+            <select id="channel_type" class="field-select" name="channel_type">
               <option value="offline" selected={!contact || contact.channel_type === 'offline'}>Offline</option>
-              <option value="online" selected={contact?.channel_type === 'online'}>Online</option>
-              <option value="both" selected={contact?.channel_type === 'both'}>Entrambi</option>
+              <option value="online"  selected={contact?.channel_type === 'online'}>Online</option>
+              <option value="both"    selected={contact?.channel_type === 'both'}>Entrambi</option>
             </select>
           </div>
 
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stato</label>
-            <select name="is_active"
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
-              <option value="true" selected={contact?.is_active ?? true}>Attivo</option>
+          <div class="field">
+            <label class="field-label" for="is_active">Stato</label>
+            <select id="is_active" class="field-select" name="is_active">
+              <option value="true"  selected={contact?.is_active ?? true}>Attivo</option>
               <option value="false" selected={contact ? !contact.is_active : false}>Inattivo</option>
             </select>
           </div>
 
           {!isNew && contact?.stripe_customer_id && (
-            <div>
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stripe ID</label>
-              <code style="display:block;font-size:12px;color:#6b7280;padding:9px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px">{contact.stripe_customer_id}</code>
+            <div class="field field-full">
+              <label class="field-label">Stripe ID</label>
+              <code class="stripe-id">{contact.stripe_customer_id}</code>
             </div>
           )}
 
         </div>
       </SectionCard>
 
-      <div style="display:flex;justify-content:flex-end;margin-top:16px">
-        <button type="submit"
-          style="background:#111827;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">
-          {isNew ? 'Crea contatto' : 'Salva'}
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
+          {isNew ? 'Crea contatto' : 'Salva modifiche'}
         </button>
       </div>
     </form>
 
-    <!-- CRM sections — edit mode only -->
+    <!-- CRM sections (edit only) -->
     {!isNew && contact && <>
 
+      <!-- Ordini -->
       <SectionCard title={`Ordini (${orders.length})`}>
         {orders.length === 0
-          ? <p style="color:#9ca3af;font-size:14px">Nessun ordine.</p>
+          ? <p class="empty-msg">Nessun ordine registrato.</p>
           : (
-            <table style="width:100%;border-collapse:collapse;font-size:14px">
-              <thead>
-                <tr style="border-bottom:1px solid #e5e7eb">
-                  <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">ID</th>
-                  <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Stato</th>
-                  <th style="text-align:right;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Totale</th>
-                  <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Data</th>
-                  <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Canale</th>
-                  <th style="padding:6px 8px"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map(o => (
-                  <tr style="border-bottom:1px solid #f3f4f6">
-                    <td style="padding:8px;font-family:monospace;font-size:12px;color:#6b7280">{String(o.id ?? '').slice(0, 8)}…</td>
-                    <td style="padding:8px">
-                      <span style={`${ORDER_STATUS_COLORS[o.status ?? ''] ?? 'background:#f3f4f6;color:#6b7280'};padding:2px 8px;border-radius:10px;font-size:12px`}>
-                        {ORDER_STATUS_LABELS[o.status ?? ''] ?? o.status}
-                      </span>
-                    </td>
-                    <td style="padding:8px;text-align:right;font-weight:500">€{(o.total ?? 0).toFixed(2)}</td>
-                    <td style="padding:8px;color:#6b7280">{fmtDate(o.date_created)}</td>
-                    <td style="padding:8px;color:#6b7280">{o.channel ?? '—'}</td>
-                    <td style="padding:8px"><a href={`/admin/orders/${o.id}`} style="color:#9ca3af;text-decoration:none">→</a></td>
+            <div class="table-wrap" style="border:none;border-radius:0;margin:-16px">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Stato</th>
+                    <th style="text-align:right">Totale</th>
+                    <th>Data</th>
+                    <th>Canale</th>
+                    <th></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {orders.map(o => (
+                    <tr>
+                      <td style="font-family:monospace;font-size:12px;color:var(--c-ink-muted)">{String(o.id ?? '').slice(0, 8)}…</td>
+                      <td><span class:list={['badge', ORDER_STATUS_BADGE[o.status ?? ''] ?? 'badge-neutral']}>{ORDER_STATUS_LABELS[o.status ?? ''] ?? o.status}</span></td>
+                      <td style="text-align:right;font-weight:500">{fmtCurrency(o.total ?? 0)}</td>
+                      <td style="color:var(--c-ink-muted)">{fmtDate(o.date_created)}</td>
+                      <td style="color:var(--c-ink-muted)">{o.channel ?? '—'}</td>
+                      <td style="text-align:center">
+                        <a href={`/admin/orders/${o.id}`} class="table-link" aria-label="Apri ordine">
+                          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )
         }
       </SectionCard>
 
+      <!-- Note CRM -->
       <div id="crm">
-      <SectionCard title={`Note CRM (${interactions.length})`}>
-        {interactions.length > 0 && (
-          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
-            {interactions.map(i => (
-              <div style="border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px">
-                <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
-                  <span style="font-size:12px;font-weight:600;color:#374151;text-transform:uppercase">{i.type}</span>
-                  <span style="color:#9ca3af;font-size:12px">{fmtDate(i.date)}</span>
-                  {i.subject && <span style="font-size:13px;color:#111827;font-weight:500">{i.subject}</span>}
+        <SectionCard title={`Note CRM (${interactions.length})`}>
+          {interactions.length > 0 && (
+            <div class="crm-list">
+              {interactions.map(i => (
+                <div class="crm-item">
+                  <div class="crm-item-meta">
+                    <span class="badge badge-neutral">{i.type}</span>
+                    <span class="crm-date">{fmtDate(i.date)}</span>
+                    {i.subject && <span class="crm-subject">{i.subject}</span>}
+                  </div>
+                  {i.body && <p class="crm-body">{i.body}</p>}
                 </div>
-                <p style="font-size:13px;color:#6b7280;margin:0">{i.body}</p>
+              ))}
+            </div>
+          )}
+
+          <form method="POST" class="inline-form">
+            <input type="hidden" name="_action" value="add_interaction" />
+            <p class="inline-form-title">Nuova interazione</p>
+            <div class="form-grid-3">
+              <div class="field">
+                <label class="field-label" for="ix_type">Tipo</label>
+                <select id="ix_type" class="field-select" name="type">
+                  <option value="note">Nota</option>
+                  <option value="call">Chiamata</option>
+                  <option value="email">Email</option>
+                  <option value="meeting">Incontro</option>
+                  <option value="whatsapp">WhatsApp</option>
+                </select>
               </div>
-            ))}
-          </div>
-        )}
-        <form method="POST" style="border-top:1px solid #f3f4f6;padding-top:14px">
-          <input type="hidden" name="_action" value="add_interaction" />
-          <p style="font-size:12px;font-weight:600;color:#6b7280;margin:0 0 10px;text-transform:uppercase">Nuova interazione</p>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
-            <div>
-              <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">Tipo</label>
-              <select name="type" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;background:#fff;color:#111827;box-sizing:border-box">
-                <option value="note">Nota</option>
-                <option value="call">Chiamata</option>
-                <option value="email">Email</option>
-                <option value="meeting">Incontro</option>
-                <option value="whatsapp">WhatsApp</option>
-              </select>
+              <div class="field">
+                <label class="field-label" for="ix_date">Data</label>
+                <input id="ix_date" class="field-input" name="date" type="date" value={new Date().toISOString().slice(0, 10)} />
+              </div>
+              <div class="field">
+                <label class="field-label" for="ix_subject">Oggetto</label>
+                <input id="ix_subject" class="field-input" name="subject" type="text" placeholder="es. Prima visita" />
+              </div>
             </div>
-            <div>
-              <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">Data</label>
-              <input name="date" type="date" value={new Date().toISOString().slice(0,10)}
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;color:#111827;box-sizing:border-box" />
+            <div class="field" style="margin-top:10px">
+              <label class="field-label" for="ix_body">Nota</label>
+              <textarea id="ix_body" class="field-textarea" name="body" rows={2} placeholder="Descrizione dell'interazione…"></textarea>
             </div>
-            <div>
-              <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">Oggetto</label>
-              <input name="subject" type="text" placeholder="es. Prima visita"
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;color:#111827;box-sizing:border-box" />
+            <div class="form-actions-sm">
+              <button type="submit" class="btn btn-primary btn-sm">+ Aggiungi</button>
             </div>
-          </div>
-          <div style="margin-bottom:10px">
-            <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">Nota</label>
-            <textarea name="body" rows={2} placeholder="Descrizione dell'interazione…"
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;color:#111827;box-sizing:border-box;resize:vertical"></textarea>
-          </div>
-          <div style="display:flex;justify-content:flex-end">
-            <button type="submit" style="background:#111827;color:#fff;border:none;padding:6px 18px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer">
-              + Aggiungi
-            </button>
-          </div>
-        </form>
-      </SectionCard>
+          </form>
+        </SectionCard>
       </div>
 
+      <!-- Task -->
       <div id="tasks">
-      <SectionCard title={`Task (${tasks.length})`}>
-        {tasks.length > 0 && (
-          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
-            {tasks.map(t => (
-              <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6">
-                <span style={`font-size:11px;font-weight:700;${TASK_PRIORITY_COLORS[t.priority ?? ''] ?? 'color:#6b7280'}`}>
-                  {(t.priority ?? '').toUpperCase()}
-                </span>
-                <span style="flex:1;font-size:14px;color:#111827">{t.title}</span>
-                <span style="font-size:12px;color:#6b7280">{fmtDate(t.due_date)}</span>
-                <span style={`font-size:12px;padding:1px 6px;border-radius:8px;${
-                  t.status === 'done' ? 'background:#f0fdf4;color:#22c55e' :
-                  t.status === 'in_progress' ? 'background:#eff6ff;color:#3b82f6' :
-                  'background:#f3f4f6;color:#6b7280'
-                }`}>{t.status}</span>
+        <SectionCard title={`Task (${tasks.length})`}>
+          {tasks.length > 0 && (
+            <div class="task-list">
+              {tasks.map(t => (
+                <div class="task-item">
+                  <span class:list={['badge', TASK_PRIORITY_BADGE[t.priority ?? ''] ?? 'badge-neutral']}>
+                    {PRIORITY_LABELS[t.priority ?? ''] ?? t.priority}
+                  </span>
+                  <span class="task-title">{t.title}</span>
+                  <span class="task-due">{fmtDate(t.due_date)}</span>
+                  <span class:list={['badge', TASK_STATUS_BADGE[t.status ?? ''] ?? 'badge-neutral']}>
+                    {TASK_STATUS_LABELS[t.status ?? ''] ?? t.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <form method="POST" class="inline-form">
+            <input type="hidden" name="_action" value="add_task" />
+            <p class="inline-form-title">Nuovo task</p>
+            <div class="task-form-grid">
+              <div class="field">
+                <label class="field-label" for="tk_title">Titolo <span class="required">*</span></label>
+                <input id="tk_title" class="field-input" name="title" required type="text" placeholder="es. Richiama cliente" />
               </div>
-            ))}
-          </div>
-        )}
-        <form method="POST" style="border-top:1px solid #f3f4f6;padding-top:14px">
-          <input type="hidden" name="_action" value="add_task" />
-          <p style="font-size:12px;font-weight:600;color:#6b7280;margin:0 0 10px;text-transform:uppercase">Nuovo task</p>
-          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px">
-            <div>
-              <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">Titolo *</label>
-              <input name="title" required type="text" placeholder="es. Richiama cliente"
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;color:#111827;box-sizing:border-box" />
+              <div class="field">
+                <label class="field-label" for="tk_due">Scadenza</label>
+                <input id="tk_due" class="field-input" name="due_date" type="date" />
+              </div>
+              <div class="field">
+                <label class="field-label" for="tk_priority">Priorità</label>
+                <select id="tk_priority" class="field-select" name="priority">
+                  <option value="low">Bassa</option>
+                  <option value="medium" selected>Media</option>
+                  <option value="high">Alta</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field-label" for="tk_status">Stato</label>
+                <select id="tk_status" class="field-select" name="status">
+                  <option value="todo" selected>Da fare</option>
+                  <option value="in_progress">In corso</option>
+                  <option value="done">Fatto</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">Scadenza</label>
-              <input name="due_date" type="date"
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;color:#111827;box-sizing:border-box" />
+            <div class="form-actions-sm">
+              <button type="submit" class="btn btn-primary btn-sm">+ Aggiungi</button>
             </div>
-            <div>
-              <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">Priorità</label>
-              <select name="priority" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;background:#fff;color:#111827;box-sizing:border-box">
-                <option value="low">Bassa</option>
-                <option value="medium" selected>Media</option>
-                <option value="high">Alta</option>
-              </select>
-            </div>
-            <div>
-              <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">Stato</label>
-              <select name="status" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;background:#fff;color:#111827;box-sizing:border-box">
-                <option value="todo" selected>Da fare</option>
-                <option value="in_progress">In corso</option>
-                <option value="done">Fatto</option>
-              </select>
-            </div>
-          </div>
-          <div style="display:flex;justify-content:flex-end">
-            <button type="submit" style="background:#111827;color:#fff;border:none;padding:6px 18px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer">
-              + Aggiungi
-            </button>
-          </div>
-        </form>
-      </SectionCard>
+          </form>
+        </SectionCard>
       </div>
 
+      <!-- Documenti -->
       <div id="documents">
-      <SectionCard title={`Documenti (${documents.length})`}>
-        {documents.length > 0 && (
-          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
-            {documents.map(doc => (
-              <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #e5e7eb;border-radius:6px">
-                <span style="font-size:18px">📄</span>
-                <span style="flex:1;font-size:14px;color:#111827;font-weight:500">{doc.label ?? 'Documento'}</span>
-                <span style="font-size:12px;color:#9ca3af">{fmtDate(doc.date_created)}</span>
-                {doc.directus_file_id && (
-                  <a
-                    href={`${directusUrl}/assets/${doc.directus_file_id}?access_token=${token}`}
-                    target="_blank"
-                    style="font-size:12px;color:#3b82f6;text-decoration:none;padding:3px 10px;border:1px solid #bfdbfe;border-radius:4px"
-                  >Apri</a>
-                )}
-                <form method="POST" style="margin:0">
-                  <input type="hidden" name="_action" value="delete_document" />
-                  <input type="hidden" name="doc_id" value={doc.id} />
-                  <input type="hidden" name="file_id" value={doc.directus_file_id ?? ''} />
-                  <button type="submit"
-                    onclick="return confirm('Eliminare questo documento?')"
-                    style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:18px;line-height:1;padding:2px 4px"
-                    title="Elimina">×</button>
-                </form>
+        <SectionCard title={`Documenti (${documents.length})`}>
+          {documents.length > 0 && (
+            <div class="doc-list">
+              {documents.map(doc => (
+                <div class="doc-item">
+                  <svg class="doc-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                  </svg>
+                  <span class="doc-name">{doc.label ?? 'Documento'}</span>
+                  <span class="doc-date">{fmtDate(doc.date_created)}</span>
+                  <div class="doc-actions">
+                    {doc.directus_file_id && (
+                      <a
+                        href={`${directusUrl}/assets/${doc.directus_file_id}?access_token=${token}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="btn btn-secondary btn-sm"
+                      >Apri</a>
+                    )}
+                    <form method="POST" style="display:contents">
+                      <input type="hidden" name="_action" value="delete_document" />
+                      <input type="hidden" name="doc_id" value={doc.id} />
+                      <input type="hidden" name="file_id" value={doc.directus_file_id ?? ''} />
+                      <button
+                        type="submit"
+                        class="btn btn-ghost btn-sm btn-icon"
+                        onclick="return confirm('Eliminare questo documento?')"
+                        title="Elimina documento"
+                        aria-label="Elimina documento"
+                      >
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                        </svg>
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <form method="POST" enctype="multipart/form-data" class="inline-form">
+            <input type="hidden" name="_action" value="upload_document" />
+            <p class="inline-form-title">Carica documento</p>
+            <div class="upload-grid">
+              <div class="field">
+                <label class="field-label" for="doc_label">Etichetta</label>
+                <input id="doc_label" class="field-input" name="label" type="text" placeholder="es. Carta d'identità" />
               </div>
-            ))}
-          </div>
-        )}
-        <form method="POST" enctype="multipart/form-data" style="border-top:1px solid #f3f4f6;padding-top:14px">
-          <input type="hidden" name="_action" value="upload_document" />
-          <p style="font-size:12px;font-weight:600;color:#6b7280;margin:0 0 10px;text-transform:uppercase">Carica documento</p>
-          <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px;margin-bottom:10px">
-            <div>
-              <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">Etichetta</label>
-              <input name="label" type="text" placeholder="es. Carta d'identità"
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;color:#111827;box-sizing:border-box" />
+              <div class="field">
+                <label class="field-label" for="doc_file">File <span class="required">*</span></label>
+                <input id="doc_file" class="field-input" name="file" type="file" required style="height:auto;padding:6px 10px" />
+              </div>
             </div>
-            <div>
-              <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">File *</label>
-              <input name="file" type="file" required
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:5px 10px;font-size:13px;color:#111827;background:#fff;box-sizing:border-box" />
+            <div class="form-actions-sm">
+              <button type="submit" class="btn btn-primary btn-sm">Carica</button>
             </div>
-          </div>
-          <div style="display:flex;justify-content:flex-end">
-            <button type="submit" style="background:#111827;color:#fff;border:none;padding:6px 18px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer">
-              Carica
-            </button>
-          </div>
-        </form>
-      </SectionCard>
+          </form>
+        </SectionCard>
       </div>
 
     </>}
 
   </div>
 </AdminLayout>
+
+<style>
+  /* Breadcrumb */
+  .breadcrumb-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .breadcrumb-back {
+    font-size: 13px;
+    color: var(--c-ink-muted);
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+
+  .breadcrumb-back:hover { color: var(--c-ink); }
+
+  .breadcrumb-sep { color: var(--c-border-2); font-size: 16px; }
+
+  /* KPI bar */
+  .kpi-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  @media (max-width: 640px) {
+    .kpi-bar { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .kpi-item {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-lg);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;
+  }
+
+  .kpi-val {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--c-ink);
+    line-height: 1;
+  }
+
+  .kpi-lbl {
+    font-size: 11px;
+    color: var(--c-ink-muted);
+  }
+
+  /* Form save button */
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 12px;
+  }
+
+  .form-actions-sm {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 12px;
+  }
+
+  /* Stripe ID */
+  .stripe-id {
+    display: block;
+    font-size: 12px;
+    color: var(--c-ink-muted);
+    padding: 8px 12px;
+    background: var(--c-surface-2);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-md);
+    font-family: monospace;
+  }
+
+  /* Empty */
+  .empty-msg {
+    font-size: 14px;
+    color: var(--c-ink-muted);
+  }
+
+  /* Table link */
+  .table-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    color: var(--c-ink-subtle);
+    border-radius: var(--r-sm);
+    text-decoration: none;
+    transition: background 150ms ease, color 150ms ease;
+  }
+  .table-link:hover { background: var(--c-surface-2); color: var(--c-ink); }
+
+  /* CRM list */
+  .crm-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .crm-item {
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-md);
+    padding: 10px 12px;
+  }
+
+  .crm-item-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+  }
+
+  .crm-date {
+    font-size: 12px;
+    color: var(--c-ink-muted);
+  }
+
+  .crm-subject {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--c-ink);
+  }
+
+  .crm-body {
+    font-size: 13px;
+    color: var(--c-ink-muted);
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  /* Task list */
+  .task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 16px;
+  }
+
+  .task-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--c-border);
+    flex-wrap: wrap;
+  }
+
+  .task-item:last-child { border-bottom: none; }
+
+  .task-title {
+    flex: 1;
+    font-size: 14px;
+    color: var(--c-ink);
+    min-width: 120px;
+  }
+
+  .task-due {
+    font-size: 12px;
+    color: var(--c-ink-muted);
+  }
+
+  .task-form-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 10px;
+  }
+
+  @media (max-width: 640px) {
+    .task-form-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* Documents */
+  .doc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .doc-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-md);
+    background: var(--c-surface);
+  }
+
+  .doc-icon { color: var(--c-ink-muted); flex-shrink: 0; }
+
+  .doc-name {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--c-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .doc-date { font-size: 12px; color: var(--c-ink-muted); white-space: nowrap; }
+
+  .doc-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+  .upload-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 10px;
+  }
+
+  @media (max-width: 640px) {
+    .upload-grid { grid-template-columns: 1fr; }
+  }
+
+  /* required asterisk */
+  .required { color: var(--c-danger); margin-left: 2px; }
+</style>

@@ -1,5 +1,4 @@
 ---
-// src/pages/admin/coupons/[id].astro
 export const prerender = false
 
 import AdminLayout from '@/layouts/AdminLayout.astro'
@@ -73,76 +72,77 @@ function toDatetimeLocal(iso: string | null | undefined): string {
 
 <AdminLayout title={isNew ? 'Nuovo coupon' : `Coupon: ${coupon?.code ?? ''}`} active="coupons">
 
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
-    <a href="/admin/coupons" style="color:#6b7280;text-decoration:none;font-size:13px">← Coupon</a>
-    <span style="color:#d1d5db">/</span>
-    <h1 style="font-size:18px;font-weight:700;color:#111827;font-family:monospace">{isNew ? 'Nuovo coupon' : coupon?.code}</h1>
-    {!isNew && <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${
-      coupon?.is_active ? 'background:#f0fdf4;color:#22c55e' : 'background:#f3f4f6;color:#6b7280'
-    }`}>{coupon?.is_active ? 'Attivo' : 'Inattivo'}</span>}
+  <div class="page-header">
+    <div class="breadcrumb-row">
+      <a href="/admin/coupons" class="breadcrumb-back">← Coupon</a>
+      <span class="breadcrumb-sep" aria-hidden="true">/</span>
+      <h1 class="page-title" style="font-size:18px;font-family:monospace">{isNew ? 'Nuovo coupon' : coupon?.code}</h1>
+      {!isNew && (
+        <span class:list={['badge', coupon?.is_active ? 'badge-success' : 'badge-neutral']}>
+          {coupon?.is_active ? 'Attivo' : 'Inattivo'}
+        </span>
+      )}
+    </div>
   </div>
 
-  {saved && <p style="background:#f0fdf4;color:#22c55e;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">✓ Salvato con successo.</p>}
-  {saveError && <p style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">{saveError}</p>}
+  {saved && <div class="alert alert-success" style="margin-bottom:16px">Salvato con successo.</div>}
+  {saveError && <div class="alert alert-danger" style="margin-bottom:16px">{saveError}</div>}
 
   <form method="POST">
-    <div style="display:flex;flex-direction:column;gap:16px">
+    <div class="stack stack-4">
 
       <SectionCard title="Dettagli coupon">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="form-grid">
 
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Codice *</label>
-            <input name="code" required value={coupon?.code ?? ''}
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;font-family:monospace;text-transform:uppercase;color:#111827;box-sizing:border-box" />
+          <div class="field">
+            <label class="field-label" for="coupon_code">Codice <span class="required">*</span></label>
+            <input id="coupon_code" class="field-input" name="code" required value={coupon?.code ?? ''}
+              style="font-family:monospace;text-transform:uppercase" />
           </div>
 
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stato</label>
-            <select name="is_active"
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+          <div class="field">
+            <label class="field-label" for="coupon_active">Stato</label>
+            <select id="coupon_active" class="field-select" name="is_active">
               <option value="true" selected={coupon?.is_active ?? true}>Attivo</option>
               <option value="false" selected={coupon ? !coupon.is_active : false}>Inattivo</option>
             </select>
           </div>
 
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Tipo sconto *</label>
-            <select name="type"
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+          <div class="field">
+            <label class="field-label" for="coupon_type">Tipo sconto <span class="required">*</span></label>
+            <select id="coupon_type" class="field-select" name="type">
               <option value="percent" selected={!coupon || coupon.type === 'percent'}>Percentuale (%)</option>
               <option value="fixed" selected={coupon?.type === 'fixed'}>Fisso (€)</option>
             </select>
           </div>
 
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Valore *</label>
-            <input name="value" type="number" step="0.01" min="0" required value={coupon?.value ?? ''}
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          <div class="field">
+            <label class="field-label" for="coupon_value">Valore <span class="required">*</span></label>
+            <input id="coupon_value" class="field-input" name="value" type="number" step="0.01" min="0" required
+              value={coupon?.value ?? ''} />
           </div>
 
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Ordine minimo (€)</label>
-            <input name="min_order_amount" type="number" step="0.01" min="0" value={coupon?.min_order_amount ?? ''}
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          <div class="field">
+            <label class="field-label" for="min_order">Ordine minimo (€)</label>
+            <input id="min_order" class="field-input" name="min_order_amount" type="number" step="0.01" min="0"
+              value={coupon?.min_order_amount ?? ''} />
           </div>
 
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Max utilizzi</label>
-            <input name="max_uses" type="number" min="0" value={coupon?.max_uses ?? ''}
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          <div class="field">
+            <label class="field-label" for="max_uses">Max utilizzi</label>
+            <input id="max_uses" class="field-input" name="max_uses" type="number" min="0"
+              value={coupon?.max_uses ?? ''} />
           </div>
 
-          <div style="grid-column:span 2">
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Scadenza</label>
-            <input name="expires_at" type="datetime-local" value={toDatetimeLocal(coupon?.expires_at)}
-              style="border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827" />
+          <div class="field field-full">
+            <label class="field-label" for="expires_at">Scadenza</label>
+            <input id="expires_at" class="field-input" name="expires_at" type="datetime-local"
+              value={toDatetimeLocal(coupon?.expires_at)} style="width:auto" />
           </div>
 
-          <div style="grid-column:span 2">
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Descrizione interna</label>
-            <textarea name="description" rows={2}
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;resize:vertical">{coupon?.description ?? ''}</textarea>
+          <div class="field field-full">
+            <label class="field-label" for="coupon_desc">Descrizione interna</label>
+            <textarea id="coupon_desc" class="field-textarea" name="description" rows={2}>{coupon?.description ?? ''}</textarea>
           </div>
 
         </div>
@@ -150,17 +150,18 @@ function toDatetimeLocal(iso: string | null | undefined): string {
 
       {!isNew && coupon && (
         <SectionCard title="Utilizzi">
-          <p style="font-size:14px;color:#374151">
+          <p style="font-size:14px;color:var(--c-ink)">
             Utilizzato <strong>{coupon.used_count ?? 0}</strong>
-            {coupon.max_uses ? ` volte su ${coupon.max_uses} disponibili.` : ' volte (nessun limite).'}
+            {coupon.max_uses
+              ? ` volt${(coupon.used_count ?? 0) === 1 ? 'a' : 'e'} su ${coupon.max_uses} disponibili.`
+              : ' volte (nessun limite).'}
           </p>
         </SectionCard>
       )}
 
-      <div style="display:flex;justify-content:flex-end">
-        <button type="submit"
-          style="background:#111827;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">
-          {isNew ? 'Crea coupon' : 'Salva'}
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
+          {isNew ? 'Crea coupon' : 'Salva modifiche'}
         </button>
       </div>
 
@@ -168,3 +169,22 @@ function toDatetimeLocal(iso: string | null | undefined): string {
   </form>
 
 </AdminLayout>
+
+<style>
+  .breadcrumb-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .breadcrumb-back {
+    font-size: 13px;
+    color: var(--c-ink-muted);
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+  .breadcrumb-back:hover { color: var(--c-ink); }
+  .breadcrumb-sep { color: var(--c-border-2); font-size: 16px; }
+  .form-actions { display: flex; justify-content: flex-end; }
+  .required { color: var(--c-danger); }
+</style>

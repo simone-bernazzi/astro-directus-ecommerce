@@ -1,6 +1,6 @@
 ---
-// src/layouts/AdminLayout.astro
 export const prerender = false
+import '../styles/admin.css'
 
 interface Props {
   title: string
@@ -9,67 +9,57 @@ interface Props {
 
 const { title, active } = Astro.props
 
-// ---------------------------------------------------------------------------
-// Fetch branding colors from Directus site_settings using admin_token cookie
-// ---------------------------------------------------------------------------
 const DIRECTUS_URL = process.env.DIRECTUS_URL ?? ''
 
-let primaryColor = '#111827'
-let accentColor = '#6366f1'
+let accentColor = 'oklch(0.528 0.214 264)'
+let iconColor = ''
 
 const adminToken = Astro.cookies.get('admin_token')?.value
 
 if (adminToken && DIRECTUS_URL) {
   try {
     const res = await fetch(
-      `${DIRECTUS_URL}/items/site_settings?fields=primary_color,accent_color&limit=1`,
-      {
-        headers: { Authorization: `Bearer ${adminToken}` },
-      }
+      `${DIRECTUS_URL}/items/site_settings?fields=accent_color,icon_color&limit=1`,
+      { headers: { Authorization: `Bearer ${adminToken}` } }
     )
     if (res.ok) {
-      const json = await res.json() as { data?: { primary_color?: string; accent_color?: string } }
-      const settings = json.data
-      if (settings?.primary_color) primaryColor = settings.primary_color
-      if (settings?.accent_color) accentColor = settings.accent_color
+      const json = await res.json() as { data?: { accent_color?: string; icon_color?: string } }
+      const s = json.data
+      if (s?.accent_color) accentColor = s.accent_color
+      if (s?.icon_color) iconColor = s.icon_color
     }
-  } catch {
-    // silently fall back to defaults
-  }
+  } catch { /* fall back to default */ }
 }
 
-// ---------------------------------------------------------------------------
-// Navigation items
-// ---------------------------------------------------------------------------
 const navItems = [
-  { key: 'dashboard',   label: 'Dashboard',   href: '/admin',           icon: 'grid' },
-  { key: 'contacts',    label: 'Contatti',    href: '/admin/contacts',  icon: 'users' },
-  { key: 'orders',      label: 'Ordini',      href: '/admin/orders',    icon: 'shopping-bag' },
-  { key: 'products',    label: 'Prodotti',    href: '/admin/products',  icon: 'package' },
-  { key: 'coupons',     label: 'Coupon',      href: '/admin/coupons',   icon: 'tag' },
-  { key: 'gift-cards',  label: 'Gift Card',   href: '/admin/gift-cards',icon: 'gift' },
-  { key: 'shipping',    label: 'Spedizioni',  href: '/admin/shipping',  icon: 'truck' },
-  { key: 'forms',       label: 'Form',        href: '/admin/forms',     icon: 'mail' },
-  { key: 'pages',       label: 'Pagine',      href: '/admin/pages',     icon: 'file-text' },
-  { key: 'articles',    label: 'Articoli',    href: '/admin/articles',  icon: 'edit' },
-  { key: 'settings',    label: 'Impostazioni',href: '/admin/settings',  icon: 'settings' },
+  { key: 'dashboard',   label: 'Dashboard',    href: '/admin',             icon: 'grid' },
+  { key: 'contacts',    label: 'Contatti',     href: '/admin/contacts',    icon: 'users' },
+  { key: 'orders',      label: 'Ordini',       href: '/admin/orders',      icon: 'shopping-bag' },
+  { key: 'products',    label: 'Prodotti',     href: '/admin/products',    icon: 'package' },
+  { key: 'coupons',     label: 'Coupon',       href: '/admin/coupons',     icon: 'tag' },
+  { key: 'gift-cards',  label: 'Gift Card',    href: '/admin/gift-cards',  icon: 'gift' },
+  { key: 'shipping',    label: 'Spedizioni',   href: '/admin/shipping',    icon: 'truck' },
+  { key: 'forms',       label: 'Form',         href: '/admin/forms',       icon: 'mail' },
+  { key: 'pages',       label: 'Pagine',       href: '/admin/pages',       icon: 'file-text' },
+  { key: 'articles',    label: 'Articoli',     href: '/admin/articles',    icon: 'edit' },
+  { key: 'settings',    label: 'Impostazioni', href: '/admin/settings',    icon: 'settings' },
 ] as const
 
-// SVG path data per icon key
 const icons: Record<string, string> = {
-  'grid':          '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
-  'users':         '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
-  'shopping-bag':  '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>',
-  'package':       '<line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
-  'tag':           '<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>',
-  'gift':          '<polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>',
-  'truck':         '<rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>',
-  'mail':          '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>',
-  'file-text':     '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>',
-  'edit':          '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',
-  'settings':      '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
-  'menu':          '<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>',
-  'log-out':       '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+  'grid':         '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  'users':        '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  'shopping-bag': '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+  'package':      '<line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+  'tag':          '<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>',
+  'gift':         '<polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>',
+  'truck':        '<rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>',
+  'mail':         '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>',
+  'file-text':    '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>',
+  'edit':         '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',
+  'settings':     '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+  'menu':         '<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>',
+  'log-out':      '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+  'chevron-left': '<polyline points="15 18 9 12 15 6"/>',
 }
 ---
 
@@ -78,56 +68,45 @@ const icons: Record<string, string> = {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{title} — Admin</title>
+    <title>{title} — Ottica Marangon Admin</title>
     <style set:html={`
       :root {
-        --admin-primary: ${primaryColor};
         --admin-accent: ${accentColor};
+        ${iconColor ? `--admin-icon-color: ${iconColor};` : ''}
       }
     `}></style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
   </head>
   <body>
     <div class="admin-shell" id="admin-shell">
-      <!-- ── Sidebar ─────────────────────────────────────────── -->
-      <aside class="sidebar" id="admin-sidebar">
-        <div class="sidebar-header">
-          <button
-            class="toggle-btn"
-            id="sidebar-toggle"
-            type="button"
-            aria-label="Toggle sidebar"
-          >
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" set:html={icons['menu']} />
-          </button>
+
+      <!-- ── Sidebar ──────────────────────────────────────────── -->
+      <aside class="sidebar" id="admin-sidebar" aria-label="Navigazione principale">
+
+        <!-- Brand -->
+        <div class="sidebar-brand">
+          <span class="brand-monogram" aria-hidden="true">OM</span>
+          <span class="brand-name">Ottica Marangon</span>
         </div>
 
-        <nav class="sidebar-nav">
-          <ul>
+        <!-- Nav -->
+        <nav class="sidebar-nav" aria-label="Menu principale">
+          <ul role="list">
             {navItems.map((item) => (
               <li>
                 <a
                   href={item.href}
                   class={`nav-link${active === item.key ? ' nav-link--active' : ''}`}
+                  aria-current={active === item.key ? 'page' : undefined}
                   title={item.label}
                 >
-                  <span class="nav-icon">
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="18"
-                      height="18"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.75"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      set:html={icons[item.icon]}
-                    />
+                  <span class="nav-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" set:html={icons[item.icon]} />
                   </span>
                   <span class="nav-label">{item.label}</span>
                 </a>
@@ -136,9 +115,23 @@ const icons: Record<string, string> = {
           </ul>
         </nav>
 
+        <!-- Footer -->
         <div class="sidebar-footer">
-          <button class="logout-btn" id="logout-btn" type="button" title="Logout">
-            <span class="nav-icon">
+          <button
+            class="sidebar-collapse-btn"
+            id="sidebar-toggle"
+            type="button"
+            aria-label="Riduci menu"
+            title="Riduci menu"
+          >
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" set:html={icons['chevron-left']} />
+            </span>
+            <span class="nav-label">Riduci</span>
+          </button>
+
+          <button class="logout-btn" id="logout-btn" type="button" title="Esci dall'account">
+            <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" set:html={icons['log-out']} />
             </span>
             <span class="nav-label">Logout</span>
@@ -146,55 +139,74 @@ const icons: Record<string, string> = {
         </div>
       </aside>
 
-      <!-- ── Main area ───────────────────────────────────────── -->
+      <!-- ── Main ─────────────────────────────────────────────── -->
       <div class="main-area">
         <header class="topbar">
+          <!-- Mobile/collapsed: expand toggle -->
+          <button
+            class="topbar-menu-btn"
+            id="topbar-toggle"
+            type="button"
+            aria-label="Apri menu"
+            title="Apri menu"
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" set:html={icons['menu']} />
+          </button>
+
           <h1 class="topbar-title">{title}</h1>
+
           <div class="topbar-actions">
             <slot name="topbar-actions" />
           </div>
         </header>
 
-        <main class="main-content">
+        <main class="main-content" id="main-content">
           <slot />
         </main>
       </div>
     </div>
 
     <script>
-      // ── Sidebar expand/collapse (state persisted in localStorage) ──────────
-      const STORAGE_KEY = 'admin-sidebar-expanded'
+      const STORAGE_KEY = 'admin-sidebar-v2'
       const shell = document.getElementById('admin-shell')!
-      const toggleBtn = document.getElementById('sidebar-toggle')!
+      const sidebarToggle = document.getElementById('sidebar-toggle')!
+      const topbarToggle = document.getElementById('topbar-toggle')!
+
+      function isDesktop() {
+        return window.innerWidth >= 900
+      }
 
       function applyState(expanded: boolean) {
         if (expanded) {
           shell.classList.add('sidebar-expanded')
+          shell.classList.remove('sidebar-collapsed')
         } else {
           shell.classList.remove('sidebar-expanded')
+          shell.classList.add('sidebar-collapsed')
         }
       }
 
-      // Restore state immediately (no flash)
-      const stored = localStorage.getItem(STORAGE_KEY)
-      const initialExpanded = stored === null ? false : stored === 'true'
-      applyState(initialExpanded)
+      function getInitialState(): boolean {
+        const stored = localStorage.getItem(STORAGE_KEY)
+        if (stored !== null) return stored === 'true'
+        return isDesktop()
+      }
 
-      toggleBtn.addEventListener('click', () => {
+      applyState(getInitialState())
+
+      function toggle() {
         const isExpanded = shell.classList.contains('sidebar-expanded')
         const next = !isExpanded
         applyState(next)
         localStorage.setItem(STORAGE_KEY, String(next))
-      })
+      }
 
-      // ── Logout ─────────────────────────────────────────────────────────────
-      const logoutBtn = document.getElementById('logout-btn')!
-      logoutBtn.addEventListener('click', async () => {
-        try {
-          await fetch('/api/admin/auth', { method: 'DELETE' })
-        } catch {
-          // ignore network errors — still redirect
-        }
+      sidebarToggle.addEventListener('click', toggle)
+      topbarToggle.addEventListener('click', toggle)
+
+      // Logout
+      document.getElementById('logout-btn')!.addEventListener('click', async () => {
+        try { await fetch('/api/admin/auth', { method: 'DELETE' }) } catch { /* ignore */ }
         window.location.href = '/admin/login'
       })
     </script>
@@ -202,182 +214,240 @@ const icons: Record<string, string> = {
 </html>
 
 <style>
-  /* ── Reset / base ─────────────────────────────────────────────────────── */
-  *, *::before, *::after {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
-
+  /* ── Base ──────────────────────────────────────────────────── */
   body {
     font-family: 'Inter', system-ui, sans-serif;
     font-size: 14px;
-    background: #f8f9fb;
-    color: #1a1d23;
+    background: var(--c-bg);
+    color: var(--c-ink);
     height: 100dvh;
     overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  /* ── Shell layout ─────────────────────────────────────────────────────── */
+  /* ── Shell ─────────────────────────────────────────────────── */
   .admin-shell {
     display: flex;
     height: 100dvh;
     overflow: hidden;
   }
 
-  /* ── Sidebar ──────────────────────────────────────────────────────────── */
+  /* ── Sidebar ───────────────────────────────────────────────── */
   .sidebar {
-    --sidebar-w: 56px;
-    width: var(--sidebar-w);
-    min-width: var(--sidebar-w);
-    background: var(--admin-primary);
-    color: #fff;
+    --w: 220px;
+    width: var(--w);
+    min-width: var(--w);
+    background: var(--c-surface);
+    border-right: 1px solid var(--c-border);
     display: flex;
     flex-direction: column;
-    transition: width 0.22s ease, min-width 0.22s ease;
     overflow: hidden;
-    z-index: 100;
+    transition: width 220ms cubic-bezier(0.4, 0, 0.2, 1),
+                min-width 220ms cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 200;
+    flex-shrink: 0;
   }
 
-  .admin-shell.sidebar-expanded .sidebar {
-    --sidebar-w: 200px;
+  /* Collapsed: icon-only */
+  .admin-shell.sidebar-collapsed .sidebar {
+    --w: 56px;
   }
 
-  /* ── Sidebar header / toggle ──────────────────────────────────────────── */
-  .sidebar-header {
+  /* Mobile: sidebar off-canvas when collapsed */
+  @media (max-width: 899px) {
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      box-shadow: var(--shadow-md);
+    }
+
+    .admin-shell.sidebar-collapsed .sidebar {
+      --w: 0px;
+      border-right: none;
+    }
+  }
+
+  /* ── Brand area ────────────────────────────────────────────── */
+  .sidebar-brand {
     display: flex;
     align-items: center;
-    height: 52px;
-    padding: 0 16px;
+    gap: 10px;
+    height: 56px;
+    padding: 0 var(--s-4);
+    border-bottom: 1px solid var(--c-border);
     flex-shrink: 0;
-    border-bottom: 1px solid rgba(255 255 255 / 0.08);
+    overflow: hidden;
   }
 
-  .toggle-btn {
+  .brand-monogram {
+    width: 28px;
+    height: 28px;
+    background: var(--admin-accent);
+    color: #fff;
+    border-radius: var(--r-sm);
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
-    background: none;
-    border: none;
-    color: rgba(255 255 255 / 0.75);
-    cursor: pointer;
-    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
     flex-shrink: 0;
-    transition: color 0.15s, background 0.15s;
+    font-family: 'Inter', sans-serif;
   }
 
-  .toggle-btn:hover {
-    color: #fff;
-    background: rgba(255 255 255 / 0.1);
+  .brand-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--c-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    opacity: 1;
+    transition: opacity 150ms ease;
   }
 
-  /* ── Nav ──────────────────────────────────────────────────────────────── */
+  .admin-shell.sidebar-collapsed .brand-name {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* ── Nav ───────────────────────────────────────────────────── */
   .sidebar-nav {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 8px 0;
+    padding: var(--s-2) 0;
     scrollbar-width: none;
   }
 
-  .sidebar-nav::-webkit-scrollbar {
-    display: none;
-  }
+  .sidebar-nav::-webkit-scrollbar { display: none; }
 
   .sidebar-nav ul {
     list-style: none;
+    padding: 0 var(--s-2);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
 
   .nav-link {
     display: flex;
     align-items: center;
-    gap: 12px;
-    height: 40px;
-    padding: 0 16px;
-    color: rgba(255 255 255 / 0.65);
+    gap: 10px;
+    height: 44px;
+    padding: 0 10px;
+    color: var(--admin-icon-color, var(--c-ink-muted));
     text-decoration: none;
     white-space: nowrap;
-    transition: color 0.15s, background 0.15s;
-    border-radius: 0;
+    border-radius: var(--r-md);
     font-size: 13px;
     font-weight: 500;
+    transition: background 150ms ease, color 150ms ease;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .nav-link::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+    background: var(--admin-accent);
+    opacity: 0;
+    transition: opacity 150ms ease;
   }
 
   .nav-link:hover {
-    color: #fff;
-    background: rgba(255 255 255 / 0.08);
+    background: color-mix(in oklch, var(--admin-accent) 6%, var(--c-bg));
+    color: var(--c-ink);
   }
 
   .nav-link--active {
-    color: #fff;
-    background: var(--admin-accent);
+    background: color-mix(in oklch, var(--admin-accent) 10%, var(--c-surface));
+    color: var(--admin-accent);
+    font-weight: 600;
   }
 
-  .nav-link--active:hover {
-    background: var(--admin-accent);
-    filter: brightness(1.1);
+  .nav-link--active::before {
+    opacity: 1;
   }
 
   .nav-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
     flex-shrink: 0;
   }
 
   .nav-label {
     overflow: hidden;
-    opacity: 0;
-    width: 0;
-    transition: opacity 0.18s ease, width 0.18s ease;
-    pointer-events: none;
-  }
-
-  .admin-shell.sidebar-expanded .nav-label {
     opacity: 1;
-    width: auto;
-    pointer-events: auto;
+    transition: opacity 150ms ease;
+    flex: 1;
+    min-width: 0;
   }
 
-  /* ── Sidebar footer / logout ──────────────────────────────────────────── */
+  .admin-shell.sidebar-collapsed .nav-label {
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    flex: none;
+  }
+
+  /* ── Sidebar footer ────────────────────────────────────────── */
   .sidebar-footer {
-    padding: 8px 0 12px;
-    border-top: 1px solid rgba(255 255 255 / 0.08);
     flex-shrink: 0;
+    padding: var(--s-2);
+    border-top: 1px solid var(--c-border);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
 
+  .sidebar-collapse-btn,
   .logout-btn {
     display: flex;
     align-items: center;
-    gap: 12px;
-    height: 40px;
-    padding: 0 16px;
+    gap: 10px;
+    height: 44px;
+    padding: 0 10px;
     width: 100%;
     background: none;
     border: none;
-    color: rgba(255 255 255 / 0.55);
+    border-radius: var(--r-md);
+    color: var(--c-ink-muted);
     cursor: pointer;
-    white-space: nowrap;
+    font-family: inherit;
     font-size: 13px;
     font-weight: 500;
     text-align: left;
-    transition: color 0.15s, background 0.15s;
+    transition: background 150ms ease, color 150ms ease;
+    overflow: hidden;
+    white-space: nowrap;
   }
 
+  .sidebar-collapse-btn:hover,
   .logout-btn:hover {
-    color: #fff;
-    background: rgba(255 255 255 / 0.08);
+    background: var(--c-surface-2);
+    color: var(--c-ink);
   }
 
-  .logout-btn .nav-label {
-    /* inherits same show/hide logic as nav-label */
+  .sidebar-collapse-btn svg {
+    transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* ── Main area ────────────────────────────────────────────────────────── */
+  .admin-shell.sidebar-collapsed .sidebar-collapse-btn svg {
+    transform: rotate(180deg);
+  }
+
+  /* ── Main area ─────────────────────────────────────────────── */
   .main-area {
     flex: 1;
     display: flex;
@@ -386,39 +456,71 @@ const icons: Record<string, string> = {
     min-width: 0;
   }
 
-  /* ── Top bar ──────────────────────────────────────────────────────────── */
+  /* ── Topbar ────────────────────────────────────────────────── */
   .topbar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    height: 52px;
-    padding: 0 24px;
-    background: #fff;
-    border-bottom: 1px solid #e5e7eb;
+    gap: 12px;
+    height: 56px;
+    padding: 0 var(--s-6);
+    background: var(--c-surface);
+    border-bottom: 1px solid var(--c-border);
     flex-shrink: 0;
+  }
+
+  .topbar-menu-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: none;
+    border: none;
+    border-radius: var(--r-md);
+    color: var(--c-ink-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 150ms ease, color 150ms ease;
+  }
+
+  .topbar-menu-btn:hover {
+    background: var(--c-surface-2);
+    color: var(--c-ink);
+  }
+
+  @media (max-width: 899px) {
+    .topbar-menu-btn {
+      display: flex;
+    }
   }
 
   .topbar-title {
     font-size: 16px;
     font-weight: 600;
-    color: #111827;
+    color: var(--c-ink);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    flex: 1;
   }
 
   .topbar-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--s-2);
     flex-shrink: 0;
   }
 
-  /* ── Content ──────────────────────────────────────────────────────────── */
+  /* ── Content ───────────────────────────────────────────────── */
   .main-content {
     flex: 1;
     overflow-y: auto;
-    padding: 24px;
+    padding: var(--s-6);
+  }
+
+  @media (max-width: 640px) {
+    .main-content {
+      padding: var(--s-4);
+    }
   }
 </style>

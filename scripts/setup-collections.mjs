@@ -280,6 +280,17 @@ async function main() {
   await field('site_settings', 'footer_text', 'text', { is_nullable: true }, { interface: 'input-multiline' })
   await field('site_settings', 'nav_links', 'json', { is_nullable: true }, { interface: 'input-code', options: { language: 'json' } })
   await field('site_settings', 'social', 'json', { is_nullable: true }, { interface: 'input-code', options: { language: 'json' } })
+  await field('site_settings', 'accent_color', 'string', { is_nullable: true }, { interface: 'input', note: 'Colore accent pannello admin (hex o OKLCH)' })
+  await field('site_settings', 'icon_color', 'string', { is_nullable: true }, { interface: 'input', note: 'Colore icone sidebar inattive (hex o OKLCH)' })
+  await field('site_settings', 'contact_email', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('site_settings', 'contact_phone', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('site_settings', 'contact_address', 'text', { is_nullable: true }, { interface: 'input-multiline' })
+  await field('site_settings', 'vat_number', 'string', { is_nullable: true }, { interface: 'input', note: 'Partita IVA' })
+  await field('site_settings', 'social_instagram', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('site_settings', 'social_facebook', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('site_settings', 'social_tiktok', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('site_settings', 'social_youtube', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('site_settings', 'seo_description_default', 'text', { is_nullable: true }, { interface: 'input-multiline', note: 'Meta description di default per le pagine senza SEO personalizzato' })
 
   // ── contact_documents ────────────────────────────────────────────────────
   await collection('contact_documents', 'description', '{{label}}')

@@ -1,5 +1,4 @@
 ---
-// src/pages/admin/gift-cards/[id].astro
 export const prerender = false
 
 import AdminLayout from '@/layouts/AdminLayout.astro'
@@ -78,55 +77,65 @@ function toDatetimeLocal(iso: string | null | undefined): string {
 }
 
 const isExpired = card?.expires_at ? new Date(card.expires_at) < new Date() : false
-const percentUsed = (card?.initial_value ?? 0) > 0 ? Math.round((1 - (card?.remaining_value ?? 0) / (card?.initial_value ?? 1)) * 100) : 0
+const percentUsed = (card?.initial_value ?? 0) > 0
+  ? Math.round((1 - (card?.remaining_value ?? 0) / (card?.initial_value ?? 1)) * 100)
+  : 0
+
+function cardBadgeClass() {
+  if (isExpired) return 'badge-danger'
+  if (card?.is_active) return 'badge-success'
+  return 'badge-neutral'
+}
+
+function cardBadgeLabel() {
+  if (isExpired) return 'Scaduta'
+  if (card?.is_active) return 'Attiva'
+  return 'Inattiva'
+}
 ---
 
 <AdminLayout title={isNew ? 'Nuova gift card' : `Gift card: ${card?.code ?? ''}`} active="gift-cards">
 
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
-    <a href="/admin/gift-cards" style="color:#6b7280;text-decoration:none;font-size:13px">← Gift card</a>
-    <span style="color:#d1d5db">/</span>
-    <h1 style="font-size:18px;font-weight:700;color:#111827;font-family:monospace">{isNew ? 'Nuova gift card' : card?.code}</h1>
-    {!isNew && (isExpired
-      ? <span style="padding:3px 10px;border-radius:10px;font-size:12px;background:#fef2f2;color:#dc2626">Scaduta</span>
-      : card?.is_active
-        ? <span style="padding:3px 10px;border-radius:10px;font-size:12px;background:#f0fdf4;color:#22c55e">Attiva</span>
-        : <span style="padding:3px 10px;border-radius:10px;font-size:12px;background:#f3f4f6;color:#6b7280">Inattiva</span>
-    )}
+  <div class="page-header">
+    <div class="breadcrumb-row">
+      <a href="/admin/gift-cards" class="breadcrumb-back">← Gift card</a>
+      <span class="breadcrumb-sep" aria-hidden="true">/</span>
+      <h1 class="page-title" style="font-size:18px;font-family:monospace">{isNew ? 'Nuova gift card' : card?.code}</h1>
+      {!isNew && (
+        <span class:list={['badge', cardBadgeClass()]}>{cardBadgeLabel()}</span>
+      )}
+    </div>
   </div>
 
-  {saved && <p style="background:#f0fdf4;color:#22c55e;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">✓ Salvato con successo.</p>}
-  {saveError && <p style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">{saveError}</p>}
+  {saved && <div class="alert alert-success" style="margin-bottom:16px">Salvato con successo.</div>}
+  {saveError && <div class="alert alert-danger" style="margin-bottom:16px">{saveError}</div>}
 
-  <div style="display:flex;flex-direction:column;gap:16px">
+  <div class="stack stack-4">
 
     {isNew && (
       <form method="POST">
         <SectionCard title="Nuova gift card">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div class="form-grid">
 
-            <div>
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Codice *</label>
-              <input name="code" required
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;font-family:monospace;text-transform:uppercase;color:#111827;box-sizing:border-box" />
+            <div class="field">
+              <label class="field-label" for="gc_code">Codice <span class="required">*</span></label>
+              <input id="gc_code" class="field-input" name="code" required
+                style="font-family:monospace;text-transform:uppercase" />
             </div>
 
-            <div>
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Valore iniziale (€) *</label>
-              <input name="initial_value" type="number" step="0.01" min="0" required
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+            <div class="field">
+              <label class="field-label" for="gc_initial">Valore iniziale (€) <span class="required">*</span></label>
+              <input id="gc_initial" class="field-input" name="initial_value" type="number" step="0.01" min="0" required />
             </div>
 
-            <div>
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Scadenza</label>
-              <input name="expires_at" type="datetime-local"
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+            <div class="field">
+              <label class="field-label" for="gc_expires">Scadenza</label>
+              <input id="gc_expires" class="field-input" name="expires_at" type="datetime-local" style="width:auto" />
             </div>
 
-            <div>
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stato</label>
-              <select name="is_active"
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+            <div class="field">
+              <label class="field-label" for="gc_active">Stato</label>
+              <select id="gc_active" class="field-select" name="is_active">
                 <option value="true">Attiva</option>
                 <option value="false">Inattiva</option>
               </select>
@@ -134,93 +143,138 @@ const percentUsed = (card?.initial_value ?? 0) > 0 ? Math.round((1 - (card?.rema
 
           </div>
         </SectionCard>
-        <div style="display:flex;justify-content:flex-end;margin-top:16px">
-          <button type="submit"
-            style="background:#111827;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">
-            Crea gift card
-          </button>
+        <div class="form-actions" style="margin-top:16px">
+          <button type="submit" class="btn btn-primary">Crea gift card</button>
         </div>
       </form>
     )}
 
-    {!isNew && card && <>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
-        <SectionCard>
-          <div style="text-align:center">
-            <div style="font-size:24px;font-weight:700;color:#111827">€{card.initial_value.toFixed(2)}</div>
-            <div style="font-size:11px;color:#6b7280;margin-top:2px">Valore iniziale</div>
+    {!isNew && card && (
+      <>
+        <div class="kpi-bar">
+          <div class="kpi-item">
+            <div class="kpi-val">€{card.initial_value.toFixed(2)}</div>
+            <div class="kpi-lbl">Valore iniziale</div>
           </div>
-        </SectionCard>
-        <SectionCard>
-          <div style="text-align:center">
-            <div style={`font-size:24px;font-weight:700;${card.remaining_value === 0 ? 'color:#9ca3af' : 'color:#111827'}`}>€{card.remaining_value.toFixed(2)}</div>
-            <div style="font-size:11px;color:#6b7280;margin-top:2px">Saldo residuo</div>
-          </div>
-        </SectionCard>
-        <SectionCard>
-          <div style="text-align:center">
-            <div style="font-size:24px;font-weight:700;color:#111827">{percentUsed}%</div>
-            <div style="font-size:11px;color:#6b7280;margin-top:2px">Utilizzata</div>
-          </div>
-        </SectionCard>
-      </div>
-
-      <form method="POST">
-        <SectionCard title="Impostazioni">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-            <div>
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Scadenza</label>
-              <input name="expires_at" type="datetime-local" value={toDatetimeLocal(card.expires_at)}
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          <div class="kpi-item">
+            <div class:list={['kpi-val', card.remaining_value === 0 && 'kpi-val--muted']}>
+              €{card.remaining_value.toFixed(2)}
             </div>
-            <div>
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stato</label>
-              <select name="is_active"
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
-                <option value="true" selected={card.is_active}>Attiva</option>
-                <option value="false" selected={!card.is_active}>Inattiva</option>
-              </select>
-            </div>
+            <div class="kpi-lbl">Saldo residuo</div>
           </div>
-        </SectionCard>
-        <div style="display:flex;justify-content:flex-end;margin-top:16px">
-          <button type="submit"
-            style="background:#111827;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">
-            Salva
-          </button>
+          <div class="kpi-item">
+            <div class="kpi-val">{percentUsed}%</div>
+            <div class="kpi-lbl">Utilizzata</div>
+          </div>
         </div>
-      </form>
 
-      <SectionCard title={`Storico utilizzi (${card.redemptions?.length ?? 0})`}>
-        {!card.redemptions?.length
-          ? <p style="color:#9ca3af;font-size:14px">Nessun utilizzo.</p>
-          : (
-            <table style="width:100%;border-collapse:collapse;font-size:14px">
-              <thead>
-                <tr style="border-bottom:1px solid #e5e7eb">
-                  <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Data</th>
-                  <th style="text-align:right;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Importo</th>
-                  <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Ordine</th>
-                </tr>
-              </thead>
-              <tbody>
-                {card.redemptions.map(r => (
-                  <tr style="border-bottom:1px solid #f3f4f6">
-                    <td style="padding:8px;color:#6b7280">{fmtDate(r.date)}</td>
-                    <td style="padding:8px;text-align:right;color:#dc2626;font-weight:500">-€{r.amount.toFixed(2)}</td>
-                    <td style="padding:8px">
-                      <a href={`/admin/orders/${r.order_id}`} style="color:#3b82f6;font-family:monospace;font-size:12px">
-                        #{r.order_id.slice(0, 8)}
-                      </a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )
-        }
-      </SectionCard>
-    </>}
+        <form method="POST">
+          <SectionCard title="Impostazioni">
+            <div class="form-grid">
+              <div class="field">
+                <label class="field-label" for="gc_edit_expires">Scadenza</label>
+                <input id="gc_edit_expires" class="field-input" name="expires_at" type="datetime-local"
+                  value={toDatetimeLocal(card.expires_at)} style="width:auto" />
+              </div>
+              <div class="field">
+                <label class="field-label" for="gc_edit_active">Stato</label>
+                <select id="gc_edit_active" class="field-select" name="is_active">
+                  <option value="true" selected={card.is_active}>Attiva</option>
+                  <option value="false" selected={!card.is_active}>Inattiva</option>
+                </select>
+              </div>
+            </div>
+          </SectionCard>
+          <div class="form-actions" style="margin-top:16px">
+            <button type="submit" class="btn btn-primary">Salva</button>
+          </div>
+        </form>
+
+        <SectionCard title={`Storico utilizzi (${card.redemptions?.length ?? 0})`}>
+          {!card.redemptions?.length
+            ? <p class="empty-msg">Nessun utilizzo.</p>
+            : (
+              <div class="table-wrap" style="border:none;border-radius:0;margin:-16px">
+                <table class="data-table" style="white-space:nowrap">
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th style="text-align:right">Importo</th>
+                      <th>Ordine</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {card.redemptions.map(r => (
+                      <tr>
+                        <td style="color:var(--c-ink-muted)">{fmtDate(r.date)}</td>
+                        <td style="text-align:right;color:var(--c-danger);font-weight:500">-€{r.amount.toFixed(2)}</td>
+                        <td>
+                          <a href={`/admin/orders/${r.order_id}`}
+                            style="color:var(--admin-accent);font-family:monospace;font-size:12px">
+                            #{r.order_id.slice(0, 8)}
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          }
+        </SectionCard>
+      </>
+    )}
 
   </div>
+
 </AdminLayout>
+
+<style>
+  .breadcrumb-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .breadcrumb-back {
+    font-size: 13px;
+    color: var(--c-ink-muted);
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+  .breadcrumb-back:hover { color: var(--c-ink); }
+  .breadcrumb-sep { color: var(--c-border-2); font-size: 16px; }
+  .form-actions { display: flex; justify-content: flex-end; }
+  .required { color: var(--c-danger); }
+  .empty-msg { font-size: 14px; color: var(--c-ink-muted); }
+
+  .kpi-bar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .kpi-item {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-lg);
+    padding: 16px 20px;
+    text-align: center;
+  }
+
+  .kpi-val {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--c-ink);
+    line-height: 1;
+  }
+
+  .kpi-val--muted { color: var(--c-ink-subtle); }
+
+  .kpi-lbl {
+    font-size: 11px;
+    color: var(--c-ink-muted);
+    margin-top: 4px;
+    font-weight: 500;
+  }
+</style>

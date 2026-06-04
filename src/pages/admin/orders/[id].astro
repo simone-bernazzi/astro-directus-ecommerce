@@ -1,5 +1,4 @@
 ---
-// src/pages/admin/orders/[id].astro
 export const prerender = false
 
 import AdminLayout from '@/layouts/AdminLayout.astro'
@@ -29,7 +28,6 @@ let saveError: string | null = null
 
 if (Astro.request.method === 'POST' && isNew) {
   const formData = await Astro.request.formData()
-
   const itemsCount = parseInt(String(formData.get('items_count') ?? '0'))
   const items: Array<{ product_name: string; variant_name: string | null; sku: string | null; quantity: number; unit_price: number }> = []
   for (let i = 0; i < itemsCount; i++) {
@@ -46,26 +44,23 @@ if (Astro.request.method === 'POST' && isNew) {
       })
     }
   }
-
   const subtotal = items.reduce((s, i) => s + i.unit_price * i.quantity, 0)
   const discountAmount = parseFloat(String(formData.get('discount_amount') ?? '0')) || 0
   const shippingCost = parseFloat(String(formData.get('shipping_cost') ?? '0')) || 0
   const total = Math.max(0, subtotal - discountAmount + shippingCost)
 
-  const orderPayload = {
-    customer_name: formData.get('customer_name'),
-    customer_email: String(formData.get('customer_email') ?? '').trim() || null,
-    contact_id: String(formData.get('contact_id') ?? '').trim() || null,
-    subtotal,
-    discount_amount: discountAmount,
-    shipping_cost: shippingCost,
-    total,
-    status: formData.get('status') ?? 'paid',
-    channel: 'offline',
-    notes: String(formData.get('notes') ?? '').trim() || null,
-  }
-
-  const orderResult = await dFetch('/items/orders', { method: 'POST', body: JSON.stringify(orderPayload) })
+  const orderResult = await dFetch('/items/orders', {
+    method: 'POST',
+    body: JSON.stringify({
+      customer_name: formData.get('customer_name'),
+      customer_email: String(formData.get('customer_email') ?? '').trim() || null,
+      contact_id: String(formData.get('contact_id') ?? '').trim() || null,
+      subtotal, discount_amount: discountAmount, shipping_cost: shippingCost, total,
+      status: formData.get('status') ?? 'paid',
+      channel: 'offline',
+      notes: String(formData.get('notes') ?? '').trim() || null,
+    }),
+  })
   if (orderResult?.data?.id) {
     const orderId = orderResult.data.id
     for (const item of items) {
@@ -77,7 +72,6 @@ if (Astro.request.method === 'POST' && isNew) {
   }
 }
 
-// For create mode: fetch products + contacts for dropdowns
 type ProductOption = { id: string; name: string; base_price: number; variants: Array<{ id: string; name: string; sku: string; price_override: number | null }> }
 type ContactOption = { id: string; first_name: string; last_name: string; email: string | null }
 
@@ -93,10 +87,8 @@ if (isNew) {
   contactsForSelect = (contsRes?.data ?? []) as ContactOption[]
 }
 
-// For view mode
 let order: Order | null = null
 if (!isNew) {
-  const saved = Astro.url.searchParams.get('saved') === '1'
   const orderRes = await dFetch(`/items/orders/${id}?fields[]=*,order_items.*`)
   if (!orderRes?.data) return Astro.redirect('/admin/orders')
   order = orderRes.data as Order
@@ -108,17 +100,18 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
   pending: 'In attesa', paid: 'Pagato', shipped: 'Spedito',
   delivered: 'Consegnato', refunded: 'Rimborsato',
 }
-const ORDER_STATUS_COLORS: Record<string, string> = {
-  pending: 'background:#fef9c3;color:#ca8a04',
-  paid: 'background:#eff6ff;color:#3b82f6',
-  shipped: 'background:#fdf4ff;color:#a855f7',
-  delivered: 'background:#f0fdf4;color:#22c55e',
-  refunded: 'background:#f3f4f6;color:#6b7280',
+const ORDER_STATUS_BADGE: Record<string, string> = {
+  pending: 'badge-warning', paid: 'badge-info', shipped: 'badge-info',
+  delivered: 'badge-success', refunded: 'badge-neutral',
 }
 
 function fmtDate(iso: string | null | undefined) {
   if (!iso) return '—'
   return new Date(iso).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+function fmtCurrency(n: number) {
+  return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(n)
 }
 
 const productsJson = JSON.stringify(productsForSelect)
@@ -127,46 +120,47 @@ const contactsJson = JSON.stringify(contactsForSelect)
 
 <AdminLayout title={isNew ? 'Nuovo ordine offline' : `Ordine #${order?.id?.slice(0, 8)}`} active="orders">
 
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
-    <a href="/admin/orders" style="color:#6b7280;text-decoration:none;font-size:13px">← Ordini</a>
-    <span style="color:#d1d5db">/</span>
-    <h1 style="font-size:18px;font-weight:700;color:#111827">
-      {isNew ? 'Nuovo ordine offline' : `#${order?.id?.slice(0, 8)}`}
-    </h1>
-    {!isNew && order && (
-      <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${ORDER_STATUS_COLORS[order.status] ?? 'background:#f3f4f6;color:#6b7280'}`}>
-        {ORDER_STATUS_LABELS[order.status] ?? order.status}
-      </span>
-    )}
-    {!isNew && order && <span style="margin-left:auto;font-size:13px;color:#6b7280">{fmtDate(order.date_created)}</span>}
+  <!-- Breadcrumb -->
+  <div class="page-header">
+    <div class="breadcrumb-row">
+      <a href="/admin/orders" class="breadcrumb-back">← Ordini</a>
+      <span class="breadcrumb-sep" aria-hidden="true">/</span>
+      <h1 class="page-title" style="font-size:18px">
+        {isNew ? 'Nuovo ordine offline' : `#${order?.id?.slice(0, 8)}`}
+      </h1>
+      {!isNew && order && (
+        <span class:list={['badge', ORDER_STATUS_BADGE[order.status] ?? 'badge-neutral']}>
+          {ORDER_STATUS_LABELS[order.status] ?? order.status}
+        </span>
+      )}
+      {!isNew && order && (
+        <span class="order-date">{fmtDate(order.date_created)}</span>
+      )}
+    </div>
   </div>
 
-  {saved && <p style="background:#f0fdf4;color:#22c55e;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">✓ Ordine creato con successo.</p>}
-  {saveError && <p style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">{saveError}</p>}
+  {saved && <div class="alert alert-success" style="margin-bottom:16px">Ordine creato con successo.</div>}
+  {saveError && <div class="alert alert-danger" style="margin-bottom:16px">{saveError}</div>}
 
+  <!-- CREATE MODE -->
   {isNew && (
     <form method="POST" id="order-form">
       <input type="hidden" name="items_count" id="items_count" value="0" />
-
-      <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="stack stack-4">
 
         <SectionCard title="Cliente">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-            <div>
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Nome cliente *</label>
-              <input name="customer_name" required
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+          <div class="form-grid">
+            <div class="field">
+              <label class="field-label" for="customer_name">Nome cliente <span class="required">*</span></label>
+              <input id="customer_name" class="field-input" name="customer_name" required />
             </div>
-            <div>
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Email</label>
-              <input name="customer_email" type="email"
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+            <div class="field">
+              <label class="field-label" for="customer_email">Email</label>
+              <input id="customer_email" class="field-input" name="customer_email" type="email" />
             </div>
-            <div style="grid-column:span 2">
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Collega a contatto esistente</label>
-              <select name="contact_id"
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box"
-                id="contact_select">
+            <div class="field field-full">
+              <label class="field-label" for="contact_select">Collega a contatto esistente</label>
+              <select id="contact_select" class="field-select" name="contact_id">
                 <option value="">— nessuno —</option>
                 {contactsForSelect.map(c => (
                   <option value={c.id}>{c.first_name} {c.last_name}{c.email ? ` (${c.email})` : ''}</option>
@@ -177,104 +171,92 @@ const contactsJson = JSON.stringify(contactsForSelect)
         </SectionCard>
 
         <SectionCard title="Prodotti">
-          <div style="margin-bottom:12px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-            <div style="flex:1;min-width:200px">
-              <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">Cerca dal catalogo</label>
-              <select id="catalog_select"
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;color:#111827;background:#fff;box-sizing:border-box">
+          <div class="catalog-toolbar">
+            <div class="field" style="flex:1;min-width:200px;margin-bottom:0">
+              <label class="field-label" for="catalog_select">Cerca dal catalogo</label>
+              <select id="catalog_select" class="field-select">
                 <option value="">— seleziona prodotto —</option>
                 {productsForSelect.map(p => (
                   <option value={p.id} data-price={p.base_price} data-name={p.name}>
-                    {p.name} — €{p.base_price.toFixed(2)}
+                    {p.name} — {fmtCurrency(p.base_price)}
                   </option>
                 ))}
               </select>
             </div>
-            <button type="button" id="add_from_catalog"
-              style="background:#4f46e5;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap">
-              + Dal catalogo
-            </button>
-            <button type="button" id="add_manual"
-              style="background:#6b7280;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap">
-              + Riga manuale
-            </button>
-          </div>
-
-          <div id="items_container">
-            <p id="empty_msg" style="color:#9ca3af;font-size:14px;text-align:center;padding:20px 0">Nessun prodotto aggiunto.</p>
-          </div>
-
-          <div style="border-top:1px solid #e5e7eb;margin-top:12px;padding-top:12px;display:flex;flex-direction:column;gap:6px;max-width:300px;margin-left:auto;font-size:14px">
-            <div style="display:flex;justify-content:space-between">
-              <span style="color:#6b7280">Subtotale</span>
-              <span id="display_subtotal" style="font-weight:500">€0.00</span>
+            <div class="catalog-btns">
+              <button type="button" id="add_from_catalog" class="btn btn-primary btn-sm">+ Dal catalogo</button>
+              <button type="button" id="add_manual" class="btn btn-secondary btn-sm">+ Riga manuale</button>
             </div>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="color:#6b7280">Sconto (€)</span>
+          </div>
+
+          <div id="items_container" style="margin-top:12px">
+            <p id="empty_msg" class="empty-items">Nessun prodotto aggiunto.</p>
+          </div>
+
+          <div class="totals-box">
+            <div class="total-row">
+              <span class="total-label">Subtotale</span>
+              <span id="display_subtotal" class="total-value">€0,00</span>
+            </div>
+            <div class="total-row">
+              <span class="total-label">Sconto (€)</span>
               <input name="discount_amount" id="discount_amount" type="number" step="0.01" min="0" value="0"
-                oninput="recalc()"
-                style="width:90px;border:1px solid #d1d5db;border-radius:4px;padding:4px 8px;font-size:13px;text-align:right" />
+                oninput="recalc()" class="total-input" />
             </div>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="color:#6b7280">Spedizione (€)</span>
+            <div class="total-row">
+              <span class="total-label">Spedizione (€)</span>
               <input name="shipping_cost" id="shipping_cost" type="number" step="0.01" min="0" value="0"
-                oninput="recalc()"
-                style="width:90px;border:1px solid #d1d5db;border-radius:4px;padding:4px 8px;font-size:13px;text-align:right" />
+                oninput="recalc()" class="total-input" />
             </div>
-            <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;border-top:1px solid #e5e7eb;padding-top:8px">
+            <div class="total-row total-final">
               <span>Totale</span>
-              <span id="display_total">€0.00</span>
+              <span id="display_total">€0,00</span>
             </div>
           </div>
         </SectionCard>
 
         <SectionCard title="Dettagli ordine">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-            <div>
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stato</label>
-              <select name="status"
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+          <div class="form-grid">
+            <div class="field">
+              <label class="field-label" for="order_status">Stato</label>
+              <select id="order_status" class="field-select" name="status">
                 <option value="paid">Pagato</option>
                 <option value="pending">In attesa di pagamento</option>
                 <option value="delivered">Consegnato</option>
               </select>
             </div>
-            <div style="grid-column:span 2">
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Note</label>
-              <textarea name="notes" rows={3}
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;resize:vertical"></textarea>
+            <div class="field field-full">
+              <label class="field-label" for="order_notes">Note</label>
+              <textarea id="order_notes" class="field-textarea" name="notes" rows={3}></textarea>
             </div>
           </div>
         </SectionCard>
 
-        <div style="display:flex;justify-content:flex-end">
-          <button type="submit"
-            style="background:#111827;color:#fff;border:none;padding:10px 28px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">
-            Crea ordine
-          </button>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Crea ordine</button>
         </div>
 
       </div>
     </form>
   )}
 
+  <!-- VIEW MODE -->
   {!isNew && order && (
-    <div style="display:flex;flex-direction:column;gap:16px">
+    <div class="stack stack-4">
 
       <SectionCard title="Informazioni ordine">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px">
-          <div><span style="color:#6b7280">Cliente:</span> <strong>{order.customer_name}</strong></div>
-          <div><span style="color:#6b7280">Email:</span> {order.customer_email}</div>
-          <div><span style="color:#6b7280">Canale:</span> {order.channel}</div>
-          <div><span style="color:#6b7280">Stripe session:</span> <code style="font-size:11px;color:#6b7280">{order.stripe_session_id ?? '—'}</code></div>
-          {order.notes && <div style="grid-column:span 2"><span style="color:#6b7280">Note:</span> {order.notes}</div>}
+        <div class="info-grid">
+          <div class="info-row"><span class="info-label">Cliente</span> <strong>{order.customer_name}</strong></div>
+          <div class="info-row"><span class="info-label">Email</span> {order.customer_email ?? '—'}</div>
+          <div class="info-row"><span class="info-label">Canale</span> {order.channel}</div>
+          <div class="info-row"><span class="info-label">Stripe session</span> <code class="mono-sm">{order.stripe_session_id ?? '—'}</code></div>
+          {order.notes && <div class="info-row info-full"><span class="info-label">Note</span> {order.notes}</div>}
           {order.tracking_number && (
-            <div style="grid-column:span 2">
-              <span style="color:#6b7280">Tracking:</span>
+            <div class="info-row info-full">
+              <span class="info-label">Tracking</span>
               {order.tracking_url
-                ? <a href={order.tracking_url} target="_blank" rel="noopener" style="color:#3b82f6">{order.tracking_number}</a>
-                : order.tracking_number
-              }
+                ? <a href={order.tracking_url} target="_blank" rel="noopener" style="color:var(--admin-accent)">{order.tracking_number}</a>
+                : order.tracking_number}
             </div>
           )}
         </div>
@@ -282,33 +264,35 @@ const contactsJson = JSON.stringify(contactsForSelect)
 
       <SectionCard title={`Prodotti (${order.order_items?.length ?? 0})`}>
         {!order.order_items?.length
-          ? <p style="color:#9ca3af;font-size:14px">Nessun prodotto.</p>
+          ? <p class="empty-msg">Nessun prodotto.</p>
           : (
-            <table style="width:100%;border-collapse:collapse;font-size:14px">
-              <thead>
-                <tr style="border-bottom:1px solid #e5e7eb">
-                  <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Prodotto</th>
-                  <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">SKU</th>
-                  <th style="text-align:center;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Qtà</th>
-                  <th style="text-align:right;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Prezzo</th>
-                  <th style="text-align:right;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Totale</th>
-                </tr>
-              </thead>
-              <tbody>
-                {order.order_items.map(item => (
-                  <tr style="border-bottom:1px solid #f3f4f6">
-                    <td style="padding:8px">
-                      <div style="font-weight:500">{item.product_name}</div>
-                      <div style="font-size:12px;color:#6b7280">{item.variant_name}</div>
-                    </td>
-                    <td style="padding:8px;font-family:monospace;font-size:12px;color:#6b7280">{item.sku}</td>
-                    <td style="padding:8px;text-align:center">{item.quantity}</td>
-                    <td style="padding:8px;text-align:right">€{item.unit_price.toFixed(2)}</td>
-                    <td style="padding:8px;text-align:right;font-weight:500">€{(item.unit_price * item.quantity).toFixed(2)}</td>
+            <div class="table-wrap" style="border:none;border-radius:0;margin:-16px">
+              <table class="data-table" style="white-space:nowrap">
+                <thead>
+                  <tr>
+                    <th>Prodotto</th>
+                    <th>SKU</th>
+                    <th style="text-align:center">Qtà</th>
+                    <th style="text-align:right">Prezzo</th>
+                    <th style="text-align:right">Totale</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {order.order_items.map(item => (
+                    <tr>
+                      <td>
+                        <div style="font-weight:500">{item.product_name}</div>
+                        {item.variant_name && <div style="font-size:12px;color:var(--c-ink-muted)">{item.variant_name}</div>}
+                      </td>
+                      <td style="font-family:monospace;font-size:12px;color:var(--c-ink-muted)">{item.sku ?? '—'}</td>
+                      <td style="text-align:center">{item.quantity}</td>
+                      <td style="text-align:right">{fmtCurrency(item.unit_price)}</td>
+                      <td style="text-align:right;font-weight:500">{fmtCurrency(item.unit_price * item.quantity)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )
         }
       </SectionCard>
@@ -316,42 +300,27 @@ const contactsJson = JSON.stringify(contactsForSelect)
       <SectionCard title="Spedizione">
         {order.shipping_address
           ? (
-            <div style="font-size:14px;line-height:1.6">
+            <div class="address-block">
               <p style="font-weight:500">{order.shipping_address.name}</p>
-              <p style="color:#6b7280">{order.shipping_address.line1}{order.shipping_address.line2 ? `, ${order.shipping_address.line2}` : ''}</p>
-              <p style="color:#6b7280">{order.shipping_address.postal_code} {order.shipping_address.city} ({order.shipping_address.state}), {order.shipping_address.country}</p>
+              <p style="color:var(--c-ink-muted)">{order.shipping_address.line1}{order.shipping_address.line2 ? `, ${order.shipping_address.line2}` : ''}</p>
+              <p style="color:var(--c-ink-muted)">{order.shipping_address.postal_code} {order.shipping_address.city} ({order.shipping_address.state}), {order.shipping_address.country}</p>
             </div>
           )
-          : <p style="color:#9ca3af;font-size:14px">Nessun indirizzo di spedizione.</p>
+          : <p class="empty-msg">Nessun indirizzo di spedizione.</p>
         }
       </SectionCard>
 
-      <SectionCard title="Pagamento">
-        <div style="display:flex;flex-direction:column;gap:6px;font-size:14px;max-width:300px">
-          <div style="display:flex;justify-content:space-between">
-            <span style="color:#6b7280">Subtotale</span>
-            <span>€{order.subtotal.toFixed(2)}</span>
-          </div>
+      <SectionCard title="Riepilogo pagamento">
+        <div class="payment-summary">
+          <div class="payment-row"><span class="info-label">Subtotale</span><span>{fmtCurrency(order.subtotal)}</span></div>
           {order.discount_amount > 0 && (
-            <div style="display:flex;justify-content:space-between;color:#22c55e">
-              <span>Sconto</span>
-              <span>-€{order.discount_amount.toFixed(2)}</span>
-            </div>
+            <div class="payment-row" style="color:var(--c-success)"><span>Sconto</span><span>-{fmtCurrency(order.discount_amount)}</span></div>
           )}
           {(order.gift_card_amount_used ?? 0) > 0 && (
-            <div style="display:flex;justify-content:space-between;color:#22c55e">
-              <span>Gift card</span>
-              <span>-€{(order.gift_card_amount_used ?? 0).toFixed(2)}</span>
-            </div>
+            <div class="payment-row" style="color:var(--c-success)"><span>Gift card</span><span>-{fmtCurrency(order.gift_card_amount_used ?? 0)}</span></div>
           )}
-          <div style="display:flex;justify-content:space-between">
-            <span style="color:#6b7280">Spedizione</span>
-            <span>€{order.shipping_cost.toFixed(2)}</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;border-top:1px solid #e5e7eb;padding-top:8px;margin-top:4px">
-            <span>Totale</span>
-            <span>€{order.total.toFixed(2)}</span>
-          </div>
+          <div class="payment-row"><span class="info-label">Spedizione</span><span>{fmtCurrency(order.shipping_cost)}</span></div>
+          <div class="payment-row payment-total"><span>Totale</span><span>{fmtCurrency(order.total)}</span></div>
         </div>
       </SectionCard>
 
@@ -365,6 +334,10 @@ const contactsJson = JSON.stringify(contactsForSelect)
   const products = JSON.parse(productsJson)
   let rowCount = 0
 
+  function fmtEur(n) {
+    return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(n)
+  }
+
   function recalc() {
     let subtotal = 0
     document.querySelectorAll('.item-row').forEach(row => {
@@ -372,14 +345,13 @@ const contactsJson = JSON.stringify(contactsForSelect)
       const price = parseFloat(row.querySelector('.item-price').value) || 0
       const lineEl = row.querySelector('.item-line')
       const line = qty * price
-      if (lineEl) lineEl.textContent = '€' + line.toFixed(2)
+      if (lineEl) lineEl.textContent = fmtEur(line)
       subtotal += line
     })
-    document.getElementById('display_subtotal').textContent = '€' + subtotal.toFixed(2)
+    document.getElementById('display_subtotal').textContent = fmtEur(subtotal)
     const discount = parseFloat(document.getElementById('discount_amount').value) || 0
     const shipping = parseFloat(document.getElementById('shipping_cost').value) || 0
-    const total = Math.max(0, subtotal - discount + shipping)
-    document.getElementById('display_total').textContent = '€' + total.toFixed(2)
+    document.getElementById('display_total').textContent = fmtEur(Math.max(0, subtotal - discount + shipping))
   }
 
   function updateCount() {
@@ -388,33 +360,27 @@ const contactsJson = JSON.stringify(contactsForSelect)
     if (empty) empty.style.display = rowCount === 0 ? '' : 'none'
   }
 
+  function escHtml(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+  }
+
   function addRow(name, sku, variant, price) {
     const idx = rowCount++
     const container = document.getElementById('items_container')
-    const empty = document.getElementById('empty_msg')
-    if (empty) empty.style.display = 'none'
-
     const row = document.createElement('div')
     row.className = 'item-row'
-    row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 80px 80px 32px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f3f4f6'
     row.innerHTML = `
-      <div>
-        <input class="item-name" name="item_${idx}_name" value="${escHtml(name)}" required placeholder="Nome prodotto"
-          style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:5px 8px;font-size:13px;box-sizing:border-box" />
-        <input name="item_${idx}_variant" value="${escHtml(variant)}" placeholder="Variante"
-          style="width:100%;border:1px solid #e5e7eb;border-radius:4px;padding:4px 8px;font-size:12px;margin-top:4px;box-sizing:border-box;color:#6b7280" />
+      <div class="item-cell-name">
+        <input class="item-name field-input" name="item_${idx}_name" value="${escHtml(name)}" required placeholder="Nome prodotto" style="margin-bottom:4px" />
+        <input class="field-input" name="item_${idx}_variant" value="${escHtml(variant)}" placeholder="Variante" style="font-size:12px;color:var(--c-ink-muted)" />
       </div>
-      <input class="item-sku" name="item_${idx}_sku" value="${escHtml(sku)}" placeholder="SKU"
-        style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:5px 8px;font-size:12px;font-family:monospace;box-sizing:border-box" />
-      <input class="item-qty" name="item_${idx}_qty" type="number" min="1" value="1"
-        oninput="recalc()"
-        style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:5px 8px;font-size:13px;text-align:center;box-sizing:border-box" />
-      <input class="item-price" name="item_${idx}_price" type="number" step="0.01" min="0" value="${price}"
-        oninput="recalc()"
-        style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:5px 8px;font-size:13px;text-align:right;box-sizing:border-box" />
-      <span class="item-line" style="font-size:13px;font-weight:500;text-align:right;color:#111827">€${(price).toFixed(2)}</span>
-      <button type="button" onclick="removeRow(this)"
-        style="background:none;border:none;color:#dc2626;font-size:20px;cursor:pointer;line-height:1;padding:0">×</button>
+      <input class="item-sku field-input" name="item_${idx}_sku" value="${escHtml(sku)}" placeholder="SKU" style="font-family:monospace;font-size:12px" />
+      <input class="item-qty field-input" name="item_${idx}_qty" type="number" min="1" value="1" oninput="recalc()" style="text-align:center" />
+      <input class="item-price field-input" name="item_${idx}_price" type="number" step="0.01" min="0" value="${price.toFixed(2)}" oninput="recalc()" style="text-align:right" />
+      <span class="item-line" style="font-size:13px;font-weight:600;text-align:right;color:var(--c-ink)">${fmtEur(price)}</span>
+      <button type="button" onclick="removeRow(this)" class="btn btn-ghost btn-icon btn-sm" title="Rimuovi riga" style="color:var(--c-danger)">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     `
     container.appendChild(row)
     updateCount()
@@ -428,10 +394,6 @@ const contactsJson = JSON.stringify(contactsForSelect)
     recalc()
   }
 
-  function escHtml(s) {
-    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
-  }
-
   document.getElementById('add_from_catalog').addEventListener('click', () => {
     const sel = document.getElementById('catalog_select')
     const opt = sel.selectedOptions[0]
@@ -442,14 +404,10 @@ const contactsJson = JSON.stringify(contactsForSelect)
     sel.value = ''
   })
 
-  document.getElementById('add_manual').addEventListener('click', () => {
-    addRow('', '', '', 0)
-  })
+  document.getElementById('add_manual').addEventListener('click', () => addRow('', '', '', 0))
 
-  // Auto-fill customer name when contact is selected
   document.getElementById('contact_select').addEventListener('change', (e) => {
-    const sel = e.target
-    const opt = sel.selectedOptions[0]
+    const opt = e.target.selectedOptions[0]
     if (!opt || !opt.value) return
     const text = opt.textContent.replace(/\s*\(.*\)$/, '').trim()
     const nameField = document.querySelector('[name="customer_name"]')
@@ -460,3 +418,145 @@ const contactsJson = JSON.stringify(contactsForSelect)
   window.removeRow = removeRow
 </script>
 )}
+
+<style>
+  .breadcrumb-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .breadcrumb-back {
+    font-size: 13px;
+    color: var(--c-ink-muted);
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+  .breadcrumb-back:hover { color: var(--c-ink); }
+  .breadcrumb-sep { color: var(--c-border-2); font-size: 16px; }
+  .order-date { font-size: 13px; color: var(--c-ink-muted); margin-left: auto; }
+
+  .form-actions { display: flex; justify-content: flex-end; }
+
+  .empty-msg { font-size: 14px; color: var(--c-ink-muted); }
+
+  .required { color: var(--c-danger); }
+
+  /* Catalog toolbar */
+  .catalog-toolbar {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+
+  .catalog-btns {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+    padding-top: 20px; /* align with inputs */
+  }
+
+  /* Item rows */
+  .empty-items {
+    text-align: center;
+    padding: 20px 0;
+    color: var(--c-ink-muted);
+    font-size: 14px;
+  }
+
+  .item-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 80px 90px 80px 36px;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--c-border);
+  }
+
+  .item-cell-name { display: flex; flex-direction: column; gap: 4px; }
+
+  /* Totals */
+  .totals-box {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 280px;
+    margin-left: auto;
+    margin-top: 16px;
+    border-top: 1px solid var(--c-border);
+    padding-top: 12px;
+    font-size: 14px;
+  }
+
+  .total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .total-label { color: var(--c-ink-muted); }
+  .total-value { font-weight: 500; }
+
+  .total-input {
+    width: 90px;
+    border: 1px solid var(--c-border-2);
+    border-radius: var(--r-md);
+    padding: 4px 8px;
+    font-size: 13px;
+    text-align: right;
+    font-family: inherit;
+    color: var(--c-ink);
+    background: var(--c-surface);
+  }
+
+  .total-final {
+    font-weight: 700;
+    font-size: 16px;
+    border-top: 1px solid var(--c-border);
+    padding-top: 8px;
+    margin-top: 4px;
+  }
+
+  /* Info grid (view mode) */
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    font-size: 14px;
+  }
+
+  @media (max-width: 640px) {
+    .info-grid { grid-template-columns: 1fr; }
+  }
+
+  .info-row { display: flex; gap: 8px; }
+  .info-full { grid-column: 1 / -1; }
+  .info-label { color: var(--c-ink-muted); flex-shrink: 0; }
+  .mono-sm { font-family: monospace; font-size: 11px; color: var(--c-ink-muted); }
+
+  .address-block { font-size: 14px; line-height: 1.7; }
+
+  /* Payment summary */
+  .payment-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 280px;
+    font-size: 14px;
+  }
+
+  .payment-row {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .payment-total {
+    font-weight: 700;
+    font-size: 16px;
+    border-top: 1px solid var(--c-border);
+    padding-top: 8px;
+    margin-top: 4px;
+  }
+</style>

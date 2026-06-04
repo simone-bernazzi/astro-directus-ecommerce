@@ -41,21 +41,21 @@ const articles = (listRes?.data ?? []) as ArticleRow[]
 const total = parseInt(countRes?.data?.[0]?.count?.id ?? '0')
 
 const columns: Column[] = [
-  { key: 'title', label: 'Titolo', format: (v) => `<span style="font-weight:500;color:#111827">${escHtml(String(v ?? '—'))}</span>` },
+  { key: 'title', label: 'Titolo', format: (v) => `<span style="font-weight:500">${escHtml(String(v ?? '—'))}</span>` },
   {
     key: 'category',
     label: 'Categoria',
     format: (v) => {
       const cat = v as { name: string } | null
-      return `<span style="color:#6b7280;font-size:13px">${escHtml(cat?.name ?? '—')}</span>`
+      return `<span style="color:var(--c-ink-muted);font-size:13px">${escHtml(cat?.name ?? '—')}</span>`
     },
   },
   {
     key: 'status',
     label: 'Stato',
     format: (v) => v === 'published'
-      ? `<span style="background:#f0fdf4;color:#22c55e;padding:2px 8px;border-radius:10px;font-size:12px">Pubblicato</span>`
-      : `<span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:10px;font-size:12px">Bozza</span>`,
+      ? `<span class="badge badge-success">Pubblicato</span>`
+      : `<span class="badge badge-neutral">Bozza</span>`,
   },
   {
     key: 'published_at',
@@ -67,7 +67,7 @@ const columns: Column[] = [
 
 <AdminLayout title="Articoli" active="articles">
   <Fragment slot="topbar-actions">
-    <a href="/admin/articles/new" style="background:#111827;color:#fff;text-decoration:none;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:500">+ Nuovo articolo</a>
+    <a href="/admin/articles/new" class="btn btn-primary btn-sm">+ Nuovo articolo</a>
   </Fragment>
   <DataTable
     columns={columns}

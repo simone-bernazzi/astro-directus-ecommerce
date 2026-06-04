@@ -1,6 +1,4 @@
 ---
-// src/components/admin/DataTable.astro
-
 export interface Column {
   key: string
   label: string
@@ -31,8 +29,6 @@ const {
 } = Astro.props
 
 const totalPages = pageSize > 0 ? Math.ceil(total / pageSize) : 1
-
-// Build pagination URLs based on the current request URL
 const currentUrl = new URL(Astro.request.url)
 
 function buildPageUrl(targetPage: number): string {
@@ -43,22 +39,20 @@ function buildPageUrl(targetPage: number): string {
 
 const prevUrl = page > 1 ? buildPageUrl(page - 1) : null
 const nextUrl = page < totalPages ? buildPageUrl(page + 1) : null
-
-// Total number of visible columns (including optional detail column)
 const colSpan = columns.length + (detailBase ? 1 : 0)
 ---
 
 <div class="dt-wrapper">
-  <div class="dt-scroll">
-    <table class="dt-table">
+  <div class="table-wrap">
+    <table class="dt-table" aria-label="Tabella dati">
       <thead>
         <tr>
           {columns.map((col) => (
-            <th class={`dt-th${col.class ? ' ' + col.class : ''}`}>
+            <th class={`dt-th${col.class ? ' ' + col.class : ''}`} scope="col">
               {col.label}
             </th>
           ))}
-          {detailBase && <th class="dt-th dt-th-action"></th>}
+          {detailBase && <th class="dt-th dt-th-action" scope="col"><span class="sr-only">Dettaglio</span></th>}
         </tr>
       </thead>
       <tbody>
@@ -78,7 +72,7 @@ const colSpan = columns.length + (detailBase ? 1 : 0)
                   <td class={`dt-td${col.class ? ' ' + col.class : ''}`}>
                     {html !== null
                       ? <span set:html={html} />
-                      : (raw !== null && raw !== undefined ? String(raw) : '')}
+                      : (raw !== null && raw !== undefined ? String(raw) : '—')}
                   </td>
                 )
               })}
@@ -86,10 +80,12 @@ const colSpan = columns.length + (detailBase ? 1 : 0)
                 <td class="dt-td dt-td-action">
                   <a
                     href={`${detailBase}${String(row[idField] ?? '')}`}
-                    class="dt-link"
-                    aria-label="Dettaglio"
+                    class="dt-detail-link"
+                    aria-label="Apri dettaglio"
                   >
-                    →
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
                   </a>
                 </td>
               )}
@@ -100,70 +96,68 @@ const colSpan = columns.length + (detailBase ? 1 : 0)
     </table>
   </div>
 
-  {totalPages > 1 && (
-    <nav class="dt-pagination" aria-label="Paginazione">
-      {prevUrl ? (
-        <a href={prevUrl} class="dt-page-btn">← Precedente</a>
-      ) : (
-        <span class="dt-page-btn dt-page-btn--disabled">← Precedente</span>
-      )}
-
-      <span class="dt-page-info">
-        Pagina {page} di {totalPages}
+  {(totalPages > 1 || total > 0) && (
+    <div class="dt-pagination">
+      <span class="dt-count">
+        {total > 0 ? `${total} totali` : ''}
       </span>
 
-      {nextUrl ? (
-        <a href={nextUrl} class="dt-page-btn">Successiva →</a>
-      ) : (
-        <span class="dt-page-btn dt-page-btn--disabled">Successiva →</span>
+      {totalPages > 1 && (
+        <nav class="dt-nav" aria-label="Paginazione">
+          {prevUrl ? (
+            <a href={prevUrl} class="btn btn-secondary btn-sm">← Precedente</a>
+          ) : (
+            <span class="btn btn-secondary btn-sm" aria-disabled="true" style="opacity:0.4;pointer-events:none">← Precedente</span>
+          )}
+
+          <span class="dt-page-info">
+            {page} / {totalPages}
+          </span>
+
+          {nextUrl ? (
+            <a href={nextUrl} class="btn btn-secondary btn-sm">Successiva →</a>
+          ) : (
+            <span class="btn btn-secondary btn-sm" aria-disabled="true" style="opacity:0.4;pointer-events:none">Successiva →</span>
+          )}
+        </nav>
       )}
-    </nav>
+    </div>
   )}
 </div>
 
 <style>
   .dt-wrapper {
     width: 100%;
-    font-size: 0.875rem;
   }
 
-  /* Horizontal scroll container */
-  .dt-scroll {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.5rem;
-  }
+  /* table-wrap is a global class from admin.css */
 
   .dt-table {
     width: 100%;
     border-collapse: collapse;
     white-space: nowrap;
-    background-color: #ffffff;
+    background: var(--c-surface);
+    font-size: 14px;
   }
 
-  /* Header */
   .dt-th {
-    padding: 0.625rem 1rem;
+    padding: 10px 16px;
     text-align: left;
-    font-size: 0.75rem;
+    font-size: 12px;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #6b7280;
-    background-color: #f9fafb;
-    border-bottom: 1px solid #e5e7eb;
+    color: var(--c-ink-muted);
+    background: var(--c-surface-2);
+    border-bottom: 1px solid var(--c-border);
   }
 
   .dt-th-action {
-    width: 3rem;
+    width: 48px;
     text-align: center;
   }
 
-  /* Body rows */
   .dt-row {
-    border-bottom: 1px solid #f3f4f6;
-    transition: background-color 0.15s ease;
+    border-bottom: 1px solid var(--c-border);
+    transition: background 120ms ease;
   }
 
   .dt-row:last-child {
@@ -171,42 +165,42 @@ const colSpan = columns.length + (detailBase ? 1 : 0)
   }
 
   .dt-row:hover {
-    background-color: #f9fafb;
+    background: color-mix(in oklch, var(--admin-accent) 4%, var(--c-surface));
   }
 
   .dt-td {
-    padding: 0.75rem 1rem;
-    color: #111827;
+    padding: 12px 16px;
+    color: var(--c-ink);
     vertical-align: middle;
+    min-height: 44px;
   }
 
   .dt-td-action {
     text-align: center;
-    padding: 0.75rem 0.5rem;
+    padding: 8px;
   }
 
-  /* Detail link */
-  .dt-link {
-    display: inline-block;
-    font-size: 1rem;
-    color: #6b7280;
+  .dt-detail-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    color: var(--c-ink-subtle);
+    border-radius: var(--r-sm);
     text-decoration: none;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.25rem;
-    transition: color 0.15s ease, background-color 0.15s ease;
+    transition: background 150ms ease, color 150ms ease;
   }
 
-  .dt-link:hover {
-    color: #111827;
-    background-color: #e5e7eb;
+  .dt-detail-link:hover {
+    background: var(--c-surface-2);
+    color: var(--c-ink);
   }
 
-  /* Empty state */
   .dt-empty {
-    padding: 2.5rem 1rem;
+    padding: 48px 24px;
     text-align: center;
-    color: #9ca3af;
-    font-style: italic;
+    color: var(--c-ink-muted);
   }
 
   /* Pagination */
@@ -214,43 +208,36 @@ const colSpan = columns.length + (detailBase ? 1 : 0)
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
-    margin-top: 1rem;
-    padding: 0 0.25rem;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 0 2px;
+    flex-wrap: wrap;
   }
 
-  .dt-page-btn {
-    display: inline-block;
-    padding: 0.375rem 0.875rem;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: #374151;
-    background-color: #ffffff;
-    border: 1px solid #d1d5db;
-    border-radius: 0.375rem;
-    text-decoration: none;
-    cursor: pointer;
-    transition: background-color 0.15s ease, border-color 0.15s ease;
+  .dt-count {
+    font-size: 12px;
+    color: var(--c-ink-muted);
   }
 
-  .dt-page-btn:hover {
-    background-color: #f9fafb;
-    border-color: #9ca3af;
-  }
-
-  .dt-page-btn--disabled {
-    color: #d1d5db;
-    cursor: not-allowed;
-    background-color: #f9fafb;
-  }
-
-  .dt-page-btn--disabled:hover {
-    background-color: #f9fafb;
-    border-color: #d1d5db;
+  .dt-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .dt-page-info {
-    font-size: 0.8125rem;
-    color: #6b7280;
+    font-size: 13px;
+    color: var(--c-ink-muted);
+    min-width: 48px;
+    text-align: center;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 </style>

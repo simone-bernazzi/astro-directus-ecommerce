@@ -1,5 +1,4 @@
 ---
-// src/pages/admin/pages/[id].astro
 export const prerender = false
 
 import AdminLayout from '@/layouts/AdminLayout.astro'
@@ -71,158 +70,146 @@ const saved = Astro.url.searchParams.get('saved') === '1'
 
 <AdminLayout title={isNew ? 'Nuova pagina' : (page?.title ?? '')} active="pages">
 
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
-    <a href="/admin/pages" style="color:#6b7280;text-decoration:none;font-size:13px">← Pagine</a>
-    <span style="color:#d1d5db">/</span>
-    <h1 style="font-size:18px;font-weight:700;color:#111827">{isNew ? 'Nuova pagina' : page?.title}</h1>
-    {!isNew && <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${
-      page?.status === 'published' ? 'background:#f0fdf4;color:#22c55e' : 'background:#f3f4f6;color:#6b7280'
-    }`}>{page?.status === 'published' ? 'Pubblicata' : 'Bozza'}</span>}
+  <div class="page-header">
+    <div class="breadcrumb-row">
+      <a href="/admin/pages" class="breadcrumb-back">← Pagine</a>
+      <span class="breadcrumb-sep" aria-hidden="true">/</span>
+      <h1 class="page-title" style="font-size:18px">{isNew ? 'Nuova pagina' : page?.title}</h1>
+      {!isNew && (
+        <span class:list={['badge', page?.status === 'published' ? 'badge-success' : 'badge-neutral']}>
+          {page?.status === 'published' ? 'Pubblicata' : 'Bozza'}
+        </span>
+      )}
+    </div>
   </div>
 
-  {saved && <p style="background:#f0fdf4;color:#22c55e;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">✓ Salvato con successo.</p>}
-  {saveError && <p style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">{saveError}</p>}
+  {saved && <div class="alert alert-success" style="margin-bottom:16px">Salvato con successo.</div>}
+  {saveError && <div class="alert alert-danger" style="margin-bottom:16px">{saveError}</div>}
 
-  <div style={isNew ? 'display:flex;flex-direction:column;gap:16px' : 'display:grid;grid-template-columns:320px 1fr;gap:24px;align-items:start'}>
+  <div class:list={[isNew ? 'single-col' : 'page-layout']}>
 
     <form method="POST">
-      <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="stack stack-4">
 
         <SectionCard title="Info pagina">
-          <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="stack stack-4">
 
-            <div>
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Titolo *</label>
-              <input name="title" required value={page?.title ?? ''}
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+            <div class="field">
+              <label class="field-label" for="page_title">Titolo <span class="required">*</span></label>
+              <input id="page_title" class="field-input" name="title" required value={page?.title ?? ''} />
             </div>
 
-            <div>
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Slug *</label>
-              <input name="slug" required value={page?.slug ?? ''}
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;font-family:monospace;color:#111827;box-sizing:border-box" />
+            <div class="field">
+              <label class="field-label" for="page_slug">Slug <span class="required">*</span></label>
+              <input id="page_slug" class="field-input" name="slug" required value={page?.slug ?? ''}
+                style="font-family:monospace" />
             </div>
 
-            <div>
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stato</label>
-              <select name="status"
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+            <div class="field">
+              <label class="field-label" for="page_status">Stato</label>
+              <select id="page_status" class="field-select" name="status">
                 <option value="draft" selected={!page || page.status === 'draft'}>Bozza</option>
                 <option value="published" selected={page?.status === 'published'}>Pubblicata</option>
               </select>
             </div>
 
-            <div>
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">SEO Title</label>
-              <input name="seo_title" value={page?.seo_title ?? ''}
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+            <div class="field">
+              <label class="field-label" for="page_seo_title">SEO Title</label>
+              <input id="page_seo_title" class="field-input" name="seo_title" value={page?.seo_title ?? ''} />
             </div>
 
-            <div>
-              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">SEO Description</label>
-              <textarea name="seo_description" rows={3}
-                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;resize:vertical">{page?.seo_description ?? ''}</textarea>
+            <div class="field">
+              <label class="field-label" for="page_seo_desc">SEO Description</label>
+              <textarea id="page_seo_desc" class="field-textarea" name="seo_description" rows={3}>{page?.seo_description ?? ''}</textarea>
             </div>
 
           </div>
         </SectionCard>
 
-        <button type="submit"
-          style="background:#111827;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer;width:100%">
+        <button type="submit" class="btn btn-primary" style="width:100%">
           {isNew ? 'Crea pagina' : 'Salva metadata'}
         </button>
 
       </div>
     </form>
 
-    {!isNew && <div>
-      <SectionCard title={`Sezioni (${blocks.length})`}>
-        <div id="blocks-list" style="display:flex;flex-direction:column;gap:8px">
-          {blocks.length === 0
-            ? <p style="color:#9ca3af;font-size:14px;margin:0">Nessuna sezione. Clicca "Aggiungi sezione" per iniziare.</p>
-            : blocks.map(b => (
-              <div
-                class="block-row"
-                data-junction-id={b.id}
-                data-block-type={b.block_type}
-                data-block-id={b.block_id}
-                style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border:1px solid #e5e7eb;border-radius:6px"
-              >
-                <span style="color:#9ca3af;cursor:grab;font-size:16px">⠿</span>
-                <div style="flex:1">
-                  <span style="font-size:13px;font-weight:500;color:#374151">{b.block_type.replace('block_', '').replace(/_/g, ' ')}</span>
-                  <span style="font-size:12px;color:#9ca3af;margin-left:8px">ID {b.block_id}</span>
-                </div>
-                <button
-                  type="button"
-                  class="edit-block-btn"
+    {!isNew && (
+      <div>
+        <SectionCard title={`Sezioni (${blocks.length})`}>
+          <div id="blocks-list" class="blocks-list">
+            {blocks.length === 0
+              ? <p class="empty-msg">Nessuna sezione. Clicca "Aggiungi sezione" per iniziare.</p>
+              : blocks.map(b => (
+                <div
+                  class="block-row"
+                  data-junction-id={b.id}
                   data-block-type={b.block_type}
                   data-block-id={b.block_id}
-                  style="border:1px solid #e5e7eb;background:#fff;padding:4px 10px;border-radius:4px;font-size:12px;cursor:pointer;color:#374151"
                 >
-                  ✏ Modifica
-                </button>
-                <button
-                  type="button"
-                  class="delete-block-btn"
-                  data-junction-id={b.id}
-                  style="border:none;background:none;padding:4px 8px;font-size:12px;cursor:pointer;color:#9ca3af"
-                >
-                  ✕
-                </button>
-              </div>
-            ))
-          }
-        </div>
-        <div style="margin-top:12px">
-          <button
-            id="add-block-btn"
-            type="button"
-            style="width:100%;border:1px dashed #d1d5db;background:#fafafa;padding:10px;border-radius:6px;font-size:13px;color:#6b7280;cursor:pointer"
-          >
-            + Aggiungi sezione
-          </button>
-        </div>
-      </SectionCard>
-    </div>}
+                  <span class="block-drag" aria-hidden="true">⠿</span>
+                  <div class="block-info">
+                    <span class="block-type">{b.block_type.replace('block_', '').replace(/_/g, ' ')}</span>
+                    <span class="block-id">ID {b.block_id}</span>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-sm edit-block-btn"
+                    data-block-type={b.block_type}
+                    data-block-id={b.block_id}
+                  >
+                    ✏ Modifica
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-icon delete-block-btn"
+                    data-junction-id={b.id}
+                    aria-label="Rimuovi sezione"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))
+            }
+          </div>
+          <div style="margin-top:12px">
+            <button id="add-block-btn" type="button" class="btn-add-block">
+              + Aggiungi sezione
+            </button>
+          </div>
+        </SectionCard>
+      </div>
+    )}
 
   </div>
 
 </AdminLayout>
 
-<dialog id="block-edit-dialog" style="border:none;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,0.15);padding:0;max-width:560px;width:90vw;max-height:80vh;overflow:hidden">
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #e5e7eb;background:#f9fafb">
-    <span id="dialog-title" style="font-size:14px;font-weight:600;color:#111827;text-transform:capitalize"></span>
-    <button id="dialog-close" type="button" style="border:none;background:none;font-size:18px;cursor:pointer;color:#6b7280;line-height:1">×</button>
+<!-- Edit block dialog -->
+<dialog id="block-edit-dialog" class="admin-dialog">
+  <div class="dialog-head">
+    <span id="dialog-title" class="dialog-title"></span>
+    <button id="dialog-close" type="button" class="dialog-close" aria-label="Chiudi">×</button>
   </div>
-  <div id="dialog-body" style="padding:20px;overflow-y:auto;max-height:calc(80vh - 120px)">
-    <p style="color:#9ca3af;font-size:14px">Caricamento campi…</p>
+  <div id="dialog-body" class="dialog-body">
+    <p style="color:var(--c-ink-muted);font-size:14px">Caricamento campi…</p>
   </div>
-  <div style="padding:14px 20px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:10px">
-    <button id="dialog-cancel" type="button"
-      style="border:1px solid #e5e7eb;background:#fff;padding:8px 20px;border-radius:6px;font-size:13px;cursor:pointer;color:#374151">
-      Annulla
-    </button>
-    <button id="dialog-save" type="button"
-      style="background:#111827;color:#fff;border:none;padding:8px 20px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer">
-      Salva
-    </button>
+  <div class="dialog-foot">
+    <button id="dialog-cancel" type="button" class="btn btn-secondary btn-sm">Annulla</button>
+    <button id="dialog-save" type="button" class="btn btn-primary btn-sm">Salva</button>
   </div>
 </dialog>
 
-<dialog id="add-block-dialog" style="border:none;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,0.15);padding:0;max-width:480px;width:90vw">
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #e5e7eb;background:#f9fafb">
-    <span style="font-size:14px;font-weight:600;color:#111827">Aggiungi sezione</span>
-    <button id="add-dialog-close" type="button" style="border:none;background:none;font-size:18px;cursor:pointer;color:#6b7280;line-height:1">×</button>
+<!-- Add block dialog -->
+<dialog id="add-block-dialog" class="admin-dialog" style="max-width:480px">
+  <div class="dialog-head">
+    <span class="dialog-title">Aggiungi sezione</span>
+    <button id="add-dialog-close" type="button" class="dialog-close" aria-label="Chiudi">×</button>
   </div>
-  <div id="add-dialog-body" style="padding:20px">
-    <p style="color:#9ca3af;font-size:14px">Caricamento tipi disponibili…</p>
+  <div id="add-dialog-body" class="dialog-body">
+    <p style="color:var(--c-ink-muted);font-size:14px">Caricamento tipi disponibili…</p>
   </div>
-  <div style="padding:14px 20px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end">
-    <button id="add-dialog-cancel" type="button"
-      style="border:1px solid #e5e7eb;background:#fff;padding:8px 20px;border-radius:6px;font-size:13px;cursor:pointer;color:#374151">
-      Annulla
-    </button>
+  <div class="dialog-foot">
+    <button id="add-dialog-cancel" type="button" class="btn btn-secondary btn-sm">Annulla</button>
   </div>
 </dialog>
 
@@ -244,25 +231,25 @@ const saved = Astro.url.searchParams.get('saved') === '1'
   }
 
   function buildInput(field, value) {
-    const label = `<label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">${escHtml(field.field)}${field.schema?.is_nullable === false ? ' *' : ''}</label>`
-    const inputStyle = 'width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box'
+    const label = `<label style="display:block;font-size:13px;font-weight:500;color:var(--c-ink);margin-bottom:4px">${escHtml(field.field)}${field.schema?.is_nullable === false ? ' <span style="color:var(--c-danger)">*</span>' : ''}</label>`
+    const inputStyle = 'width:100%;border:1px solid var(--c-border);border-radius:var(--r-md);padding:8px 12px;font-size:14px;color:var(--c-ink);box-sizing:border-box;background:var(--c-surface);font-family:inherit'
     const val = value ?? ''
 
     if (field.meta?.interface === 'select-dropdown' && field.meta?.options?.choices) {
       const options = field.meta.options.choices.map(c =>
         `<option value="${escHtml(c.value)}" ${val === c.value ? 'selected' : ''}>${escHtml(c.text)}</option>`
       ).join('')
-      return `<div style="margin-bottom:14px">${label}<select name="${escHtml(field.field)}" style="${inputStyle};background:#fff">${options}</select></div>`
+      return `<div style="margin-bottom:14px">${label}<select name="${escHtml(field.field)}" style="${inputStyle}">${options}</select></div>`
     }
 
     if (field.type === 'boolean') {
       return `<div style="margin-bottom:14px;display:flex;align-items:center;gap:8px">
-        <input type="checkbox" name="${escHtml(field.field)}" id="f_${escHtml(field.field)}" ${val ? 'checked' : ''} style="width:16px;height:16px">
-        <label for="f_${escHtml(field.field)}" style="font-size:13px;font-weight:500;color:#374151">${escHtml(field.field)}</label>
+        <input type="checkbox" name="${escHtml(field.field)}" id="f_${escHtml(field.field)}" ${val ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--admin-accent)">
+        <label for="f_${escHtml(field.field)}" style="font-size:13px;font-weight:500;color:var(--c-ink)">${escHtml(field.field)}</label>
       </div>`
     }
 
-    if (field.type === 'text' || (field.meta?.interface === 'input-multiline')) {
+    if (field.type === 'text' || field.meta?.interface === 'input-multiline') {
       return `<div style="margin-bottom:14px">${label}<textarea name="${escHtml(field.field)}" rows="4" style="${inputStyle};resize:vertical">${escHtml(String(val))}</textarea></div>`
     }
 
@@ -282,7 +269,7 @@ const saved = Astro.url.searchParams.get('saved') === '1'
     currentBlockType = blockType
     currentBlockId = blockId
     dialogTitle.textContent = blockType.replace('block_', '').replace(/_/g, ' ')
-    dialogBody.innerHTML = '<p style="color:#9ca3af;font-size:14px">Caricamento campi…</p>'
+    dialogBody.innerHTML = '<p style="color:var(--c-ink-muted);font-size:14px">Caricamento campi…</p>'
     editDialog.showModal()
 
     try {
@@ -296,13 +283,13 @@ const saved = Astro.url.searchParams.get('saved') === '1'
       const visibleFields = fields.filter(f => !SKIP_FIELDS.includes(f.field) && f.meta?.hidden !== true)
 
       if (!visibleFields.length) {
-        dialogBody.innerHTML = '<p style="color:#9ca3af;font-size:14px">Nessun campo modificabile.</p>'
+        dialogBody.innerHTML = '<p style="color:var(--c-ink-muted);font-size:14px">Nessun campo modificabile.</p>'
         return
       }
 
       dialogBody.innerHTML = visibleFields.map(f => buildInput(f, blockData[f.field])).join('')
     } catch (e) {
-      dialogBody.innerHTML = '<p style="color:#dc2626;font-size:14px">Errore caricamento campi.</p>'
+      dialogBody.innerHTML = '<p style="color:var(--c-danger);font-size:14px">Errore caricamento campi.</p>'
     }
   }
 
@@ -373,7 +360,7 @@ const saved = Astro.url.searchParams.get('saved') === '1'
   const addDialogCancel = document.getElementById('add-dialog-cancel')
 
   addBlockBtn?.addEventListener('click', async () => {
-    addDialogBody.innerHTML = '<p style="color:#9ca3af;font-size:14px">Caricamento…</p>'
+    addDialogBody.innerHTML = '<p style="color:var(--c-ink-muted);font-size:14px">Caricamento…</p>'
     addDialog.showModal()
 
     try {
@@ -382,14 +369,14 @@ const saved = Astro.url.searchParams.get('saved') === '1'
       const blockCollections = collections.filter(c => c.collection.startsWith('block_'))
 
       if (!blockCollections.length) {
-        addDialogBody.innerHTML = '<p style="color:#9ca3af;font-size:14px">Nessun tipo di blocco disponibile. Crea prima una collection con prefisso <code>block_</code> in Directus.</p>'
+        addDialogBody.innerHTML = '<p style="color:var(--c-ink-muted);font-size:14px">Nessun tipo di blocco disponibile. Crea prima una collection con prefisso <code>block_</code> in Directus.</p>'
         return
       }
 
       addDialogBody.innerHTML = blockCollections.map(c => `
         <button type="button" class="add-block-type-btn"
           data-collection="${escHtml(c.collection)}"
-          style="display:block;width:100%;text-align:left;border:1px solid #e5e7eb;background:#fff;padding:10px 14px;border-radius:6px;font-size:14px;color:#374151;cursor:pointer;margin-bottom:8px">
+          style="display:block;width:100%;text-align:left;border:1px solid var(--c-border);background:var(--c-surface);padding:10px 14px;border-radius:var(--r-md);font-size:14px;color:var(--c-ink);cursor:pointer;margin-bottom:8px;font-family:inherit;transition:background 150ms">
           ${escHtml(c.collection.replace('block_', '').replace(/_/g, ' '))}
         </button>
       `).join('')
@@ -414,7 +401,6 @@ const saved = Astro.url.searchParams.get('saved') === '1'
             })
 
             if (!junctionRes.ok) {
-              // Clean up orphan block
               await fetch(`${directusUrl}/items/${collection}/${newBlock.id}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` },
@@ -431,7 +417,7 @@ const saved = Astro.url.searchParams.get('saved') === '1'
         })
       })
     } catch {
-      addDialogBody.innerHTML = '<p style="color:#dc2626;font-size:14px">Errore caricamento collection.</p>'
+      addDialogBody.innerHTML = '<p style="color:var(--c-danger);font-size:14px">Errore caricamento collection.</p>'
     }
   })
 
@@ -441,3 +427,156 @@ const saved = Astro.url.searchParams.get('saved') === '1'
   editDialog?.addEventListener('click', e => { if (e.target === editDialog) editDialog.close() })
   addDialog?.addEventListener('click', e => { if (e.target === addDialog) addDialog.close() })
 </script>
+
+<style>
+  .breadcrumb-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .breadcrumb-back {
+    font-size: 13px;
+    color: var(--c-ink-muted);
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+  .breadcrumb-back:hover { color: var(--c-ink); }
+  .breadcrumb-sep { color: var(--c-border-2); font-size: 16px; }
+  .required { color: var(--c-danger); }
+  .empty-msg { color: var(--c-ink-muted); font-size: 14px; margin: 0; }
+
+  .single-col { display: flex; flex-direction: column; gap: 16px; }
+
+  .page-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  @media (max-width: 800px) {
+    .page-layout { grid-template-columns: 1fr; }
+  }
+
+  /* Blocks */
+  .blocks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .block-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-md);
+    transition: border-color 150ms;
+  }
+
+  .block-row:hover { border-color: var(--c-border-2); }
+
+  .block-drag {
+    color: var(--c-border-2);
+    cursor: grab;
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .block-info { flex: 1; min-width: 0; }
+
+  .block-type {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--c-ink);
+    text-transform: capitalize;
+  }
+
+  .block-id {
+    font-size: 12px;
+    color: var(--c-ink-muted);
+    margin-left: 8px;
+  }
+
+  .btn-add-block {
+    width: 100%;
+    border: 1px dashed var(--c-border-2);
+    background: var(--c-bg);
+    padding: 10px;
+    border-radius: var(--r-md);
+    font-size: 13px;
+    color: var(--c-ink-muted);
+    cursor: pointer;
+    transition: border-color 150ms, color 150ms;
+    font-family: inherit;
+  }
+
+  .btn-add-block:hover {
+    border-color: var(--admin-accent);
+    color: var(--admin-accent);
+  }
+
+  /* Dialogs */
+  .admin-dialog {
+    border: none;
+    border-radius: var(--r-xl);
+    box-shadow: 0 20px 60px oklch(0 0 0 / 0.15);
+    padding: 0;
+    max-width: 560px;
+    width: 90vw;
+    max-height: 80vh;
+    overflow: hidden;
+    background: var(--c-surface);
+  }
+
+  .admin-dialog::backdrop {
+    background: oklch(0 0 0 / 0.4);
+  }
+
+  .dialog-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--c-border);
+    background: var(--c-surface-2);
+  }
+
+  .dialog-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--c-ink);
+    text-transform: capitalize;
+  }
+
+  .dialog-close {
+    border: none;
+    background: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: var(--c-ink-muted);
+    line-height: 1;
+    padding: 4px;
+    border-radius: var(--r-sm);
+    transition: color 150ms;
+  }
+
+  .dialog-close:hover { color: var(--c-ink); }
+
+  .dialog-body {
+    padding: 20px;
+    overflow-y: auto;
+    max-height: calc(80vh - 120px);
+  }
+
+  .dialog-foot {
+    padding: 14px 20px;
+    border-top: 1px solid var(--c-border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+</style>

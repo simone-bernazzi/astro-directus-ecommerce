@@ -51,23 +51,23 @@ const columns: Column[] = [
     key: 'type',
     label: 'Tipo',
     format: (v) => v === 'digital'
-      ? `<span style="background:#eff6ff;color:#3b82f6;padding:2px 8px;border-radius:10px;font-size:12px">Digitale</span>`
-      : `<span style="background:#f0fdf4;color:#22c55e;padding:2px 8px;border-radius:10px;font-size:12px">Fisico</span>`,
+      ? `<span class="badge badge-info">Digitale</span>`
+      : `<span class="badge badge-success">Fisico</span>`,
   },
   {
     key: 'status',
     label: 'Stato',
     format: (v) => v === 'published'
-      ? `<span style="background:#f0fdf4;color:#22c55e;padding:2px 8px;border-radius:10px;font-size:12px">Pubblicato</span>`
-      : `<span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:10px;font-size:12px">Bozza</span>`,
+      ? `<span class="badge badge-success">Pubblicato</span>`
+      : `<span class="badge badge-neutral">Bozza</span>`,
   },
 ]
 ---
 
 <AdminLayout title="Prodotti" active="products">
   <Fragment slot="topbar-actions">
-    <a href="/admin/products/categories" style="color:#6b7280;text-decoration:none;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:500;border:1px solid #e5e7eb">Categorie</a>
-    <a href="/admin/products/new" style="background:#111827;color:#fff;text-decoration:none;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:500">+ Nuovo prodotto</a>
+    <a href="/admin/products/categories" class="btn btn-secondary">Categorie</a>
+    <a href="/admin/products/new" class="btn btn-primary">+ Nuovo prodotto</a>
   </Fragment>
   <DataTable
     columns={columns}

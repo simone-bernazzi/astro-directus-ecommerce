@@ -55,15 +55,15 @@ const columns: Column[] = [
     key: 'is_active',
     label: 'Stato',
     format: (v) => v
-      ? `<span style="background:#f0fdf4;color:#22c55e;padding:2px 8px;border-radius:10px;font-size:12px">Attivo</span>`
-      : `<span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:10px;font-size:12px">Inattivo</span>`,
+      ? `<span class="badge badge-success">Attivo</span>`
+      : `<span class="badge badge-neutral">Inattivo</span>`,
   },
 ]
 ---
 
 <AdminLayout title="Form" active="forms">
   <Fragment slot="topbar-actions">
-    <a href="/admin/forms/new" style="background:#111827;color:#fff;text-decoration:none;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:500">+ Nuovo form</a>
+    <a href="/admin/forms/new" class="btn btn-primary btn-sm">+ Nuovo form</a>
   </Fragment>
   <DataTable
     columns={columns}

@@ -35,13 +35,13 @@ const coupons = (listRes?.data ?? []) as CouponRow[]
 const total = parseInt(countRes?.data?.[0]?.count?.id ?? '0')
 
 const columns: Column[] = [
-  { key: 'code', label: 'Codice', format: (v) => `<span style="font-family:monospace;font-weight:600;color:#111827">${String(v ?? '—')}</span>` },
+  { key: 'code', label: 'Codice', format: (v) => `<span style="font-family:monospace;font-weight:600">${String(v ?? '—')}</span>` },
   {
     key: 'type',
     label: 'Tipo',
     format: (v) => v === 'percent'
-      ? `<span style="color:#6b7280;font-size:13px">Percentuale</span>`
-      : `<span style="color:#6b7280;font-size:13px">Fisso</span>`,
+      ? `<span style="color:var(--c-ink-muted);font-size:13px">Percentuale</span>`
+      : `<span style="color:var(--c-ink-muted);font-size:13px">Fisso</span>`,
   },
   {
     key: 'value',
@@ -68,15 +68,15 @@ const columns: Column[] = [
     key: 'is_active',
     label: 'Stato',
     format: (v) => v
-      ? `<span style="background:#f0fdf4;color:#22c55e;padding:2px 8px;border-radius:10px;font-size:12px">Attivo</span>`
-      : `<span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:10px;font-size:12px">Inattivo</span>`,
+      ? `<span class="badge badge-success">Attivo</span>`
+      : `<span class="badge badge-neutral">Inattivo</span>`,
   },
 ]
 ---
 
 <AdminLayout title="Coupon" active="coupons">
   <Fragment slot="topbar-actions">
-    <a href="/admin/coupons/new" style="background:#111827;color:#fff;text-decoration:none;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:500">+ Nuovo coupon</a>
+    <a href="/admin/coupons/new" class="btn btn-primary">+ Nuovo coupon</a>
   </Fragment>
   <DataTable
     columns={columns}

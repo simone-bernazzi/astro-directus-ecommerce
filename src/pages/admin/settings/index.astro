@@ -12,27 +12,35 @@ async function dFetch(path: string, opts?: RequestInit) {
   try {
     const res = await fetch(`${directusUrl}${path}`, {
       ...opts,
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...((opts?.headers as Record<string, string>) ?? {}) },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        ...((opts?.headers as Record<string, string>) ?? {}),
+      },
     })
     if (!res.ok) return null
     return res.json()
   } catch { return null }
 }
 
+const FIELDS = [
+  'site_name', 'footer_text',
+  'contact_email', 'contact_phone', 'contact_address', 'vat_number',
+  'social_instagram', 'social_facebook', 'social_tiktok', 'social_youtube',
+  'accent_color', 'icon_color',
+  'seo_description_default',
+]
+
 let saveError: string | null = null
 
 if (Astro.request.method === 'POST') {
   const formData = await Astro.request.formData()
-  const payload = {
-    site_name: formData.get('site_name') || null,
-    footer_text: formData.get('footer_text') || null,
-    primary_color: formData.get('primary_color') || null,
-    accent_color: formData.get('accent_color') || null,
+  const payload: Record<string, string | null> = {}
+  for (const f of FIELDS) {
+    const v = formData.get(f)
+    payload[f] = v ? String(v) : null
   }
-  const result = await dFetch('/items/site_settings/1', {
-    method: 'PATCH',
-    body: JSON.stringify(payload),
-  })
+  const result = await dFetch('/items/site_settings/1', { method: 'PATCH', body: JSON.stringify(payload) })
   if (result) {
     return Astro.redirect('/admin/settings?saved=1')
   } else {
@@ -44,76 +52,124 @@ const settingsRes = await dFetch('/items/site_settings/1?fields[]=*')
 const settings = (settingsRes?.data ?? {}) as Record<string, unknown>
 const saved = Astro.url.searchParams.get('saved') === '1'
 
-const primaryColor = String(settings.primary_color ?? '#111827')
-const accentColor = String(settings.accent_color ?? '#6366f1')
+function str(key: string) { return String(settings[key] ?? '') }
 ---
 
 <AdminLayout title="Impostazioni" active="settings">
 
-  <div style="margin-bottom:20px">
-    <h1 style="font-size:18px;font-weight:700;color:#111827">Impostazioni sito</h1>
+  <div class="page-header">
+    <h1 class="page-title">Impostazioni sito</h1>
   </div>
 
-  {saved && <p style="background:#f0fdf4;color:#22c55e;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">✓ Impostazioni salvate.</p>}
-  {saveError && <p style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">{saveError}</p>}
+  {saved && <div class="alert alert-success" style="margin-bottom:var(--s-4)">Impostazioni salvate.</div>}
+  {saveError && <div class="alert alert-danger" style="margin-bottom:var(--s-4)">{saveError}</div>}
 
   <form method="POST">
-    <div style="display:flex;flex-direction:column;gap:16px;max-width:640px">
+    <div class="stack stack-4" style="max-width:680px">
 
-      <SectionCard title="Informazioni negozio">
-        <div style="display:flex;flex-direction:column;gap:14px">
+      <!-- ── Informazioni sito ── -->
+      <SectionCard title="Informazioni sito">
+        <div class="stack stack-4">
+          <div class="field">
+            <label class="field-label" for="site_name">Nome sito</label>
+            <input id="site_name" class="field-input" name="site_name" value={str('site_name')} />
+          </div>
+          <div class="field">
+            <label class="field-label" for="footer_text">Testo footer</label>
+            <textarea id="footer_text" class="field-textarea" name="footer_text" rows={3}>{str('footer_text')}</textarea>
+          </div>
+        </div>
+      </SectionCard>
 
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Nome sito</label>
-            <input name="site_name" value={String(settings.site_name ?? '')}
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+      <!-- ── Recapiti ── -->
+      <SectionCard title="Recapiti">
+        <div class="form-grid">
+          <div class="field">
+            <label class="field-label" for="contact_email">Email di contatto</label>
+            <input id="contact_email" class="field-input" name="contact_email" type="email" value={str('contact_email')} />
+          </div>
+          <div class="field">
+            <label class="field-label" for="contact_phone">Telefono</label>
+            <input id="contact_phone" class="field-input" name="contact_phone" type="tel" value={str('contact_phone')} />
+          </div>
+          <div class="field field-full">
+            <label class="field-label" for="contact_address">Indirizzo</label>
+            <textarea id="contact_address" class="field-textarea" name="contact_address" rows={2}>{str('contact_address')}</textarea>
+          </div>
+          <div class="field">
+            <label class="field-label" for="vat_number">Partita IVA</label>
+            <input id="vat_number" class="field-input" name="vat_number" value={str('vat_number')} />
+          </div>
+        </div>
+      </SectionCard>
+
+      <!-- ── Social ── -->
+      <SectionCard title="Social">
+        <div class="form-grid">
+          <div class="field">
+            <label class="field-label" for="social_instagram">Instagram</label>
+            <input id="social_instagram" class="field-input" name="social_instagram" placeholder="https://instagram.com/…" value={str('social_instagram')} />
+          </div>
+          <div class="field">
+            <label class="field-label" for="social_facebook">Facebook</label>
+            <input id="social_facebook" class="field-input" name="social_facebook" placeholder="https://facebook.com/…" value={str('social_facebook')} />
+          </div>
+          <div class="field">
+            <label class="field-label" for="social_tiktok">TikTok</label>
+            <input id="social_tiktok" class="field-input" name="social_tiktok" placeholder="https://tiktok.com/@…" value={str('social_tiktok')} />
+          </div>
+          <div class="field">
+            <label class="field-label" for="social_youtube">YouTube</label>
+            <input id="social_youtube" class="field-input" name="social_youtube" placeholder="https://youtube.com/@…" value={str('social_youtube')} />
+          </div>
+        </div>
+      </SectionCard>
+
+      <!-- ── Brand e colori ── -->
+      <SectionCard title="Brand e colori">
+        <p class="field-hint" style="margin-bottom:var(--s-4)">
+          I colori modificano in tempo reale il pannello admin. Il valore viene salvato in hex.
+        </p>
+        <div class="form-grid">
+
+          <div class="field">
+            <label class="field-label" for="accent-input">Colore accent</label>
+            <span class="field-hint">Pulsanti, link attivi, indicatori</span>
+            <div class="color-row">
+              <input type="color" id="accent-input" name="accent_color" class="color-picker" value="#6366f1" />
+              <div>
+                <div id="accent-preview" class="color-preview"></div>
+                <code id="accent-hex" class="color-hex"></code>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Testo footer</label>
-            <textarea name="footer_text" rows={3}
-              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;resize:vertical">{String(settings.footer_text ?? '')}</textarea>
+          <div class="field">
+            <label class="field-label" for="icon-input">Colore icone sidebar</label>
+            <span class="field-hint">Icone e testo degli elementi inattivi</span>
+            <div class="color-row">
+              <input type="color" id="icon-input" name="icon_color" class="color-picker" value="#6b7280" />
+              <div>
+                <div id="icon-preview" class="color-preview"></div>
+                <code id="icon-hex" class="color-hex"></code>
+              </div>
+            </div>
           </div>
 
         </div>
       </SectionCard>
 
-      <SectionCard title="Colori brand">
-        <p style="font-size:13px;color:#6b7280;margin:0 0 16px">I colori vengono applicati come CSS custom properties (<code>--admin-primary</code>, <code>--admin-accent</code>) nel pannello admin. Aggiornati in tempo reale mentre scegli.</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:8px">Colore primario</label>
-            <div style="display:flex;align-items:center;gap:10px">
-              <input type="color" id="primary-color-input" name="primary_color" value={primaryColor}
-                style="width:48px;height:48px;border:1px solid #d1d5db;border-radius:6px;padding:4px;cursor:pointer" />
-              <div>
-                <div id="primary-preview" style={`width:120px;height:32px;border-radius:6px;background:${primaryColor}`}></div>
-                <code id="primary-hex" style="font-size:12px;color:#6b7280">{primaryColor}</code>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:8px">Colore accent</label>
-            <div style="display:flex;align-items:center;gap:10px">
-              <input type="color" id="accent-color-input" name="accent_color" value={accentColor}
-                style="width:48px;height:48px;border:1px solid #d1d5db;border-radius:6px;padding:4px;cursor:pointer" />
-              <div>
-                <div id="accent-preview" style={`width:120px;height:32px;border-radius:6px;background:${accentColor}`}></div>
-                <code id="accent-hex" style="font-size:12px;color:#6b7280">{accentColor}</code>
-              </div>
-            </div>
-          </div>
-
+      <!-- ── SEO ── -->
+      <SectionCard title="SEO">
+        <div class="field">
+          <label class="field-label" for="seo_description_default">Meta description di default</label>
+          <textarea id="seo_description_default" class="field-textarea" name="seo_description_default" rows={3} maxlength={160} placeholder="Descrizione usata per le pagine senza SEO personalizzato (max 160 caratteri)">{str('seo_description_default')}</textarea>
+          <span class="field-hint">Usata per le pagine prive di SEO personalizzato.</span>
         </div>
       </SectionCard>
 
-      <div style="display:flex;justify-content:flex-end">
-        <button type="submit"
-          style="background:#111827;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">
-          Salva impostazioni
-        </button>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Salva impostazioni</button>
       </div>
 
     </div>
@@ -122,24 +178,98 @@ const accentColor = String(settings.accent_color ?? '#6366f1')
 </AdminLayout>
 
 <script>
-  const primaryInput = document.getElementById('primary-color-input') as HTMLInputElement | null
-  const accentInput = document.getElementById('accent-color-input') as HTMLInputElement | null
-  const primaryPreview = document.getElementById('primary-preview')
-  const accentPreview = document.getElementById('accent-preview')
-  const primaryHex = document.getElementById('primary-hex')
-  const accentHex = document.getElementById('accent-hex')
+  function cssColorToHex(cssColor: string): string | null {
+    if (!cssColor) return null
+    try {
+      const canvas = document.createElement('canvas')
+      canvas.width = canvas.height = 1
+      const ctx = canvas.getContext('2d')!
+      ctx.fillStyle = '#000000'
+      ctx.fillStyle = cssColor.trim()
+      const hex = ctx.fillStyle
+      return hex.startsWith('#') ? hex : null
+    } catch { return null }
+  }
 
-  primaryInput?.addEventListener('input', () => {
-    const color = primaryInput.value
-    if (primaryPreview) primaryPreview.style.background = color
-    if (primaryHex) primaryHex.textContent = color
-    document.documentElement.style.setProperty('--admin-primary', color)
-  })
+  const accentInput = document.getElementById('accent-input') as HTMLInputElement | null
+  const accentPreview = document.getElementById('accent-preview')
+  const accentHexEl = document.getElementById('accent-hex')
+
+  const iconInput = document.getElementById('icon-input') as HTMLInputElement | null
+  const iconPreview = document.getElementById('icon-preview')
+  const iconHexEl = document.getElementById('icon-hex')
+
+  function applyColor(input: HTMLInputElement, preview: Element | null, hexEl: Element | null, color: string) {
+    input.value = color
+    if (preview) (preview as HTMLElement).style.background = color
+    if (hexEl) hexEl.textContent = color
+  }
+
+  // Read live CSS variables (already set by AdminLayout from Directus)
+  const styles = getComputedStyle(document.documentElement)
+  const storedAccent = styles.getPropertyValue('--admin-accent').trim()
+  const storedIcon = styles.getPropertyValue('--admin-icon-color').trim()
+
+  if (accentInput) {
+    const hex = cssColorToHex(storedAccent)
+    applyColor(accentInput, accentPreview, accentHexEl, hex ?? accentInput.value)
+  }
+
+  if (iconInput) {
+    const hex = storedIcon ? cssColorToHex(storedIcon) : null
+    // Fallback: read --c-ink-muted if no icon_color stored yet
+    const fallbackHex = cssColorToHex(styles.getPropertyValue('--c-ink-muted').trim())
+    applyColor(iconInput, iconPreview, iconHexEl, hex ?? fallbackHex ?? iconInput.value)
+  }
 
   accentInput?.addEventListener('input', () => {
-    const color = accentInput.value
-    if (accentPreview) accentPreview.style.background = color
-    if (accentHex) accentHex.textContent = color
+    const color = accentInput!.value
+    if (accentPreview) (accentPreview as HTMLElement).style.background = color
+    if (accentHexEl) accentHexEl.textContent = color
     document.documentElement.style.setProperty('--admin-accent', color)
   })
+
+  iconInput?.addEventListener('input', () => {
+    const color = iconInput!.value
+    if (iconPreview) (iconPreview as HTMLElement).style.background = color
+    if (iconHexEl) iconHexEl.textContent = color
+    document.documentElement.style.setProperty('--admin-icon-color', color)
+  })
 </script>
+
+<style>
+  .form-actions { display: flex; justify-content: flex-end; }
+
+  .color-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: var(--s-2);
+  }
+
+  .color-picker {
+    width: 48px;
+    height: 48px;
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-md);
+    padding: 4px;
+    cursor: pointer;
+    background: var(--c-surface);
+    flex-shrink: 0;
+  }
+
+  .color-preview {
+    width: 120px;
+    height: 32px;
+    border-radius: var(--r-md);
+    border: 1px solid var(--c-border);
+    background: var(--c-surface-2);
+  }
+
+  .color-hex {
+    font-size: 12px;
+    color: var(--c-ink-muted);
+    margin-top: 4px;
+    display: block;
+  }
+</style>

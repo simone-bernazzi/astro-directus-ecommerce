@@ -39,21 +39,21 @@ const pages = (listRes?.data ?? []) as PageRow[]
 const total = parseInt(countRes?.data?.[0]?.count?.id ?? '0')
 
 const columns: Column[] = [
-  { key: 'title', label: 'Titolo', format: (v) => `<span style="font-weight:500;color:#111827">${escHtml(String(v ?? '—'))}</span>` },
-  { key: 'slug', label: 'Slug', format: (v) => `<span style="font-family:monospace;font-size:12px;color:#6b7280">${escHtml(String(v ?? '—'))}</span>` },
+  { key: 'title', label: 'Titolo', format: (v) => `<span style="font-weight:500">${escHtml(String(v ?? '—'))}</span>` },
+  { key: 'slug', label: 'Slug', format: (v) => `<span style="font-family:monospace;font-size:12px;color:var(--c-ink-muted)">${escHtml(String(v ?? '—'))}</span>` },
   {
     key: 'status',
     label: 'Stato',
     format: (v) => v === 'published'
-      ? `<span style="background:#f0fdf4;color:#22c55e;padding:2px 8px;border-radius:10px;font-size:12px">Pubblicata</span>`
-      : `<span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:10px;font-size:12px">Bozza</span>`,
+      ? `<span class="badge badge-success">Pubblicata</span>`
+      : `<span class="badge badge-neutral">Bozza</span>`,
   },
 ]
 ---
 
 <AdminLayout title="Pagine" active="pages">
   <Fragment slot="topbar-actions">
-    <a href="/admin/pages/new" style="background:#111827;color:#fff;text-decoration:none;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:500">+ Nuova pagina</a>
+    <a href="/admin/pages/new" class="btn btn-primary btn-sm">+ Nuova pagina</a>
   </Fragment>
   <DataTable
     columns={columns}

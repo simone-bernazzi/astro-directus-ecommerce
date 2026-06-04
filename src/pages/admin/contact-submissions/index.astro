@@ -60,12 +60,12 @@ const columns: Column[] = [
   {
     key: 'data',
     label: 'Email',
-    format: (v) => extractEmail(v as Record<string, unknown>),
+    format: (v) => `<span style="color:var(--c-ink-muted)">${extractEmail(v as Record<string, unknown>)}</span>`,
   },
   {
     key: 'data',
     label: 'Messaggio',
-    format: (v) => `<span style="color:#6b7280;font-size:13px">${extractMessage(v as Record<string, unknown>)}</span>`,
+    format: (v) => `<span style="color:var(--c-ink-muted);font-size:13px">${extractMessage(v as Record<string, unknown>)}</span>`,
   },
   {
     key: 'date_created',
@@ -76,8 +76,8 @@ const columns: Column[] = [
     key: 'is_read',
     label: 'Stato',
     format: (v) => v
-      ? `<span style="background:#f0fdf4;color:#22c55e;padding:2px 8px;border-radius:10px;font-size:12px">Letto</span>`
-      : `<span style="background:#fef9c3;color:#ca8a04;padding:2px 8px;border-radius:10px;font-size:12px">Nuovo</span>`,
+      ? `<span class="badge badge-neutral">Letto</span>`
+      : `<span class="badge badge-warning">Nuovo</span>`,
   },
 ]
 ---

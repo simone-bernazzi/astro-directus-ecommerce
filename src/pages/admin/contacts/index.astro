@@ -29,17 +29,17 @@ const PIPELINE_LABELS: Record<string, string> = {
   lead: 'Lead', prospect: 'Prospect', cliente_attivo: 'Attivo',
   cliente_fidelizzato: 'Fidelizzato', inattivo: 'Inattivo',
 }
-const PIPELINE_COLORS: Record<string, string> = {
-  lead: 'background:#fff7ed;color:#f97316',
-  prospect: 'background:#fef9c3;color:#ca8a04',
-  cliente_attivo: 'background:#f0fdf4;color:#22c55e',
-  cliente_fidelizzato: 'background:#eff6ff;color:#3b82f6',
-  inattivo: 'background:#f3f4f6;color:#6b7280',
+const PIPELINE_BADGE_CLASS: Record<string, string> = {
+  lead: 'badge-warning',
+  prospect: 'badge-warning',
+  cliente_attivo: 'badge-success',
+  cliente_fidelizzato: 'badge-info',
+  inattivo: 'badge-neutral',
 }
 
 function pipelineBadge(stage: string) {
-  const style = PIPELINE_COLORS[stage] ?? 'background:#f3f4f6;color:#6b7280'
-  return `<span style="${style};padding:2px 8px;border-radius:10px;font-size:12px">${PIPELINE_LABELS[stage] ?? stage}</span>`
+  const cls = PIPELINE_BADGE_CLASS[stage] ?? 'badge-neutral'
+  return `<span class="badge ${cls}">${PIPELINE_LABELS[stage] ?? stage}</span>`
 }
 
 const [listRes, countRes] = await Promise.all([
@@ -67,7 +67,7 @@ const columns: Column[] = [
     label: 'Nome',
     format: (_, row) => {
       const r = row as ContactRow
-      return `<span style="font-weight:500;color:#111827">${r.first_name} ${r.last_name}</span>`
+      return `<span style="font-weight:500">${r.first_name} ${r.last_name}</span>`
     },
   },
   { key: 'email', label: 'Email', format: (v) => String(v ?? '—') },
@@ -80,7 +80,7 @@ const columns: Column[] = [
   {
     key: 'canale_prevalente',
     label: 'Canale',
-    format: (v) => `<span style="color:#6b7280;font-size:13px">${String(v ?? '—')}</span>`,
+    format: (v) => `<span style="color:var(--c-ink-muted);font-size:13px">${String(v ?? '—')}</span>`,
   },
   {
     key: 'date_created',
@@ -95,7 +95,7 @@ const columns: Column[] = [
 
 <AdminLayout title="Contatti" active="contacts">
   <Fragment slot="topbar-actions">
-    <a href="/admin/contacts/new" style="background:#111827;color:#fff;text-decoration:none;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:500">+ Nuovo contatto</a>
+    <a href="/admin/contacts/new" class="btn btn-primary">+ Nuovo contatto</a>
   </Fragment>
   <DataTable
     columns={columns}

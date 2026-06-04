@@ -37,23 +37,23 @@ const categories = (listRes?.data ?? []) as CatRow[]
 const total = parseInt(countRes?.data?.[0]?.count?.id ?? '0')
 
 const columns: Column[] = [
-  { key: 'name', label: 'Nome', format: (v) => `<span style="font-weight:500;color:#111827">${String(v ?? '—')}</span>` },
-  { key: 'slug', label: 'Slug', format: (v) => `<span style="font-family:monospace;font-size:12px;color:#6b7280">${String(v ?? '—')}</span>` },
+  { key: 'name', label: 'Nome', format: (v) => `<span style="font-weight:500">${String(v ?? '—')}</span>` },
+  { key: 'slug', label: 'Slug', format: (v) => `<span style="font-family:monospace;font-size:12px;color:var(--c-ink-muted)">${String(v ?? '—')}</span>` },
   {
     key: 'parent_id',
     label: 'Parent',
     format: (v) => {
       const p = v as { name: string } | null
-      return p?.name ? `<span style="color:#6b7280;font-size:13px">${p.name}</span>` : '<span style="color:#d1d5db">—</span>'
+      return p?.name ? `<span style="color:var(--c-ink-muted);font-size:13px">${p.name}</span>` : '<span style="color:var(--c-border-2)">—</span>'
     },
   },
-  { key: 'sort_order', label: 'Ordine', format: (v) => `<span style="color:#6b7280">${String(v ?? 0)}</span>` },
+  { key: 'sort_order', label: 'Ordine', format: (v) => `<span style="color:var(--c-ink-muted)">${String(v ?? 0)}</span>` },
 ]
 ---
 
 <AdminLayout title="Categorie prodotti" active="products">
   <Fragment slot="topbar-actions">
-    <a href="/admin/products/categories/new" style="background:#111827;color:#fff;text-decoration:none;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:500">+ Nuova categoria</a>
+    <a href="/admin/products/categories/new" class="btn btn-primary btn-sm">+ Nuova categoria</a>
   </Fragment>
   <DataTable
     columns={columns}
