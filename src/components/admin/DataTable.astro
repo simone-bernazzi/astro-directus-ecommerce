@@ -64,7 +64,7 @@ const colSpan = columns.length + (detailBase ? 1 : 0)
           </tr>
         ) : (
           rows.map((row) => (
-            <tr class="dt-row">
+            <tr class="dt-row" data-href={detailBase ? `${detailBase}${String(row[idField] ?? '')}` : undefined}>
               {columns.map((col) => {
                 const raw = row[col.key]
                 const html = col.format ? col.format(raw, row) : null
@@ -164,6 +164,10 @@ const colSpan = columns.length + (detailBase ? 1 : 0)
     border-bottom: none;
   }
 
+  .dt-row[data-href] {
+    cursor: pointer;
+  }
+
   .dt-row:hover {
     background: color-mix(in oklch, var(--admin-accent) 4%, var(--c-surface));
   }
@@ -241,3 +245,12 @@ const colSpan = columns.length + (detailBase ? 1 : 0)
     white-space: nowrap;
   }
 </style>
+
+<script>
+  document.querySelectorAll<HTMLTableRowElement>('.dt-row[data-href]').forEach((row) => {
+    row.addEventListener('click', (e) => {
+      if ((e.target as Element).closest('a, button')) return
+      window.location.href = row.dataset.href!
+    })
+  })
+</script>
