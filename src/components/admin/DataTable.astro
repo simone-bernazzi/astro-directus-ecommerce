@@ -247,10 +247,10 @@ const colSpan = columns.length + (detailBase ? 1 : 0)
 </style>
 
 <script>
-  document.querySelectorAll<HTMLTableRowElement>('.dt-row[data-href]').forEach((row) => {
-    row.addEventListener('click', (e) => {
-      if ((e.target as Element).closest('a, button')) return
-      window.location.href = row.dataset.href!
-    })
+  document.addEventListener('click', function(e) {
+    var row = e.target.closest('.dt-row[data-href]')
+    if (!row) return
+    if (e.target.closest('a, button')) return
+    window.location.href = row.dataset.href
   })
 </script>
