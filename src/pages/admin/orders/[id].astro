@@ -9,23 +9,100 @@ import type { Order } from '@/lib/types'
 const { id } = Astro.params
 if (!id) return Astro.redirect('/admin/orders')
 
+const isNew = id === 'new'
+
 const directusUrl = process.env.DIRECTUS_URL ?? ''
 const token = Astro.cookies.get('admin_token')?.value ?? ''
 
-async function dFetch(path: string) {
+async function dFetch(path: string, opts?: RequestInit) {
   try {
     const res = await fetch(`${directusUrl}${path}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      ...opts,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...((opts?.headers as Record<string, string>) ?? {}) },
     })
     if (!res.ok) return null
     return res.json()
   } catch { return null }
 }
 
-const orderRes = await dFetch(`/items/orders/${id}?fields[]=*,order_items.*`)
-if (!orderRes?.data) return Astro.redirect('/admin/orders')
+let saveError: string | null = null
 
-const order = orderRes.data as Order
+if (Astro.request.method === 'POST' && isNew) {
+  const formData = await Astro.request.formData()
+
+  const itemsCount = parseInt(String(formData.get('items_count') ?? '0'))
+  const items: Array<{ product_name: string; variant_name: string | null; sku: string | null; quantity: number; unit_price: number }> = []
+  for (let i = 0; i < itemsCount; i++) {
+    const name = String(formData.get(`item_${i}_name`) ?? '').trim()
+    const qty = parseInt(String(formData.get(`item_${i}_qty`) ?? '1'))
+    const price = parseFloat(String(formData.get(`item_${i}_price`) ?? '0'))
+    if (name && qty > 0) {
+      items.push({
+        product_name: name,
+        variant_name: String(formData.get(`item_${i}_variant`) ?? '').trim() || null,
+        sku: String(formData.get(`item_${i}_sku`) ?? '').trim() || null,
+        quantity: qty,
+        unit_price: price,
+      })
+    }
+  }
+
+  const subtotal = items.reduce((s, i) => s + i.unit_price * i.quantity, 0)
+  const discountAmount = parseFloat(String(formData.get('discount_amount') ?? '0')) || 0
+  const shippingCost = parseFloat(String(formData.get('shipping_cost') ?? '0')) || 0
+  const total = Math.max(0, subtotal - discountAmount + shippingCost)
+
+  const orderPayload = {
+    customer_name: formData.get('customer_name'),
+    customer_email: String(formData.get('customer_email') ?? '').trim() || null,
+    contact_id: String(formData.get('contact_id') ?? '').trim() || null,
+    subtotal,
+    discount_amount: discountAmount,
+    shipping_cost: shippingCost,
+    total,
+    status: formData.get('status') ?? 'paid',
+    channel: 'offline',
+    notes: String(formData.get('notes') ?? '').trim() || null,
+  }
+
+  const orderResult = await dFetch('/items/orders', { method: 'POST', body: JSON.stringify(orderPayload) })
+  if (orderResult?.data?.id) {
+    const orderId = orderResult.data.id
+    for (const item of items) {
+      await dFetch('/items/order_items', { method: 'POST', body: JSON.stringify({ ...item, order_id: orderId }) })
+    }
+    return Astro.redirect(`/admin/orders/${orderId}?saved=1`)
+  } else {
+    saveError = 'Errore durante la creazione dell\'ordine.'
+  }
+}
+
+// For create mode: fetch products + contacts for dropdowns
+type ProductOption = { id: string; name: string; base_price: number; variants: Array<{ id: string; name: string; sku: string; price_override: number | null }> }
+type ContactOption = { id: string; first_name: string; last_name: string; email: string | null }
+
+let productsForSelect: ProductOption[] = []
+let contactsForSelect: ContactOption[] = []
+
+if (isNew) {
+  const [prodsRes, contsRes] = await Promise.all([
+    dFetch('/items/products?fields[]=id,name,base_price,variants.id,variants.name,variants.sku,variants.price_override&filter[status][_eq]=published&sort[]=name&limit=500'),
+    dFetch('/items/contacts?fields[]=id,first_name,last_name,email&sort[]=first_name&limit=500'),
+  ])
+  productsForSelect = (prodsRes?.data ?? []) as ProductOption[]
+  contactsForSelect = (contsRes?.data ?? []) as ContactOption[]
+}
+
+// For view mode
+let order: Order | null = null
+if (!isNew) {
+  const saved = Astro.url.searchParams.get('saved') === '1'
+  const orderRes = await dFetch(`/items/orders/${id}?fields[]=*,order_items.*`)
+  if (!orderRes?.data) return Astro.redirect('/admin/orders')
+  order = orderRes.data as Order
+}
+
+const saved = Astro.url.searchParams.get('saved') === '1'
 
 const ORDER_STATUS_LABELS: Record<string, string> = {
   pending: 'In attesa', paid: 'Pagato', shipped: 'Spedito',
@@ -44,121 +121,342 @@ function fmtDate(iso: string | null | undefined) {
   return new Date(iso).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
-const statusStyle = ORDER_STATUS_COLORS[order.status] ?? 'background:#f3f4f6;color:#6b7280'
+const productsJson = JSON.stringify(productsForSelect)
+const contactsJson = JSON.stringify(contactsForSelect)
 ---
 
-<AdminLayout title={`Ordine #${order.id.slice(0, 8)}`} active="orders">
+<AdminLayout title={isNew ? 'Nuovo ordine offline' : `Ordine #${order?.id?.slice(0, 8)}`} active="orders">
 
-  <!-- Header -->
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
     <a href="/admin/orders" style="color:#6b7280;text-decoration:none;font-size:13px">← Ordini</a>
     <span style="color:#d1d5db">/</span>
-    <h1 style="font-size:18px;font-weight:700;color:#111827;font-family:monospace">#{order.id.slice(0, 8)}</h1>
-    <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${statusStyle}`}>
-      {ORDER_STATUS_LABELS[order.status] ?? order.status}
-    </span>
-    <span style="margin-left:auto;font-size:13px;color:#6b7280">{fmtDate(order.date_created)}</span>
+    <h1 style="font-size:18px;font-weight:700;color:#111827">
+      {isNew ? 'Nuovo ordine offline' : `#${order?.id?.slice(0, 8)}`}
+    </h1>
+    {!isNew && order && (
+      <span style={`padding:3px 10px;border-radius:10px;font-size:12px;${ORDER_STATUS_COLORS[order.status] ?? 'background:#f3f4f6;color:#6b7280'}`}>
+        {ORDER_STATUS_LABELS[order.status] ?? order.status}
+      </span>
+    )}
+    {!isNew && order && <span style="margin-left:auto;font-size:13px;color:#6b7280">{fmtDate(order.date_created)}</span>}
   </div>
 
-  <div style="display:flex;flex-direction:column;gap:16px">
+  {saved && <p style="background:#f0fdf4;color:#22c55e;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">✓ Ordine creato con successo.</p>}
+  {saveError && <p style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px">{saveError}</p>}
 
-    <!-- Info ordine -->
-    <SectionCard title="Informazioni ordine">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px">
-        <div><span style="color:#6b7280">Cliente:</span> <strong>{order.customer_name}</strong></div>
-        <div><span style="color:#6b7280">Email:</span> {order.customer_email}</div>
-        <div><span style="color:#6b7280">Canale:</span> {order.channel}</div>
-        <div><span style="color:#6b7280">Stripe session:</span> <code style="font-size:11px;color:#6b7280">{order.stripe_session_id}</code></div>
-        {order.notes && <div style="grid-column:span 2"><span style="color:#6b7280">Note:</span> {order.notes}</div>}
-        {order.tracking_number && (
-          <div style="grid-column:span 2">
-            <span style="color:#6b7280">Tracking:</span>
-            {order.tracking_url
-              ? <a href={order.tracking_url} target="_blank" rel="noopener" style="color:#3b82f6">{order.tracking_number}</a>
-              : order.tracking_number
-            }
+  {isNew && (
+    <form method="POST" id="order-form">
+      <input type="hidden" name="items_count" id="items_count" value="0" />
+
+      <div style="display:flex;flex-direction:column;gap:16px">
+
+        <SectionCard title="Cliente">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div>
+              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Nome cliente *</label>
+              <input name="customer_name" required
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+            </div>
+            <div>
+              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Email</label>
+              <input name="customer_email" type="email"
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box" />
+            </div>
+            <div style="grid-column:span 2">
+              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Collega a contatto esistente</label>
+              <select name="contact_id"
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box"
+                id="contact_select">
+                <option value="">— nessuno —</option>
+                {contactsForSelect.map(c => (
+                  <option value={c.id}>{c.first_name} {c.last_name}{c.email ? ` (${c.email})` : ''}</option>
+                ))}
+              </select>
+            </div>
           </div>
-        )}
-      </div>
-    </SectionCard>
+        </SectionCard>
 
-    <!-- Prodotti ordinati -->
-    <SectionCard title={`Prodotti (${order.order_items?.length ?? 0})`}>
-      {!order.order_items?.length
-        ? <p style="color:#9ca3af;font-size:14px">Nessun prodotto.</p>
-        : (
-          <table style="width:100%;border-collapse:collapse;font-size:14px">
-            <thead>
-              <tr style="border-bottom:1px solid #e5e7eb">
-                <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Prodotto</th>
-                <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">SKU</th>
-                <th style="text-align:center;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Qtà</th>
-                <th style="text-align:right;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Prezzo</th>
-                <th style="text-align:right;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Totale</th>
-              </tr>
-            </thead>
-            <tbody>
-              {order.order_items.map(item => (
-                <tr style="border-bottom:1px solid #f3f4f6">
-                  <td style="padding:8px">
-                    <div style="font-weight:500">{item.product_name}</div>
-                    <div style="font-size:12px;color:#6b7280">{item.variant_name}</div>
-                  </td>
-                  <td style="padding:8px;font-family:monospace;font-size:12px;color:#6b7280">{item.sku}</td>
-                  <td style="padding:8px;text-align:center">{item.quantity}</td>
-                  <td style="padding:8px;text-align:right">€{item.unit_price.toFixed(2)}</td>
-                  <td style="padding:8px;text-align:right;font-weight:500">€{(item.unit_price * item.quantity).toFixed(2)}</td>
+        <SectionCard title="Prodotti">
+          <div style="margin-bottom:12px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+            <div style="flex:1;min-width:200px">
+              <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">Cerca dal catalogo</label>
+              <select id="catalog_select"
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;color:#111827;background:#fff;box-sizing:border-box">
+                <option value="">— seleziona prodotto —</option>
+                {productsForSelect.map(p => (
+                  <option value={p.id} data-price={p.base_price} data-name={p.name}>
+                    {p.name} — €{p.base_price.toFixed(2)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button type="button" id="add_from_catalog"
+              style="background:#4f46e5;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap">
+              + Dal catalogo
+            </button>
+            <button type="button" id="add_manual"
+              style="background:#6b7280;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap">
+              + Riga manuale
+            </button>
+          </div>
+
+          <div id="items_container">
+            <p id="empty_msg" style="color:#9ca3af;font-size:14px;text-align:center;padding:20px 0">Nessun prodotto aggiunto.</p>
+          </div>
+
+          <div style="border-top:1px solid #e5e7eb;margin-top:12px;padding-top:12px;display:flex;flex-direction:column;gap:6px;max-width:300px;margin-left:auto;font-size:14px">
+            <div style="display:flex;justify-content:space-between">
+              <span style="color:#6b7280">Subtotale</span>
+              <span id="display_subtotal" style="font-weight:500">€0.00</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:#6b7280">Sconto (€)</span>
+              <input name="discount_amount" id="discount_amount" type="number" step="0.01" min="0" value="0"
+                oninput="recalc()"
+                style="width:90px;border:1px solid #d1d5db;border-radius:4px;padding:4px 8px;font-size:13px;text-align:right" />
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:#6b7280">Spedizione (€)</span>
+              <input name="shipping_cost" id="shipping_cost" type="number" step="0.01" min="0" value="0"
+                oninput="recalc()"
+                style="width:90px;border:1px solid #d1d5db;border-radius:4px;padding:4px 8px;font-size:13px;text-align:right" />
+            </div>
+            <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;border-top:1px solid #e5e7eb;padding-top:8px">
+              <span>Totale</span>
+              <span id="display_total">€0.00</span>
+            </div>
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Dettagli ordine">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div>
+              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Stato</label>
+              <select name="status"
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;background:#fff;box-sizing:border-box">
+                <option value="paid">Pagato</option>
+                <option value="pending">In attesa di pagamento</option>
+                <option value="delivered">Consegnato</option>
+              </select>
+            </div>
+            <div style="grid-column:span 2">
+              <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px">Note</label>
+              <textarea name="notes" rows={3}
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:14px;color:#111827;box-sizing:border-box;resize:vertical"></textarea>
+            </div>
+          </div>
+        </SectionCard>
+
+        <div style="display:flex;justify-content:flex-end">
+          <button type="submit"
+            style="background:#111827;color:#fff;border:none;padding:10px 28px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">
+            Crea ordine
+          </button>
+        </div>
+
+      </div>
+    </form>
+  )}
+
+  {!isNew && order && (
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <SectionCard title="Informazioni ordine">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px">
+          <div><span style="color:#6b7280">Cliente:</span> <strong>{order.customer_name}</strong></div>
+          <div><span style="color:#6b7280">Email:</span> {order.customer_email}</div>
+          <div><span style="color:#6b7280">Canale:</span> {order.channel}</div>
+          <div><span style="color:#6b7280">Stripe session:</span> <code style="font-size:11px;color:#6b7280">{order.stripe_session_id ?? '—'}</code></div>
+          {order.notes && <div style="grid-column:span 2"><span style="color:#6b7280">Note:</span> {order.notes}</div>}
+          {order.tracking_number && (
+            <div style="grid-column:span 2">
+              <span style="color:#6b7280">Tracking:</span>
+              {order.tracking_url
+                ? <a href={order.tracking_url} target="_blank" rel="noopener" style="color:#3b82f6">{order.tracking_number}</a>
+                : order.tracking_number
+              }
+            </div>
+          )}
+        </div>
+      </SectionCard>
+
+      <SectionCard title={`Prodotti (${order.order_items?.length ?? 0})`}>
+        {!order.order_items?.length
+          ? <p style="color:#9ca3af;font-size:14px">Nessun prodotto.</p>
+          : (
+            <table style="width:100%;border-collapse:collapse;font-size:14px">
+              <thead>
+                <tr style="border-bottom:1px solid #e5e7eb">
+                  <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Prodotto</th>
+                  <th style="text-align:left;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">SKU</th>
+                  <th style="text-align:center;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Qtà</th>
+                  <th style="text-align:right;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Prezzo</th>
+                  <th style="text-align:right;padding:6px 8px;color:#6b7280;font-size:11px;font-weight:600;text-transform:uppercase">Totale</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )
-      }
-    </SectionCard>
+              </thead>
+              <tbody>
+                {order.order_items.map(item => (
+                  <tr style="border-bottom:1px solid #f3f4f6">
+                    <td style="padding:8px">
+                      <div style="font-weight:500">{item.product_name}</div>
+                      <div style="font-size:12px;color:#6b7280">{item.variant_name}</div>
+                    </td>
+                    <td style="padding:8px;font-family:monospace;font-size:12px;color:#6b7280">{item.sku}</td>
+                    <td style="padding:8px;text-align:center">{item.quantity}</td>
+                    <td style="padding:8px;text-align:right">€{item.unit_price.toFixed(2)}</td>
+                    <td style="padding:8px;text-align:right;font-weight:500">€{(item.unit_price * item.quantity).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )
+        }
+      </SectionCard>
 
-    <!-- Spedizione -->
-    <SectionCard title="Spedizione">
-      {order.shipping_address
-        ? (
-          <div style="font-size:14px;line-height:1.6">
-            <p style="font-weight:500">{order.shipping_address.name}</p>
-            <p style="color:#6b7280">{order.shipping_address.line1}{order.shipping_address.line2 ? `, ${order.shipping_address.line2}` : ''}</p>
-            <p style="color:#6b7280">{order.shipping_address.postal_code} {order.shipping_address.city} ({order.shipping_address.state}), {order.shipping_address.country}</p>
-          </div>
-        )
-        : <p style="color:#9ca3af;font-size:14px">Nessun indirizzo di spedizione.</p>
-      }
-    </SectionCard>
+      <SectionCard title="Spedizione">
+        {order.shipping_address
+          ? (
+            <div style="font-size:14px;line-height:1.6">
+              <p style="font-weight:500">{order.shipping_address.name}</p>
+              <p style="color:#6b7280">{order.shipping_address.line1}{order.shipping_address.line2 ? `, ${order.shipping_address.line2}` : ''}</p>
+              <p style="color:#6b7280">{order.shipping_address.postal_code} {order.shipping_address.city} ({order.shipping_address.state}), {order.shipping_address.country}</p>
+            </div>
+          )
+          : <p style="color:#9ca3af;font-size:14px">Nessun indirizzo di spedizione.</p>
+        }
+      </SectionCard>
 
-    <!-- Riepilogo pagamento -->
-    <SectionCard title="Pagamento">
-      <div style="display:flex;flex-direction:column;gap:6px;font-size:14px;max-width:300px">
-        <div style="display:flex;justify-content:space-between">
-          <span style="color:#6b7280">Subtotale</span>
-          <span>€{order.subtotal.toFixed(2)}</span>
-        </div>
-        {order.discount_amount > 0 && (
-          <div style="display:flex;justify-content:space-between;color:#22c55e">
-            <span>Sconto</span>
-            <span>-€{order.discount_amount.toFixed(2)}</span>
+      <SectionCard title="Pagamento">
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:14px;max-width:300px">
+          <div style="display:flex;justify-content:space-between">
+            <span style="color:#6b7280">Subtotale</span>
+            <span>€{order.subtotal.toFixed(2)}</span>
           </div>
-        )}
-        {(order.gift_card_amount_used ?? 0) > 0 && (
-          <div style="display:flex;justify-content:space-between;color:#22c55e">
-            <span>Gift card</span>
-            <span>-€{(order.gift_card_amount_used ?? 0).toFixed(2)}</span>
+          {order.discount_amount > 0 && (
+            <div style="display:flex;justify-content:space-between;color:#22c55e">
+              <span>Sconto</span>
+              <span>-€{order.discount_amount.toFixed(2)}</span>
+            </div>
+          )}
+          {(order.gift_card_amount_used ?? 0) > 0 && (
+            <div style="display:flex;justify-content:space-between;color:#22c55e">
+              <span>Gift card</span>
+              <span>-€{(order.gift_card_amount_used ?? 0).toFixed(2)}</span>
+            </div>
+          )}
+          <div style="display:flex;justify-content:space-between">
+            <span style="color:#6b7280">Spedizione</span>
+            <span>€{order.shipping_cost.toFixed(2)}</span>
           </div>
-        )}
-        <div style="display:flex;justify-content:space-between">
-          <span style="color:#6b7280">Spedizione</span>
-          <span>€{order.shipping_cost.toFixed(2)}</span>
+          <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;border-top:1px solid #e5e7eb;padding-top:8px;margin-top:4px">
+            <span>Totale</span>
+            <span>€{order.total.toFixed(2)}</span>
+          </div>
         </div>
-        <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;border-top:1px solid #e5e7eb;padding-top:8px;margin-top:4px">
-          <span>Totale</span>
-          <span>€{order.total.toFixed(2)}</span>
-        </div>
-      </div>
-    </SectionCard>
+      </SectionCard>
 
-  </div>
+    </div>
+  )}
+
 </AdminLayout>
+
+{isNew && (
+<script define:vars={{ productsJson, contactsJson }}>
+  const products = JSON.parse(productsJson)
+  let rowCount = 0
+
+  function recalc() {
+    let subtotal = 0
+    document.querySelectorAll('.item-row').forEach(row => {
+      const qty = parseFloat(row.querySelector('.item-qty').value) || 0
+      const price = parseFloat(row.querySelector('.item-price').value) || 0
+      const lineEl = row.querySelector('.item-line')
+      const line = qty * price
+      if (lineEl) lineEl.textContent = '€' + line.toFixed(2)
+      subtotal += line
+    })
+    document.getElementById('display_subtotal').textContent = '€' + subtotal.toFixed(2)
+    const discount = parseFloat(document.getElementById('discount_amount').value) || 0
+    const shipping = parseFloat(document.getElementById('shipping_cost').value) || 0
+    const total = Math.max(0, subtotal - discount + shipping)
+    document.getElementById('display_total').textContent = '€' + total.toFixed(2)
+  }
+
+  function updateCount() {
+    document.getElementById('items_count').value = rowCount
+    const empty = document.getElementById('empty_msg')
+    if (empty) empty.style.display = rowCount === 0 ? '' : 'none'
+  }
+
+  function addRow(name, sku, variant, price) {
+    const idx = rowCount++
+    const container = document.getElementById('items_container')
+    const empty = document.getElementById('empty_msg')
+    if (empty) empty.style.display = 'none'
+
+    const row = document.createElement('div')
+    row.className = 'item-row'
+    row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 80px 80px 32px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f3f4f6'
+    row.innerHTML = `
+      <div>
+        <input class="item-name" name="item_${idx}_name" value="${escHtml(name)}" required placeholder="Nome prodotto"
+          style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:5px 8px;font-size:13px;box-sizing:border-box" />
+        <input name="item_${idx}_variant" value="${escHtml(variant)}" placeholder="Variante"
+          style="width:100%;border:1px solid #e5e7eb;border-radius:4px;padding:4px 8px;font-size:12px;margin-top:4px;box-sizing:border-box;color:#6b7280" />
+      </div>
+      <input class="item-sku" name="item_${idx}_sku" value="${escHtml(sku)}" placeholder="SKU"
+        style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:5px 8px;font-size:12px;font-family:monospace;box-sizing:border-box" />
+      <input class="item-qty" name="item_${idx}_qty" type="number" min="1" value="1"
+        oninput="recalc()"
+        style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:5px 8px;font-size:13px;text-align:center;box-sizing:border-box" />
+      <input class="item-price" name="item_${idx}_price" type="number" step="0.01" min="0" value="${price}"
+        oninput="recalc()"
+        style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:5px 8px;font-size:13px;text-align:right;box-sizing:border-box" />
+      <span class="item-line" style="font-size:13px;font-weight:500;text-align:right;color:#111827">€${(price).toFixed(2)}</span>
+      <button type="button" onclick="removeRow(this)"
+        style="background:none;border:none;color:#dc2626;font-size:20px;cursor:pointer;line-height:1;padding:0">×</button>
+    `
+    container.appendChild(row)
+    updateCount()
+    recalc()
+  }
+
+  function removeRow(btn) {
+    btn.closest('.item-row').remove()
+    rowCount = document.querySelectorAll('.item-row').length
+    updateCount()
+    recalc()
+  }
+
+  function escHtml(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+  }
+
+  document.getElementById('add_from_catalog').addEventListener('click', () => {
+    const sel = document.getElementById('catalog_select')
+    const opt = sel.selectedOptions[0]
+    if (!opt || !opt.value) return
+    const p = products.find(p => p.id === opt.value)
+    if (!p) return
+    addRow(p.name, p.variants?.[0]?.sku ?? '', '', p.base_price)
+    sel.value = ''
+  })
+
+  document.getElementById('add_manual').addEventListener('click', () => {
+    addRow('', '', '', 0)
+  })
+
+  // Auto-fill customer name when contact is selected
+  document.getElementById('contact_select').addEventListener('change', (e) => {
+    const sel = e.target
+    const opt = sel.selectedOptions[0]
+    if (!opt || !opt.value) return
+    const text = opt.textContent.replace(/\s*\(.*\)$/, '').trim()
+    const nameField = document.querySelector('[name="customer_name"]')
+    if (nameField && !nameField.value) nameField.value = text
+  })
+
+  window.recalc = recalc
+  window.removeRow = removeRow
+</script>
+)}

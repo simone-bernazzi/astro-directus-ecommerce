@@ -43,7 +43,7 @@ function pipelineBadge(stage: string) {
 }
 
 const [listRes, countRes] = await Promise.all([
-  dFetch(`/items/contacts?fields[]=id,first_name,last_name,email,phone,pipeline_stage,canale_prevalente,date_created&sort[]=-date_created&limit=${PAGE_SIZE}&offset=${offset}`),
+  dFetch(`/items/contacts?fields[]=id,first_name,last_name,email,phone,pipeline_stage,canale_prevalente,date_created&sort[]=-id&limit=${PAGE_SIZE}&offset=${offset}`),
   dFetch('/items/contacts?aggregate[count]=id'),
 ])
 

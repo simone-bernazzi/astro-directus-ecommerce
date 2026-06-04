@@ -29,6 +29,65 @@ let saveError: string | null = null
 
 if (Astro.request.method === 'POST') {
   const formData = await Astro.request.formData()
+  const action = formData.get('_action') ?? 'contact'
+
+  if (action === 'upload_document') {
+    const file = formData.get('file') as File | null
+    if (file && file.size > 0) {
+      const label = (formData.get('label') as string) || file.name
+      const uploadForm = new FormData()
+      uploadForm.append('file', file, file.name)
+      uploadForm.append('title', label)
+      const uploadRes = await fetch(`${directusUrl}/files`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: uploadForm,
+      }).catch(() => null)
+      if (uploadRes?.ok) {
+        const { data: fd } = await uploadRes.json() as { data: { id: string } }
+        await dFetch('/items/contact_documents', {
+          method: 'POST',
+          body: JSON.stringify({ contact_id: id, directus_file_id: fd.id, label }),
+        })
+      }
+    }
+    return Astro.redirect(`/admin/contacts/${id}#documents`)
+  }
+
+  if (action === 'delete_document') {
+    const docId = formData.get('doc_id') as string
+    const fileId = formData.get('file_id') as string
+    if (docId) await dFetch(`/items/contact_documents/${docId}`, { method: 'DELETE' })
+    if (fileId) await dFetch(`/files/${fileId}`, { method: 'DELETE' })
+    return Astro.redirect(`/admin/contacts/${id}#documents`)
+  }
+
+  if (action === 'add_interaction') {
+    const payload = {
+      contact_id: id,
+      type: formData.get('type') ?? 'note',
+      date: formData.get('date') || new Date().toISOString(),
+      subject: formData.get('subject') || null,
+      body: formData.get('body') || null,
+      outcome: formData.get('outcome') || null,
+    }
+    await dFetch('/items/crm_interactions', { method: 'POST', body: JSON.stringify(payload) })
+    return Astro.redirect(`/admin/contacts/${id}#crm`)
+  }
+
+  if (action === 'add_task') {
+    const payload = {
+      contact_id: id,
+      title: formData.get('title'),
+      due_date: formData.get('due_date') || null,
+      status: formData.get('status') ?? 'todo',
+      priority: formData.get('priority') ?? 'medium',
+      notes: formData.get('notes') || null,
+    }
+    await dFetch('/items/crm_tasks', { method: 'POST', body: JSON.stringify(payload) })
+    return Astro.redirect(`/admin/contacts/${id}#tasks`)
+  }
+
   const payload = {
     first_name: formData.get('first_name'),
     last_name: formData.get('last_name'),
@@ -57,19 +116,28 @@ if (Astro.request.method === 'POST') {
   }
 }
 
+type ContactDocument = {
+  id: string
+  label: string | null
+  date_created: string | null
+  directus_file_id: string | null
+}
+
 let contact: Contact | null = null
 let orders: Partial<Order>[] = []
 let interactions: Partial<CrmInteraction>[] = []
 let tasks: Partial<CrmTask>[] = []
 let kpi: Partial<CustomerKpi> | null = null
+let documents: ContactDocument[] = []
 
 if (!isNew) {
-  const [contactRes, ordersRes, interactionsRes, tasksRes, kpiRes] = await Promise.all([
+  const [contactRes, ordersRes, interactionsRes, tasksRes, kpiRes, docsRes] = await Promise.all([
     dFetch(`/items/contacts/${id}?fields[]=*`),
     dFetch(`/items/orders?filter[contact_id][_eq]=${id}&fields[]=id,status,total,date_created,channel&sort[]=-date_created&limit=20`),
     dFetch(`/items/crm_interactions?filter[contact_id][_eq]=${id}&fields[]=id,type,date,subject,body&sort[]=-date&limit=20`),
     dFetch(`/items/crm_tasks?filter[contact_id][_eq]=${id}&fields[]=id,title,due_date,status,priority&sort[]=due_date&limit=20`),
     dFetch(`/items/customer_kpis?filter[contact_id][_eq]=${id}&limit=1`),
+    dFetch(`/items/contact_documents?filter[contact_id][_eq]=${id}&fields[]=id,label,date_created,directus_file_id&sort[]=-date_created&limit=50`),
   ])
   if (!contactRes?.data) return Astro.redirect('/admin/contacts')
   contact = contactRes.data as Contact
@@ -77,6 +145,7 @@ if (!isNew) {
   interactions = (interactionsRes?.data ?? []) as Partial<CrmInteraction>[]
   tasks = (tasksRes?.data ?? []) as Partial<CrmTask>[]
   kpi = (kpiRes?.data?.[0] ?? null) as Partial<CustomerKpi> | null
+  documents = (docsRes?.data ?? []) as ContactDocument[]
 }
 
 const saved = Astro.url.searchParams.get('saved') === '1'
@@ -292,49 +361,173 @@ function toDateInput(iso: string | null | undefined): string {
         }
       </SectionCard>
 
+      <div id="crm">
       <SectionCard title={`Note CRM (${interactions.length})`}>
-        {interactions.length === 0
-          ? <p style="color:#9ca3af;font-size:14px">Nessuna interazione.</p>
-          : (
-            <div style="display:flex;flex-direction:column;gap:8px">
-              {interactions.map(i => (
-                <div style="border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px">
-                  <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
-                    <span style="font-size:12px;font-weight:600;color:#374151;text-transform:uppercase">{i.type}</span>
-                    <span style="color:#9ca3af;font-size:12px">{fmtDate(i.date)}</span>
-                    {i.subject && <span style="font-size:13px;color:#111827;font-weight:500">{i.subject}</span>}
-                  </div>
-                  <p style="font-size:13px;color:#6b7280;margin:0">{i.body}</p>
+        {interactions.length > 0 && (
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+            {interactions.map(i => (
+              <div style="border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px">
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+                  <span style="font-size:12px;font-weight:600;color:#374151;text-transform:uppercase">{i.type}</span>
+                  <span style="color:#9ca3af;font-size:12px">{fmtDate(i.date)}</span>
+                  {i.subject && <span style="font-size:13px;color:#111827;font-weight:500">{i.subject}</span>}
                 </div>
-              ))}
+                <p style="font-size:13px;color:#6b7280;margin:0">{i.body}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        <form method="POST" style="border-top:1px solid #f3f4f6;padding-top:14px">
+          <input type="hidden" name="_action" value="add_interaction" />
+          <p style="font-size:12px;font-weight:600;color:#6b7280;margin:0 0 10px;text-transform:uppercase">Nuova interazione</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+            <div>
+              <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">Tipo</label>
+              <select name="type" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;background:#fff;color:#111827;box-sizing:border-box">
+                <option value="note">Nota</option>
+                <option value="call">Chiamata</option>
+                <option value="email">Email</option>
+                <option value="meeting">Incontro</option>
+                <option value="whatsapp">WhatsApp</option>
+              </select>
             </div>
-          )
-        }
+            <div>
+              <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">Data</label>
+              <input name="date" type="date" value={new Date().toISOString().slice(0,10)}
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;color:#111827;box-sizing:border-box" />
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">Oggetto</label>
+              <input name="subject" type="text" placeholder="es. Prima visita"
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;color:#111827;box-sizing:border-box" />
+            </div>
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">Nota</label>
+            <textarea name="body" rows={2} placeholder="Descrizione dell'interazione…"
+              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;color:#111827;box-sizing:border-box;resize:vertical"></textarea>
+          </div>
+          <div style="display:flex;justify-content:flex-end">
+            <button type="submit" style="background:#111827;color:#fff;border:none;padding:6px 18px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer">
+              + Aggiungi
+            </button>
+          </div>
+        </form>
       </SectionCard>
+      </div>
 
+      <div id="tasks">
       <SectionCard title={`Task (${tasks.length})`}>
-        {tasks.length === 0
-          ? <p style="color:#9ca3af;font-size:14px">Nessun task.</p>
-          : (
-            <div style="display:flex;flex-direction:column;gap:6px">
-              {tasks.map(t => (
-                <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6">
-                  <span style={`font-size:11px;font-weight:700;${TASK_PRIORITY_COLORS[t.priority ?? ''] ?? 'color:#6b7280'}`}>
-                    {(t.priority ?? '').toUpperCase()}
-                  </span>
-                  <span style="flex:1;font-size:14px;color:#111827">{t.title}</span>
-                  <span style="font-size:12px;color:#6b7280">{fmtDate(t.due_date)}</span>
-                  <span style={`font-size:12px;padding:1px 6px;border-radius:8px;${
-                    t.status === 'done' ? 'background:#f0fdf4;color:#22c55e' :
-                    t.status === 'in_progress' ? 'background:#eff6ff;color:#3b82f6' :
-                    'background:#f3f4f6;color:#6b7280'
-                  }`}>{t.status}</span>
-                </div>
-              ))}
+        {tasks.length > 0 && (
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
+            {tasks.map(t => (
+              <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6">
+                <span style={`font-size:11px;font-weight:700;${TASK_PRIORITY_COLORS[t.priority ?? ''] ?? 'color:#6b7280'}`}>
+                  {(t.priority ?? '').toUpperCase()}
+                </span>
+                <span style="flex:1;font-size:14px;color:#111827">{t.title}</span>
+                <span style="font-size:12px;color:#6b7280">{fmtDate(t.due_date)}</span>
+                <span style={`font-size:12px;padding:1px 6px;border-radius:8px;${
+                  t.status === 'done' ? 'background:#f0fdf4;color:#22c55e' :
+                  t.status === 'in_progress' ? 'background:#eff6ff;color:#3b82f6' :
+                  'background:#f3f4f6;color:#6b7280'
+                }`}>{t.status}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <form method="POST" style="border-top:1px solid #f3f4f6;padding-top:14px">
+          <input type="hidden" name="_action" value="add_task" />
+          <p style="font-size:12px;font-weight:600;color:#6b7280;margin:0 0 10px;text-transform:uppercase">Nuovo task</p>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+            <div>
+              <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">Titolo *</label>
+              <input name="title" required type="text" placeholder="es. Richiama cliente"
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;color:#111827;box-sizing:border-box" />
             </div>
-          )
-        }
+            <div>
+              <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">Scadenza</label>
+              <input name="due_date" type="date"
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;color:#111827;box-sizing:border-box" />
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">Priorità</label>
+              <select name="priority" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;background:#fff;color:#111827;box-sizing:border-box">
+                <option value="low">Bassa</option>
+                <option value="medium" selected>Media</option>
+                <option value="high">Alta</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">Stato</label>
+              <select name="status" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;background:#fff;color:#111827;box-sizing:border-box">
+                <option value="todo" selected>Da fare</option>
+                <option value="in_progress">In corso</option>
+                <option value="done">Fatto</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end">
+            <button type="submit" style="background:#111827;color:#fff;border:none;padding:6px 18px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer">
+              + Aggiungi
+            </button>
+          </div>
+        </form>
       </SectionCard>
+      </div>
+
+      <div id="documents">
+      <SectionCard title={`Documenti (${documents.length})`}>
+        {documents.length > 0 && (
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
+            {documents.map(doc => (
+              <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #e5e7eb;border-radius:6px">
+                <span style="font-size:18px">📄</span>
+                <span style="flex:1;font-size:14px;color:#111827;font-weight:500">{doc.label ?? 'Documento'}</span>
+                <span style="font-size:12px;color:#9ca3af">{fmtDate(doc.date_created)}</span>
+                {doc.directus_file_id && (
+                  <a
+                    href={`${directusUrl}/assets/${doc.directus_file_id}?access_token=${token}`}
+                    target="_blank"
+                    style="font-size:12px;color:#3b82f6;text-decoration:none;padding:3px 10px;border:1px solid #bfdbfe;border-radius:4px"
+                  >Apri</a>
+                )}
+                <form method="POST" style="margin:0">
+                  <input type="hidden" name="_action" value="delete_document" />
+                  <input type="hidden" name="doc_id" value={doc.id} />
+                  <input type="hidden" name="file_id" value={doc.directus_file_id ?? ''} />
+                  <button type="submit"
+                    onclick="return confirm('Eliminare questo documento?')"
+                    style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:18px;line-height:1;padding:2px 4px"
+                    title="Elimina">×</button>
+                </form>
+              </div>
+            ))}
+          </div>
+        )}
+        <form method="POST" enctype="multipart/form-data" style="border-top:1px solid #f3f4f6;padding-top:14px">
+          <input type="hidden" name="_action" value="upload_document" />
+          <p style="font-size:12px;font-weight:600;color:#6b7280;margin:0 0 10px;text-transform:uppercase">Carica documento</p>
+          <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px;margin-bottom:10px">
+            <div>
+              <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">Etichetta</label>
+              <input name="label" type="text" placeholder="es. Carta d'identità"
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px;color:#111827;box-sizing:border-box" />
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px">File *</label>
+              <input name="file" type="file" required
+                style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:5px 10px;font-size:13px;color:#111827;background:#fff;box-sizing:border-box" />
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end">
+            <button type="submit" style="background:#111827;color:#fff;border:none;padding:6px 18px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer">
+              Carica
+            </button>
+          </div>
+        </form>
+      </SectionCard>
+      </div>
 
     </>}
 

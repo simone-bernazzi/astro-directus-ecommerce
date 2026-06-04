@@ -25,13 +25,12 @@ const page = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1'))
 const offset = (page - 1) * PAGE_SIZE
 
 const [listRes, countRes] = await Promise.all([
-  dFetch(`/items/products?fields[]=id,name,slug,base_price,status,type,is_active,category_id.name,variants.sku&sort[]=sort_order&limit=${PAGE_SIZE}&offset=${offset}`),
+  dFetch(`/items/products?fields[]=id,name,slug,base_price,status,type,is_active,category_id&sort[]=-id&limit=${PAGE_SIZE}&offset=${offset}`),
   dFetch('/items/products?aggregate[count]=id'),
 ])
 
 type ProductRow = Pick<Product, 'id' | 'name' | 'slug' | 'base_price' | 'status' | 'type' | 'is_active'> & {
-  category_id: { name: string } | null
-  variants: Array<{ sku: string }>
+  category_id: string | null
 }
 
 const products = (listRes?.data ?? []) as ProductRow[]
@@ -44,26 +43,9 @@ const columns: Column[] = [
     format: (v) => `<span style="font-weight:500;color:#111827">${String(v ?? '—')}</span>`,
   },
   {
-    key: 'variants',
-    label: 'SKU',
-    format: (v) => {
-      const variants = v as Array<{ sku: string }> | null
-      const sku = variants?.[0]?.sku ?? '—'
-      return `<span style="font-family:monospace;font-size:12px;color:#6b7280">${sku}</span>`
-    },
-  },
-  {
     key: 'base_price',
     label: 'Prezzo',
     format: (v) => `<span style="font-weight:500">€${Number(v ?? 0).toFixed(2)}</span>`,
-  },
-  {
-    key: 'category_id',
-    label: 'Categoria',
-    format: (v) => {
-      const cat = v as { name: string } | null
-      return `<span style="color:#6b7280;font-size:13px">${cat?.name ?? '—'}</span>`
-    },
   },
   {
     key: 'type',

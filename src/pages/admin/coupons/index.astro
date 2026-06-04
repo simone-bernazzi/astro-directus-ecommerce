@@ -25,7 +25,7 @@ const page = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1'))
 const offset = (page - 1) * PAGE_SIZE
 
 const [listRes, countRes] = await Promise.all([
-  dFetch(`/items/coupons?fields[]=id,code,type,value,expires_at,used_count,max_uses,is_active&sort[]=-date_created&limit=${PAGE_SIZE}&offset=${offset}`),
+  dFetch(`/items/coupons?fields[]=id,code,type,value,expires_at,used_count,max_uses,is_active&sort[]=-id&limit=${PAGE_SIZE}&offset=${offset}`),
   dFetch('/items/coupons?aggregate[count]=id'),
 ])
 

@@ -86,6 +86,9 @@ const columns: Column[] = [
 ---
 
 <AdminLayout title="Ordini" active="orders">
+  <Fragment slot="topbar-actions">
+    <a href="/admin/orders/new" style="background:#111827;color:#fff;text-decoration:none;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:500">+ Nuovo ordine offline</a>
+  </Fragment>
   <DataTable
     columns={columns}
     rows={orders as unknown as Record<string, unknown>[]}

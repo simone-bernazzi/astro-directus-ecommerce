@@ -1,8 +1,27 @@
 // scripts/setup-collections.mjs
 // Crea tutte le collezioni e-commerce su Directus
-// Usage: DIRECTUS_TOKEN=xxx node scripts/setup-collections.mjs
+// Usage: node scripts/setup-collections.mjs  (legge .env in automatico)
 
 import { createDirectus, rest, staticToken, createCollection, createField, createRelation } from '@directus/sdk'
+import { readFileSync } from 'fs'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
+
+// Carica .env dalla root del progetto
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const envPath = resolve(__dirname, '../.env')
+try {
+  const lines = readFileSync(envPath, 'utf-8').split('\n')
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const idx = trimmed.indexOf('=')
+    if (idx === -1) continue
+    const key = trimmed.slice(0, idx).trim()
+    const val = trimmed.slice(idx + 1).trim().replace(/^(['"])(.*)\1$/, '$2')
+    if (key && !(key in process.env)) process.env[key] = val
+  }
+} catch { /* .env non presente, usa variabili d'ambiente esistenti */ }
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL ?? 'http://localhost:8055'
 const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN
@@ -22,7 +41,7 @@ async function safe(fn, label) {
     console.log(`  ✓ ${label}`)
   } catch (e) {
     const msg = e?.errors?.[0]?.message ?? e?.message ?? String(e)
-    if (msg.includes('already exists') || msg.includes('RECORD_NOT_UNIQUE') || msg.includes('duplicate')) {
+    if (msg.includes('already exists') || msg.includes('RECORD_NOT_UNIQUE') || msg.includes('duplicate') || msg.includes('already has an associated relationship')) {
       console.log(`  · ${label} (già presente)`)
     } else {
       console.error(`  ✗ ${label}: ${msg}`)
@@ -89,6 +108,8 @@ async function main() {
   // CRM fields
   await field('products', 'is_ecommerce', 'boolean', { default_value: false }, { interface: 'boolean', note: 'Se true, il prodotto è pubblicato sul sito e-commerce' })
   await field('products', 'is_archived', 'boolean', { default_value: false }, { interface: 'boolean', note: 'Soft delete dal catalogo' })
+  await field('products', 'date_created', 'timestamp', { is_nullable: true }, { interface: 'datetime', readonly: true, hidden: true, special: ['date-created'] })
+  await field('products', 'date_updated', 'timestamp', { is_nullable: true }, { interface: 'datetime', readonly: true, hidden: true, special: ['date-updated'] })
 
   // ── product_variants ──────────────────────────────────────────────────────
   await collection('product_variants', 'tune', '{{name}} ({{sku}})')
@@ -159,6 +180,7 @@ async function main() {
   await field('coupons', 'stripe_coupon_id', 'string', { is_nullable: true }, { interface: 'input' })
   await field('coupons', 'is_active', 'boolean', { default_value: true }, { interface: 'boolean' })
   await field('coupons', 'description', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('coupons', 'date_created', 'timestamp', { is_nullable: true }, { interface: 'datetime', readonly: true, hidden: true, special: ['date-created'] })
 
   // ── gift_cards ────────────────────────────────────────────────────────────
   await collection('gift_cards', 'card_giftcard', '{{code}} — {{remaining_value}}€')
@@ -259,6 +281,13 @@ async function main() {
   await field('site_settings', 'nav_links', 'json', { is_nullable: true }, { interface: 'input-code', options: { language: 'json' } })
   await field('site_settings', 'social', 'json', { is_nullable: true }, { interface: 'input-code', options: { language: 'json' } })
 
+  // ── contact_documents ────────────────────────────────────────────────────
+  await collection('contact_documents', 'description', '{{label}}')
+  await field('contact_documents', 'contact_id', 'integer', { is_nullable: false }, { interface: 'input', hidden: true })
+  await field('contact_documents', 'directus_file_id', 'uuid', { is_nullable: true }, { interface: 'file', note: 'FK → directus_files' })
+  await field('contact_documents', 'label', 'string', { is_nullable: true }, { interface: 'input' })
+  await field('contact_documents', 'date_created', 'timestamp', { is_nullable: true }, { interface: 'datetime', readonly: true, hidden: true, special: ['date-created'] })
+
   // ── contacts (CRM) ───────────────────────────────────────────────────────
   await collection('contacts', 'people', '{{first_name}} {{last_name}}')
   await field('contacts', 'first_name', 'string', { is_nullable: false }, { interface: 'input', required: true })
@@ -279,6 +308,8 @@ async function main() {
   await field('contacts', 'shipping_addresses', 'json', { is_nullable: true }, { interface: 'input-code', options: { language: 'json' } })
   await field('contacts', 'default_shipping_address', 'json', { is_nullable: true }, { interface: 'input-code', options: { language: 'json' } })
   await field('contacts', 'tags', 'json', { is_nullable: true }, { interface: 'tags' })
+  await field('contacts', 'date_created', 'timestamp', { is_nullable: true }, { interface: 'datetime', readonly: true, hidden: true, special: ['date-created'] })
+  await field('contacts', 'date_updated', 'timestamp', { is_nullable: true }, { interface: 'datetime', readonly: true, hidden: true, special: ['date-updated'] })
 
   // ── crm_interactions ─────────────────────────────────────────────────────
   await collection('crm_interactions', 'forum', '{{type}} — {{date}}')
@@ -391,6 +422,22 @@ async function main() {
     related_collection: 'categories',
     schema: {},
   })), 'relation: posts.category → categories')
+
+  await safe(() => client.request(createRelation({
+    collection: 'contact_documents',
+    field: 'contact_id',
+    related_collection: 'contacts',
+    meta: { many_collection: 'contact_documents', many_field: 'contact_id', one_collection: 'contacts' },
+    schema: { on_delete: 'CASCADE' },
+  })), 'relation: contact_documents.contact_id → contacts')
+
+  await safe(() => client.request(createRelation({
+    collection: 'contact_documents',
+    field: 'directus_file_id',
+    related_collection: 'directus_files',
+    meta: { many_collection: 'contact_documents', many_field: 'directus_file_id', one_collection: 'directus_files' },
+    schema: { on_delete: 'SET NULL' },
+  })), 'relation: contact_documents.directus_file_id → directus_files')
 
   await safe(() => client.request(createRelation({
     collection: 'crm_interactions',
